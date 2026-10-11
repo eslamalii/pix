@@ -1,0 +1,45 @@
+Pix is licensed in two parts: its code is MIT licensed, and its character is not.
+
+
+THE CHARACTER — all rights reserved
+
+Copyright (c) 2026 Eslam Ali. All rights reserved.
+
+The MIT License below does not cover the name "Pix", the Pix character or
+its world: the robot, its Hats and Emotes, its Room and Props, and the app
+icon. That means everything in Art/, Skins/, media/ and design/, and the pixel
+art drawn in scripts/art/.
+
+You may build, run and share unmodified copies of Pix with them, and you may
+change them, or draw Skins, for your own copy of Pix.
+
+You may not share changed copies of them, and you may not share Skins. You
+may not use them, or anything closely resembling them, in any other app, in a
+modified version of Pix that you share, or anywhere else outside Pix. A
+modified version of Pix that you share must have its own name and its own
+character.
+
+
+THE CODE — MIT License
+
+Everything else in this repository.
+
+Copyright (c) 2026 Eslam Ali
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

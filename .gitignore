@@ -1,0 +1,18 @@
+.build/
+build/
+.DS_Store
+docs/
+design/
+
+# AI tooling, kept local
+.claude/
+CLAUDE.md
+AGENTS.md
+.scratch/
+
+# Xcode / SwiftPM, if you ever open the package in Xcode
+.swiftpm/
+xcuserdata/
+
+# Secrets
+.env*

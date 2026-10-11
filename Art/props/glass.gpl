@@ -1,0 +1,37 @@
+GIMP Palette
+Name: Pix Glass
+Columns: 6
+#
+# The Glass palette for drawing Props. Pixelorama (and GIMP, Aseprite) can import this file.
+#
+  0   0   0	black (the bar)
+ 36  36  43	deep
+ 44  44  53	floor line
+ 52  52  62	silhouette
+ 74  74  86	steel
+ 90  90 104	rim light
+107 107 120	gray
+ 61 107 143	blue book
+138  90  68	brown book
+ 92  74 138	purple book
+ 61 107  79	dark leaf
+ 92 154 110	leaf
+ 46  46  69	cushion
+ 61  61  92	cushion top
+216 216 224	mug white
+ 90  58  40	coffee
+ 16  16  24	picture background
+  6   8  14	screen
+ 44  62  92	picture hill
+ 58  79 115	picture sky
+ 85  85 106	lamp shade top
+ 62  62  74	lamp shade rim
+ 28  28  34	record
+ 58  54  82	couch fabric
+ 85  80 122	couch light
+ 42  39  64	couch shadow
+227 179  65	lamp amber
+236 238 243	Pix white
+180 186 200	Pix shade
+255 255 255	highlight
+ 94 230 255	Pix cyan (sparingly)
