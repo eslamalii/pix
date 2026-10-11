@@ -216,7 +216,7 @@ Rules the renderer relies on:
 
 ## Versions and license
 
-[Semantic Versioning](https://semver.org/). The version lives in `VERSION`; the build number is the git commit count (or `PIX_BUILD` for a source tarball). Each release gets a [`CHANGELOG.md`](CHANGELOG.md) entry and a `vX.Y.Z` tag.
+[Semantic Versioning](https://semver.org/). The version lives in `VERSION`; the build number is the git commit count (or `PIX_BUILD` for a source tarball). Each release gets a [`CHANGELOG.md`](CHANGELOG.md) entry and a `vX.Y.Z` tag. Pushing the tag releases it: GitHub Actions checks the tag matches `VERSION`, runs the tests, publishes the zip to Releases with the changelog entry as its notes, and bumps the Homebrew formula.
 
 The code is MIT licensed. The name Pix and its character (the robot, its Hats, Emotes and Room, and the app icon) are not: you can build, run and share Pix with them, and change them or draw Skins for your own copy, but you can't share changed art or Skins, and a fork you share needs its own name and character. See [`LICENSE`](LICENSE).
 

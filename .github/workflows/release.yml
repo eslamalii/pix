@@ -1,0 +1,65 @@
+# Pushing a vX.Y.Z tag: checks it matches VERSION and has a CHANGELOG entry, runs the tests, publishes the
+# GitHub Release with the zip, then bumps the formula in eslamalii/homebrew-tap (when the TAP_TOKEN secret is set).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    shell: bash # -eo pipefail
+
+jobs:
+  release:
+    runs-on: macos-latest
+    env:
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # the build number is the commit count
+
+      - name: Tag matches VERSION
+        run: |
+          echo "VERSION=$(cat VERSION)" >> "$GITHUB_ENV"
+          [ "$GITHUB_REF_NAME" = "v$(cat VERSION)" ] || { echo "::error::Tag $GITHUB_REF_NAME, but VERSION says $(cat VERSION)"; exit 1; }
+
+      - name: Release notes from CHANGELOG
+        run: |
+          awk -v v="$VERSION" '/^## \[/ { p = index($0, "[" v "]"); next } p' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          [ -s "$RUNNER_TEMP/notes.md" ] || { echo "::error::No CHANGELOG.md entry for $VERSION"; exit 1; }
+
+      - run: scripts/test.sh
+      - run: scripts/release.sh
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: | # safe to re-run: an existing release just gets the zip replaced
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --title "Pix $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+          gh release upload "$GITHUB_REF_NAME" "build/Pix-$VERSION.zip" --clobber
+
+      - name: Bump the Homebrew formula
+        if: env.TAP_TOKEN != ''
+        run: |
+          BUILD="$(git rev-list --count HEAD)"
+          SHA="$(curl -sfL "https://github.com/$GITHUB_REPOSITORY/archive/refs/tags/$GITHUB_REF_NAME.tar.gz" | shasum -a 256 | cut -d' ' -f1)"
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/eslamalii/homebrew-tap.git" "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
+          sed -i '' -E \
+            -e "s|archive/refs/tags/v[^/]+\.tar\.gz|archive/refs/tags/$GITHUB_REF_NAME.tar.gz|" \
+            -e "s|sha256 \"[0-9a-f]{64}\"|sha256 \"$SHA\"|" \
+            -e "s|(PIX_BUILD\"\]) = \"[0-9]+\"|\1 = \"$BUILD\"|" \
+            Formula/pix.rb
+          if git diff --quiet; then
+            grep -qF "refs/tags/$GITHUB_REF_NAME.tar.gz" Formula/pix.rb && { echo "Formula already at $GITHUB_REF_NAME"; exit 0; }
+            echo "::error::Formula/pix.rb didn't change"; exit 1
+          fi
+          git diff
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -qam "pix $VERSION"
+          git push

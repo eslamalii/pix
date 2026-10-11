@@ -1,0 +1,27 @@
+# Every push to main and every pull request: the tests, then the same release bundle Homebrew builds.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-and-build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: swift --version
+      - name: CHANGELOG has an entry for VERSION
+        run: grep -qF "## [$(cat VERSION)]" CHANGELOG.md || { echo "::error::No CHANGELOG.md entry for $(cat VERSION)"; exit 1; }
+      - run: scripts/test.sh
+      - run: scripts/build-app.sh --bundle
+      - name: The bundle has the app and its art
+        run: test -x build/Pix.app/Contents/MacOS/Pix && test -f build/Pix.app/Contents/Resources/Art/pix-idle.png
