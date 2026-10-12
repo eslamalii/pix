@@ -1,0 +1,52 @@
+name: Bug report
+description: Report something that went wrong or broke
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting an issue! Pix relies on macOS Touch Bar features, so your hardware and macOS version help pin down what happened.
+  - type: input
+    id: mac-model
+    attributes:
+      label: Mac model
+      description: e.g. 13" MacBook Pro (2020, Four Thunderbolt 3 ports) or 16" MacBook Pro (2019)
+      placeholder: e.g. 13-inch MacBook Pro (M1, 2020)
+    validations:
+      required: true
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: e.g. macOS 14.6 Sonoma, macOS 15.0 Sequoia
+      placeholder: e.g. macOS 14.5 (23F79)
+    validations:
+      required: true
+  - type: input
+    id: pix-version
+    attributes:
+      label: Pix version
+      description: Check the About panel or `brew info pix`
+      placeholder: e.g. 1.1.0
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect to happen, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to reproduce
+      description: How can we see this happen?
+      placeholder: |
+        1. Open Pix
+        2. ...
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional context or logs
+      description: Any console logs, screenshots, or other notes.

@@ -122,7 +122,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     private static func showAbout() {
-        let link = "https://github.com/eslamalii/pix"
+        let link = "https://meetpix.app"
         let credits = NSAttributedString(string: "A tiny pixel robot that lives on your Touch Bar.\n\(link)",
                                          attributes: [.font: NSFont.systemFont(ofSize: 11), .link: URL(string: link)!])
         NSApp.activate()

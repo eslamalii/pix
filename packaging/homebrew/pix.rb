@@ -2,7 +2,7 @@
 # prints the url, sha256 and build number to paste in.
 class Pix < Formula
   desc "Tiny pixel robot that lives on your MacBook Pro's Touch Bar"
-  homepage "https://github.com/eslamalii/pix"
+  homepage "https://meetpix.app"
   url "https://github.com/eslamalii/pix/archive/refs/tags/v1.0.0.tar.gz"
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license :cannot_represent # MIT code, all-rights-reserved character: see LICENSE
