@@ -141,7 +141,7 @@ Make your own look without recompiling:
 2. Drop in your custom pixel art (`pix-face.png`, `pix-walk.png`, etc.).
 3. Pick your skin from the menu.
 
-Sample skins (**Rose**, **Midnight**, and **Mint**) are included in `Skins/` (`./scripts/install-skins.sh`). Share skins with the community in [GitHub Discussions](https://github.com/eslamalii/pix/discussions)!
+Sample skins (**Rose**, **Midnight**, and **Mint**) are included in `Skins/` (`./scripts/install-skins.sh`).
 
 ---
 
