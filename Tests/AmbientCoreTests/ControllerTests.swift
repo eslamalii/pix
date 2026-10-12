@@ -558,6 +558,37 @@ func aMusicAppInFrontSendsPixToTheMusicCorner(app: String) {
     #expect(c.bar == .defaultBar)
 }
 
+/// One way an event makes a Moment: events at minutes after noon, the last one's Moment being the one checked.
+struct MomentMaker: Sendable, CustomTestStringConvertible {
+    var testDescription: String
+    var events: [(event: Event, minute: Int)]
+    init(_ name: String, _ events: [(event: Event, minute: Int)]) { (testDescription, self.events) = (name, events) }
+}
+
+let momentMakers = [
+    MomentMaker("Greeting at start", [(.appStarted, 0)]),
+    MomentMaker("Greeting after a long absence", [(.screenSlept, 1), (.screenWoke, 20)]),
+    MomentMaker("Reaction to a tap", [(.pixTapped, 1)]),
+    MomentMaker("Pet", [(.pixPetted, 1)]),
+    MomentMaker("Charging", [(.powerChanged(charger), 1)]),
+    MomentMaker("Focus started", [(.startFocus, 1)]),
+    MomentMaker("Focus done", [(.startFocus, 1), (.clockTick, 26)]),
+    MomentMaker("Break", [(.clockTick, 45)]),
+    MomentMaker("Overheated", [(.thermalChanged(hot: true), 1)]),
+    MomentMaker("Agent asks", [(.agent(.waiting), 1)]),
+    MomentMaker("Agent done", [(.agent(.done), 1)]),
+    MomentMaker("Agent failed", [(.agent(.failed), 1)]),
+]
+
+/// Shown, each one plays its Moment; hidden, none does.
+@Test(arguments: momentMakers, [false, true])
+func aMomentPlaysOnlyWhilePixIsShown(maker: MomentMaker, hidden: Bool) {
+    var c = Controller(selfBundleID: selfID, frontApp: "com.microsoft.VSCode", power: battery, at: at(12), timeZone: utc, hidden: hidden)
+    let played = maker.events.map { c.handle($0.event, at: at(12, $0.minute)) }
+    #expect((played.last! == nil) == hidden)
+    #expect((c.bar == .defaultBar) == hidden)
+}
+
 @Test(arguments: [Event.showPix, .sparklesTapped])
 func showPixAndSparklesBringAHiddenPixBack(event: Event) {
     var c = launched(in: "com.microsoft.VSCode")
