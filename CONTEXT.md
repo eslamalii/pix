@@ -67,6 +67,10 @@ _Avoid_: response, interaction, animation
 Anything the Character does once, in answer to the user or their day, and then goes back to what it was doing: a Reaction, a Break or a Greeting. Arriving at a Spot (sitting down at the desk, dropping the needle in the music corner) is not a Moment; it's part of going there.
 _Avoid_: event, action, one-shot
 
+**Look**:
+How the Character appears: for a Moment (its body, Emote, Caption and what plays alongside) or at rest at a Spot (its body, how fast it plays, whether a screen lights its face, the particles off its head). Looks are drawn only from the art contract.
+_Avoid_: animation, sprite (those are the art)
+
 **Greeting**:
 The Moment when the Character notices the user arriving: when it starts up, or when the user is back after being away for a while.
 _Avoid_: welcome, hello, wake-up

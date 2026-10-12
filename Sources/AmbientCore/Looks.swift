@@ -25,6 +25,28 @@ public struct Caption: Equatable, Sendable {
     public init(emote: String, word: String) { (self.emote, self.word) = (emote, word) }
 }
 
+/// How Pix looks at rest at a Spot: its body (nil at the window, where it strolls), how fast it plays, whether a screen
+/// lights its face, and the particles drifting off its head.
+public struct RestLook: Equatable, Sendable {
+    public var body: String?
+    public var speedUp: Double
+    public var faceGlows: Bool
+    public var particles: [String]
+
+    public init(spot: Spot, mood: Mood, agentWorking: Bool = false, hot: Bool = false) {
+        body = switch spot {
+        case .desk: "type"
+        case .call: "call"
+        case .couch: "couch"
+        case .musicCorner: mood == .sleepy ? "idle" : "bob"  // dozes with the music on
+        case .window: nil
+        }
+        speedUp = spot == .desk && agentWorking ? 2 : 1  // typing along with the user's Agents
+        faceGlows = spot == .desk || spot == .call || spot == .couch
+        particles = (mood == .sleepy ? ["zzz"] : []) + (hot ? ["steam"] : [])  // the Mac runs hot
+    }
+}
+
 extension Moment {
     public var look: MomentLook {
         switch self {

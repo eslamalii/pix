@@ -137,7 +137,7 @@ public struct Routine {
 
         case .fidgetDue:
             guard running, let room, case .idle = current, room.mood != .focused else { return nil }
-            let choices = fidgets(for: room)
+            let choices = Self.fidgets(for: room)
             guard !choices.isEmpty else { return nil }
             let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
             return choice == "water" ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
@@ -164,7 +164,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        let fidgetIn = room.mood == .focused || fidgets(for: room).isEmpty ? nil : 30 + random() * 60
+        let fidgetIn = room.mood == .focused || Self.fidgets(for: room).isEmpty ? nil : 30 + random() * 60
         return start(.idle(room.spot, room.mood, fidgetIn: fidgetIn))
     }
 
@@ -183,7 +183,7 @@ public struct Routine {
     }
 
     /// The Fidgets that fit where Pix is and how it feels. "water" is the plant Errand.
-    private func fidgets(for room: Room) -> [String] {
+    static func fidgets(for room: Room) -> [String] {
         if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : ["nod"] }  // asleep on the couch, awake on a call: none
         return switch room.spot {
         case .desk: ["sip", "stretch", "lookaround", "water"]
