@@ -100,8 +100,8 @@ Something the Character wears on its head, earned by time spent with the user (d
 _Avoid_: cosmetic, item, reward, unlock
 
 **Agent**:
-The user's AI coding agent, which can tell the Character, through hooks the user sets up, that it's working, waiting for the user, or done. The Character types along while it works and tells the user when it needs them or has finished; it never watches the agent itself.
-_Avoid_: assistant (the Character is never one), bot, AI
+One conversation with the user's AI coding agent: two Claude Code windows are two Agents, and the tool itself (Claude Code, Cursor, Codex) is only the Agent's tool. Through hooks the user sets up, an Agent tells the Character that it's working, waiting for the user, done, or failed, known only by an anonymous ID it sends along; messages without an ID all count as one nameless Agent. The Character types along while any Agent works and tells the user when one needs them, has finished, or has failed; it never watches the Agents itself, and forgets an Agent once it's done, failed, or quiet for 10 minutes.
+_Avoid_: session (that's the Session), assistant (the Character is never one), bot, AI
 
 **Connection**:
 The feeling that the Character lives in the laptop and notices the user. It comes from the Character's behavior, not from words. This is what Pix is for.

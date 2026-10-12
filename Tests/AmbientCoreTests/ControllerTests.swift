@@ -804,14 +804,33 @@ func agentRoom(_ spot: Spot, _ activity: Activity, _ mood: Mood = .content) -> B
     .room(Room(spot: spot, activity: activity, mood: mood, fps: 12, agentWorking: true))
 }
 
-@Test(arguments: [("pix://agent/working", AgentState.working), ("pix://agent/waiting", .waiting), ("PIX://Agent/Done", .done)])
+@Test(arguments: [("pix://agent/working", AgentState.working), ("pix://agent/waiting", .waiting), ("PIX://Agent/Done", .done),
+                   ("pix://agent/failed", .failed)])
 func agentLinksNameTheState(link: String, state: AgentState) {
-    #expect(AgentState(url: URL(string: link)!) == state)
+    #expect(AgentReport(url: URL(string: link)!) == AgentReport(state: state, agent: nil))
 }
 
-@Test(arguments: ["pix://agent/sleeping", "pix://agent", "pix://agent/done/extra", "pix://focus/done", "https://agent/done"])
+@Test(arguments: [
+    ("pix://agent/working?session=3f2a9c1e-77b0-4d1e-9a51-0c2b8e6f4d10", "3f2a9c1e-77b0-4d1e-9a51-0c2b8e6f4d10"),
+    ("pix://agent/done?other=1&session=thread_42.b", "thread_42.b"),
+    ("pix://agent/waiting?session=w-1", "w-1"),
+    ("pix://agent/failed?session=f-1", "f-1"),
+    ("pix://agent/done?session=", nil),  // empty: no ID, the nameless Agent
+])
+func anAgentLinkCanNameItsAgent(link: String, agent: String?) {
+    #expect(AgentReport(url: URL(string: link)!)?.agent == agent)
+}
+
+@Test(arguments: ["pix://agent/sleeping", "pix://agent", "pix://agent/done/extra", "pix://focus/done", "https://agent/done",
+                  "pix://agent/done?session=has%20space", "pix://agent/done?session=a/b",
+                  "pix://agent/done?session=" + String(repeating: "a", count: 129)])
 func anyOtherLinkIsIgnored(link: String) {
-    #expect(AgentState(url: URL(string: link)!) == nil)
+    #expect(AgentReport(url: URL(string: link)!) == nil)
+}
+
+@Test func anAgentIDCanBe128CharactersLong() {
+    let id = String(repeating: "a", count: 128)
+    #expect(AgentReport(url: URL(string: "pix://agent/working?session=" + id)!)?.agent == id)
 }
 
 @Test func whileTheAgentWorksPixTypesAlongAtTheDeskThenCheersWhenItsDone() {
@@ -840,6 +859,71 @@ func anyOtherLinkIsIgnored(link: String) {
     c.handle(.clockTick, at: at(12, 19))
     #expect(c.bar == agentRoom(.desk, .browsing))
     c.handle(.clockTick, at: at(12, 20))
+    #expect(c.bar == room(.window, .browsing))
+}
+
+@Test func whenOneOfTwoAgentsFinishesPixCheersAndKeepsTypingForTheOther() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.agent(.working, agent: "a"), at: at(12, 1))
+    c.handle(.agent(.working, agent: "b"), at: at(12, 2))
+    #expect(c.handle(.agent(.done, agent: "a"), at: at(12, 3)) == .agentDone)
+    #expect(c.bar == agentRoom(.desk, .browsing))
+    #expect(c.handle(.agent(.done, agent: "b"), at: at(12, 4)) == .agentDone)
+    #expect(c.bar == room(.window, .browsing))
+}
+
+@Test func whenOneAgentNeedsYouPixAsksAndKeepsTypingForTheOther() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.agent(.working, agent: "a"), at: at(12, 1))
+    c.handle(.agent(.working, agent: "b"), at: at(12, 2))
+    #expect(c.handle(.agent(.waiting, agent: "a"), at: at(12, 3)) == .agentAsks)
+    #expect(c.bar == agentRoom(.desk, .browsing))
+}
+
+@Test func eachAgentGoesQuietOnItsOwnTenMinutes() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.agent(.working, agent: "a"), at: at(12))
+    c.handle(.agent(.working, agent: "b"), at: at(12, 5))
+    c.handle(.clockTick, at: at(12, 10))  // a has gone quiet; b hasn't
+    #expect(c.bar == agentRoom(.desk, .browsing))
+    c.handle(.agent(.done, agent: "b"), at: at(12, 11))
+    #expect(c.bar == room(.window, .browsing))  // a is gone, not brought back by b's news
+}
+
+@Test func linksWithoutAnIDAreOneNamelessAgentBesideTheOthers() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.agent(.working), at: at(12, 1))
+    c.handle(.agent(.working, agent: "a"), at: at(12, 2))
+    c.handle(.agent(.done), at: at(12, 3))
+    #expect(c.bar == agentRoom(.desk, .browsing))
+    c.handle(.agent(.done, agent: "a"), at: at(12, 4))
+    #expect(c.bar == room(.window, .browsing))
+}
+
+@Test func onTheDefaultBarAgentsAreStillFollowedSoPixTypesWhenItComesBack() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.agent(.working, agent: "a"), at: at(12, 1))
+    c.handle(.agent(.working, agent: "b"), at: at(12, 2))
+    c.handle(.tappedElsewhere, at: at(12, 3))
+    #expect(c.handle(.agent(.done, agent: "a"), at: at(12, 4)) == nil)
+    c.handle(.sparklesTapped, at: at(12, 5))
+    #expect(c.bar == agentRoom(.desk, .browsing))
+}
+
+@Test func whenAnAgentFailsPixSaysOopsAndKeepsTypingOnlyForTheOthers() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.agent(.working, agent: "a"), at: at(12, 1))
+    c.handle(.agent(.working, agent: "b"), at: at(12, 2))
+    #expect(c.handle(.agent(.failed, agent: "a"), at: at(12, 3)) == .agentFailed)
+    #expect(c.bar == agentRoom(.desk, .browsing))
+    #expect(c.handle(.agent(.failed, agent: "b"), at: at(12, 4)) == .agentFailed)
+    #expect(c.bar == room(.window, .browsing))
+}
+
+@Test func anAgentPixWasntFollowingStillGetsItsMoment() {
+    var c = launched(in: "com.apple.Safari")
+    #expect(c.handle(.agent(.done, agent: "late"), at: at(12, 1)) == .agentDone)
+    #expect(c.handle(.agent(.failed, agent: "late"), at: at(12, 2)) == .agentFailed)
     #expect(c.bar == room(.window, .browsing))
 }
 

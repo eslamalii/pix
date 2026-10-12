@@ -48,6 +48,10 @@ import AmbientCore
     #expect(Moment.agentDone.look.caption == Caption(emote: "star", word: "DONE"))
 }
 
+@Test func aFailedAgentScratchesItsHeadWithOops() {
+    #expect(Moment.agentFailed.look == MomentLook(body: "scratch", loops: 3, emote: "exclaim", caption: Caption(emote: "exclaim", word: "OOPS")))
+}
+
 @Test func aNewHatHopsWithAStarCaptionedNewHat() {
     #expect(Moment.newHat.look == MomentLook(body: "jump", loops: 3, emote: "star", extra: .hop, caption: Caption(emote: "star", word: "NEW HAT")))
 }
