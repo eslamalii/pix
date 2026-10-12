@@ -6,20 +6,31 @@ import ServiceManagement
 /// It only shows and reports choices; the app decides what they mean.
 @MainActor
 final class StatusMenu: NSObject, NSMenuDelegate {
+    /// Everything the menu shows, asked for each time it opens.
+    struct State {
+        var hidden = false
+        /// The app in front (not Pix), for "Treat … as", and the user's choice for it.
+        var frontApp: (id: String, name: String, override: Override?)?
+        /// Minutes left in the Focus session, or nil when there's none.
+        var focusLeft: Int?
+        var hat: Hat?
+        /// The hats Pix may wear; the others show greyed out with how to earn them.
+        var wearableHats: [Hat] = []
+        var clock = ClockStyle.system
+        /// The chosen skin's name (nil: Classic), and the skins in the skins folder.
+        var skin: String?
+        var skins: [String] = []
+    }
+
+    var state: () -> State = { State() }
     var onHidden: (Bool) -> Void = { _ in }
     var onStartAtLogin: (Bool) -> Void = { _ in }
     var onClock: (ClockStyle) -> Void = { _ in }
-    /// The app in front (not Pix), for "Treat … as".
-    var frontApp: () -> (id: String, name: String)? = { nil }
     /// An app's new choice, or nil to go back to Pix's guess.
     var onOverride: (String, Override?) -> Void = { _, _ in }
-    /// Minutes left in the Focus session, or nil when there's none.
-    var focusLeft: () -> Int? = { nil }
     /// Start Focus (true) or stop it early (false).
     var onFocus: (Bool) -> Void = { _ in }
     var onForget: () -> Void = {}
-    /// The hats Pix has earned so far.
-    var earnedHats: () -> [Hat] = { [] }
     /// A hat to wear, or nil to take it off.
     var onHat: (Hat?) -> Void = { _ in }
     /// A skin to wear by name, or nil for Pix's own art.
@@ -40,16 +51,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         item.menu = menu
     }
 
-    /// Rebuilt each time it opens, so checkmarks always match the settings.
+    /// Rebuilt each time it opens, so checkmarks always match what the app says.
     func menuNeedsUpdate(_ menu: NSMenu) {
+        let state = state()
         menu.removeAllItems()
-        menu.addItem(Action(hidden ? "Show Pix" : "Hide Pix") { [weak self] in
-            guard let self else { return }
-            onHidden(!hidden)
-        })
-        if let app = frontApp() { menu.addItem(treat(app)) }
+        menu.addItem(Action(state.hidden ? "Show Pix" : "Hide Pix") { [weak self] in self?.onHidden(!state.hidden) })
+        if let app = state.frontApp { menu.addItem(treat(app)) }
         menu.addItem(.separator())
-        if let left = focusLeft() {
+        if let left = state.focusLeft {
             menu.addItem(Action("Stop Focus (\(left) min left)") { [weak self] in self?.onFocus(false) })
         } else {
             menu.addItem(Action("Focus with Pix for \(Int(Controller.focusLength / 60)) Minutes") { [weak self] in self?.onFocus(true) })
@@ -57,12 +66,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         menu.addItem(.separator())
         let startAtLogin = SMAppService.mainApp.status == .enabled  // macOS's own setting, wherever it was changed
         menu.addItem(Action("Start at Login", checked: startAtLogin) { [weak self] in self?.onStartAtLogin(!startAtLogin) })
-        menu.addItem(hats())
-        menu.addItem(skins())
+        menu.addItem(hats(state))
+        menu.addItem(skins(state))
         let clock = NSMenuItem(title: "Clock", action: nil, keyEquivalent: "")
         clock.submenu = NSMenu()
         for style in ClockStyle.allCases {
-            clock.submenu?.addItem(Action(style.title, checked: Settings.clock == style) { [weak self] in self?.onClock(style) })
+            clock.submenu?.addItem(Action(style.title, checked: state.clock == style) { [weak self] in self?.onClock(style) })
         }
         menu.addItem(clock)
         menu.addItem(.separator())
@@ -73,8 +82,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// "Treat ‹app› as" and its Activities, the app's own Touch Bar, then Pix's own guess; the current choice is checked.
-    private func treat(_ app: (id: String, name: String)) -> NSMenuItem {
-        let chosen = Settings.overrides[app.id]
+    private func treat(_ app: (id: String, name: String, override: Override?)) -> NSMenuItem {
+        let chosen = app.override
         let item = NSMenuItem(title: "Treat \(app.name) as", action: nil, keyEquivalent: "")
         item.submenu = NSMenu()
         for activity in Activity.allCases {
@@ -91,14 +100,14 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// "Hat": no hat, then every hat, the earned ones to wear and the others greyed out with how to earn them.
-    private func hats() -> NSMenuItem {
-        let earned = earnedHats(), worn = Settings.hat
+    private func hats(_ state: State) -> NSMenuItem {
+        let wearable = state.wearableHats, worn = state.hat
         let item = NSMenuItem(title: "Hat", action: nil, keyEquivalent: "")
         item.submenu = NSMenu()
         item.submenu?.addItem(Action("No Hat", checked: worn == nil) { [weak self] in self?.onHat(nil) })
         item.submenu?.addItem(.separator())
         for hat in Hat.allCases {
-            if earned.contains(hat) {
+            if wearable.contains(hat) {
                 item.submenu?.addItem(Action(hat.title, checked: worn == hat) { [weak self] in self?.onHat(hat) })
             } else {
                 item.submenu?.addItem(NSMenuItem(title: "\(hat.title) (\(hat.howToEarn))", action: nil, keyEquivalent: ""))  // no action: greyed out
@@ -108,12 +117,12 @@ final class StatusMenu: NSObject, NSMenuDelegate {
     }
 
     /// "Skin": Pix's own art, every skin in the skins folder, and a way to that folder.
-    private func skins() -> NSMenuItem {
-        let worn = Settings.skin
+    private func skins(_ state: State) -> NSMenuItem {
+        let worn = state.skin
         let item = NSMenuItem(title: "Skin", action: nil, keyEquivalent: "")
         item.submenu = NSMenu()
         item.submenu?.addItem(Action("Classic", checked: worn == nil) { [weak self] in self?.onSkin(nil) })
-        for name in Settings.skins {
+        for name in state.skins {
             item.submenu?.addItem(Action(name, checked: worn == name) { [weak self] in self?.onSkin(name) })
         }
         item.submenu?.addItem(.separator())

@@ -66,7 +66,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSCustomTouchBarItem(identifier: barID)
         item.view = view
         view.clockStyle = Settings.clock
-        view.skin = Settings.skin.map { Settings.skinsFolder.appendingPathComponent($0, isDirectory: true) }
+        view.skin = Settings.skinFolder
         view.onPixTapped = { [weak self] in self?.send(.pixTapped) }
         view.onPixPetted = { [weak self] in self?.send(.pixPetted) }
         view.onTappedElsewhere = { [weak self] in self?.send(.tappedElsewhere) }
@@ -78,22 +78,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                                 hat: Settings.hat, allHats: Settings.allHats)
         savedMemory = controller.memory
         (Settings.hat, view.hat) = (controller.hat, controller.hat)  // a saved hat no longer earned comes off
-        menu.hidden = Settings.hidden
+        menu.hidden = controller.hidden
+        menu.state = { [weak self] in self?.menuState() ?? StatusMenu.State() }
         menu.onHidden = { [weak self] hide in self?.send(hide ? .hidePix : .showPix) }
         menu.onStartAtLogin = { [weak self] on in self?.startAtLogin(on) }
-        menu.frontApp = { [weak self] in
-            guard let id = self?.controller.frontApp, id != appID else { return nil }
-            let name = NSRunningApplication.runningApplications(withBundleIdentifier: id).first?.localizedName ?? id
-            return (id, name)
-        }
-        menu.focusLeft = { [weak self] in self?.controller.focusMinutesLeft(at: Date()) }
         menu.onFocus = { [weak self] on in self?.send(on ? .startFocus : .stopFocus) }
         menu.onForget = { [weak self] in self?.confirmForget() }
-        menu.earnedHats = { [weak self] in self?.controller.wearableHats ?? [] }
         menu.onHat = { [weak self] hat in self?.send(.chooseHat(hat)) }
         menu.onSkin = { [weak self] name in
             Settings.skin = name
-            self?.view.skin = name.map { Settings.skinsFolder.appendingPathComponent($0, isDirectory: true) }
+            self?.view.skin = Settings.skinFolder
         }
         menu.onOpenSkins = {
             try? FileManager.default.createDirectory(at: Settings.skinsFolder, withIntermediateDirectories: true)
@@ -148,11 +142,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if alert.runModal() == .alertFirstButtonReturn { send(.forgetMemory) }
     }
 
+    /// What the menu shows when it opens: the Controller's state, and the user's saved choices.
+    private func menuState() -> StatusMenu.State {
+        let front = controller.frontApp.flatMap { id -> (id: String, name: String, override: Override?)? in
+            guard id != appID else { return nil }
+            let name = NSRunningApplication.runningApplications(withBundleIdentifier: id).first?.localizedName ?? id
+            return (id, name, Settings.overrides[id])
+        }
+        return StatusMenu.State(hidden: controller.hidden, frontApp: front, focusLeft: controller.focusMinutesLeft(at: Date()),
+                                hat: controller.hat, wearableHats: controller.wearableHats, clock: Settings.clock,
+                                skin: Settings.skin, skins: Settings.skins)
+    }
+
     private func send(_ event: Event) {
         let before = controller.bar
         let moment = controller.handle(event, at: Date())
         if controller.hat != view.hat { (Settings.hat, view.hat) = (controller.hat, controller.hat) }
-        (Settings.hidden, menu.hidden) = (controller.hidden, controller.hidden)  // Hide Pix sticks across launches
+        if controller.hidden != menu.hidden { (Settings.hidden, menu.hidden) = (controller.hidden, controller.hidden) }  // sticks across launches
         if controller.memory != savedMemory { (Settings.memory, savedMemory) = (controller.memory, controller.memory) }
         defer { if let moment { view.play(moment) } }
         switch event {
