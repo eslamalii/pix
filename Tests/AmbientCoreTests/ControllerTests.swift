@@ -1041,6 +1041,63 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
     #expect(c.handle(.clockTick, at: nextHalloween + 60) != .newHat)
 }
 
+@Test func aHatJustEarnedGoesStraightOn() {
+    var c = launched(in: "com.apple.Safari")
+    #expect(c.hat == nil)
+    for i in 0..<25 { c.handle(.pixPetted, at: at(12) + Double(i) * 10) }
+    #expect(c.hat == .party)
+}
+
+@Test func twoHatsEarnedTogetherPutTheLastOneOn() {
+    let halloween = at(12) + 19 * 86_400  // and the third day together
+    var memory = Memory()
+    for d in 1...2 { memory.arrived(at: halloween - Double(d) * 86_400, calendar: enUS) }
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, memory: memory)
+    c.handle(.appStarted, at: halloween)
+    #expect(Hat.earned(by: c.memory) == [.cap, .witch])
+    #expect(c.hat == .witch)
+}
+
+@Test func choosingAHatWearsItOnlyOnceItsEarned() {
+    let halloween = at(12) + 19 * 86_400
+    var c = launched(in: "com.apple.Safari", at: halloween)
+    c.handle(.chooseHat(.crown), at: halloween)
+    #expect(c.hat == nil)
+    c.handle(.appStarted, at: halloween)
+    c.handle(.chooseHat(nil), at: halloween + 10)
+    #expect(c.hat == nil)
+    c.handle(.chooseHat(.witch), at: halloween + 20)
+    #expect(c.hat == .witch)
+    #expect(c.wearableHats == [.witch])
+}
+
+@Test func forgettingTheMemoryTakesOffAHatNoLongerEarned() {
+    let halloween = at(12) + 19 * 86_400
+    var c = launched(in: "com.apple.Safari", at: halloween)
+    c.handle(.appStarted, at: halloween)
+    c.handle(.forgetMemory, at: halloween + 30)
+    #expect(c.hat == nil)
+    #expect(c.wearableHats == [])
+}
+
+@Test func theHatWornAtLaunchStaysOnIfItsEarned() {
+    var memory = Memory()
+    for d in 1...3 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }
+    let c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, memory: memory, hat: .cap)
+    #expect(c.hat == .cap)
+    let notEarned = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, hat: .crown)
+    #expect(notEarned.hat == nil)
+}
+
+@Test func withAllHatsEveryHatCanBeWornAndForgettingKeepsIt() {
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, hat: .crown, allHats: true)
+    #expect(c.hat == .crown)
+    #expect(c.wearableHats == Hat.allCases)
+    c.handle(.chooseHat(.topHat), at: at(12, 1))
+    c.handle(.forgetMemory, at: at(12, 2))
+    #expect(c.hat == .topHat)
+}
+
 // MARK: - A hot Mac
 
 @Test func aHotMacMakesPixGrumpyAndSlowerUntilItCools() {
