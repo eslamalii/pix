@@ -345,13 +345,12 @@ public struct Controller {
     public var wearableHats: [Hat] { allHats ? Hat.allCases : Hat.earned(by: memory) }
 
     /// Pix's hello: on the day's first arrival maybe a special one from its Memory, otherwise in its Mood.
-    /// The arrival is remembered either way, but nobody sees a Greeting on the Default bar, so there's none then.
+    /// The arrival is remembered either way.
     private mutating func greeting(at time: Date) -> Moment? {
         let firstToday = memory.days.last != Memory.day(time, in: calendar)
         let occasion = Occasion(on: time, calendar: calendar).map(\.greeting)
         let special = firstToday ? occasion ?? memory.specialGreeting(at: time, calendar: calendar) : nil
         memory.arrived(at: time, calendar: calendar)
-        guard case .room = bar else { return nil }
         if let special, special != .cheerful || mood != .sleepy { return .greeting(special) }
         return switch mood {
         case .cheerful: .greeting(.cheerful)
@@ -369,7 +368,8 @@ public struct Controller {
     @discardableResult
     public mutating func handle(_ event: Event, at time: Date) -> Moment? {
         let hatsBefore = Hat.earned(by: memory)
-        let moment = react(to: event, at: time)
+        var moment = react(to: event, at: time)
+        if case .defaultBar = bar { moment = nil }  // nobody sees a Moment on the Default bar
         let newHats = Hat.earned(by: memory).filter { !hatsBefore.contains($0) }
         if let newest = newHats.last { hat = newest }  // a hat just earned goes straight on
         if let worn = hat, !wearableHats.contains(worn) { hat = nil }  // given back with the Memory
@@ -466,7 +466,7 @@ public struct Controller {
         case .powerChanged(let newPower):
             let pluggedIn = power.onBattery && !newPower.onBattery
             power = newPower
-            if pluggedIn, case .room = bar { return .charging }  // nobody sees it on the Default bar
+            if pluggedIn { return .charging }
         case .screenSlept: asleep = true
         case .screenWoke: asleep = false
         case .locked: isLocked = true
@@ -476,14 +476,13 @@ public struct Controller {
             if let until = focusUntil, time >= until {
                 focusUntil = nil
                 memory.finishedFocus()
-                if case .room = bar { return .focusDone }  // nobody sees it on the Default bar
-                return nil
+                return .focusDone
             }
             // No Break during Focus: the Session keeps counting, and a due one comes after.
             if activity == .coding, focusUntil == nil, let pause = sessions[.coding]?.dueBreak(at: time) { return .pause(pause) }
         case .startFocus:
             focusUntil = time + Self.focusLength
-            if case .room = bar { return .focusStarted }
+            return .focusStarted
         case .stopFocus:
             focusUntil = nil
         case .forgetMemory:
@@ -492,14 +491,13 @@ public struct Controller {
         case .thermalChanged(let nowHot):
             let heated = nowHot && !hot
             hot = nowHot
-            if heated, case .room = bar { return .overheated }
+            if heated { return .overheated }
         case .timeZoneChanged(let zone):
             calendar.timeZone = zone
         case .chooseHat(let chosen):
             if chosen.map(wearableHats.contains) ?? true { hat = chosen }
         case .agent(let state, let agent):
             workingAgents[agent] = state == .working ? time : nil
-            guard case .room = bar else { return nil }  // nobody would see it
             switch state {
             case .working: return nil
             case .waiting: return .agentAsks
