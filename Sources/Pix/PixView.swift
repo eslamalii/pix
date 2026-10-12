@@ -443,29 +443,29 @@ final class PixView: NSView {
         let mine = takeOver()
         blink(in: mood)
         clearAmbient()
-        withoutAnimation { faceGlow.isHidden = spot != .desk && spot != .call && spot != .couch }
+        let look = RestLook(spot: spot, mood: mood, agentWorking: shown?.agentWorking == true, hot: shown?.hot == true)
+        withoutAnimation { faceGlow.isHidden = !look.faceGlows }
         if spot == .couch { tvLight() } else { faceGlow.removeAnimation(forKey: "tv") }
         showSkyLife(spot == .window)
-        if mood == .sleepy { ambient += particles("zzz", count: 2, every: 3.5, from: besideHead, in: pix, rise: 10, life: 2.5) }
-        if shown?.hot == true { ambient += particles("steam", count: 2, every: 2.5, from: besideHead, in: pix, rise: 8) }  // the Mac runs hot
+        for particle in look.particles {
+            ambient += particle == "zzz" ? particles(particle, count: 2, every: 3.5, from: besideHead, in: pix, rise: 10, life: 2.5)
+                                         : particles(particle, count: 2, every: 2.5, from: besideHead, in: pix, rise: 8)
+        }
+        if let body = look.body { setBody(body, speedUp: look.speedUp) }
         switch spot {
         case .desk:
             place(at: geometry.rest(at: .desk), facing: CATransform3DIdentity)
-            setBody("type", speedUp: shown?.agentWorking == true ? 2 : 1)  // typing along with the user's agent
             breathe(true)
             let mug = geometry.rect(Art.mug, on: "desk")
             ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
         case .call:
             place(at: geometry.rest(at: .call), facing: CATransform3DIdentity)
-            setBody("call")
             breathe(true)
         case .couch:
             place(at: geometry.rest(at: .couch), facing: CATransform3DIdentity)
-            setBody("couch")
             breathe(true)
         case .musicCorner:
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
-            setBody(mood == .sleepy ? "idle" : "bob")  // dozes with the music on
             breathe(true)
             let record = geometry.rect(Art.turntable, on: "desk")
             ambient += spinningRecord(record)

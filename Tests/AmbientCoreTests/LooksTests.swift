@@ -68,3 +68,35 @@ import AmbientCore
 func theSkyFollowsTheHour(hour: Int, daylight: Daylight) {
     #expect(Daylight(hour: hour) == daylight)
 }
+
+// MARK: - At rest
+
+@Test(arguments: [(Spot.desk, "type"), (.call, "call"), (.couch, "couch"), (.musicCorner, "bob")])
+func atRestEachSpotHasItsBody(spot: Spot, body: String) {
+    #expect(RestLook(spot: spot, mood: .content).body == body)
+}
+
+@Test func atTheWindowPixStrollsRatherThanRestingInOnePose() {
+    #expect(RestLook(spot: .window, mood: .content).body == nil)
+}
+
+@Test func sleepyAtTheMusicCornerPixDozes() {
+    #expect(RestLook(spot: .musicCorner, mood: .sleepy).body == "idle")
+}
+
+@Test func whileAnAgentWorksPixTypesTwiceAsFast() {
+    #expect(RestLook(spot: .desk, mood: .content).speedUp == 1)
+    #expect(RestLook(spot: .desk, mood: .content, agentWorking: true).speedUp == 2)
+}
+
+@Test(arguments: [(Spot.desk, true), (.call, true), (.couch, true), (.musicCorner, false), (.window, false)])
+func theFaceGlowsWhereAScreenLightsIt(spot: Spot, glows: Bool) {
+    #expect(RestLook(spot: spot, mood: .content).faceGlows == glows)
+}
+
+@Test func sleepyPixDriftsZzzAndAHotOneSteams() {
+    #expect(RestLook(spot: .window, mood: .sleepy).particles == ["zzz"])
+    #expect(RestLook(spot: .desk, mood: .content, hot: true).particles == ["steam"])
+    #expect(RestLook(spot: .desk, mood: .sleepy, hot: true).particles == ["zzz", "steam"])
+    #expect(RestLook(spot: .desk, mood: .content).particles.isEmpty)
+}

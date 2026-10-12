@@ -35,13 +35,13 @@ public struct Power: Equatable, Sendable {
     public var fps: Int { lowPowerMode || low ? 6 : onBattery ? 10 : 12 }
 }
 
-public enum Reaction: String, Sendable { case wave, jump, shh, yawn, huff, dizzy, pet }
+public enum Reaction: String, Sendable, CaseIterable { case wave, jump, shh, yawn, huff, dizzy, pet }
 
-public enum Break: String, Sendable { case coffee, stretch }
+public enum Break: String, Sendable, CaseIterable { case coffee, stretch }
 
 /// How Pix says hi, depending on its Mood: hello (❗), cheerful (♥) or sleepy (💤); or, on the day's first arrival,
 /// for an Occasion, or from its Memory: back after days away, early, or the weekend.
-public enum Greeting: String, Sendable { case hello, cheerful, sleepy, missedYou, early, weekend, halloween, holidays, newYear }
+public enum Greeting: String, Sendable, CaseIterable { case hello, cheerful, sleepy, missedYou, early, weekend, halloween, holidays, newYear }
 
 /// Something Pix does once, on top of idling.
 public enum Moment: Equatable, Sendable {
