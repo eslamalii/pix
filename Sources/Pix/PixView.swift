@@ -173,6 +173,12 @@ final class PixView: NSView {
         send(.momentArrived(moment))
     }
 
+    /// macOS moved to another time zone: the Routine's lamp follows, and the Clock shows the new time at once.
+    func timeZoneChanged(_ zone: TimeZone) {
+        send(.timeZoneChanged(zone))
+        if world != nil { paintTime() }
+    }
+
     /// Repaints everything that follows the time, and lets the Routine see the minute pass. Called on every minute.
     func refreshTime() {
         guard world != nil else { return }

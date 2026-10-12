@@ -61,6 +61,9 @@ enum Settings {
         set { UserDefaults.standard.set(newValue, forKey: "skin") }
     }
 
+    /// The chosen skin's folder; nil for Pix's own art.
+    static var skinFolder: URL? { skin.map { skinsFolder.appendingPathComponent($0, isDirectory: true) } }
+
     /// Where skins live: ~/Library/Application Support/Pix/Skins/<name>/, each a folder of art files.
     static var skinsFolder: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("Pix/Skins", isDirectory: true)

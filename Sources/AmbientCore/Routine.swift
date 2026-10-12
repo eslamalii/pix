@@ -28,6 +28,8 @@ public struct Routine {
         case finished
         case fidgetDue
         case minutePassed
+        /// macOS moved to another time zone: the lamp follows the new hour.
+        case timeZoneChanged(TimeZone)
         /// The scene left the Touch Bar (the Default bar, hidden, or rebuilt at a new size).
         case sceneStopped
     }
@@ -141,6 +143,10 @@ public struct Routine {
             guard !choices.isEmpty else { return nil }
             let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
             return choice == "water" ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
+
+        case .timeZoneChanged(let zone):
+            calendar.timeZone = zone
+            return nil
 
         case .minutePassed:
             guard running, case .idle = current, lampNeedsSwitching(at: time) else { return nil }

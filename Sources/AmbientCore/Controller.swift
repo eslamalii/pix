@@ -196,6 +196,8 @@ public enum Event: Sendable {
     case thermalChanged(hot: Bool)
     /// The user chose a hat to wear in the menu, or none.
     case chooseHat(Hat?)
+    /// macOS moved to another time zone (the user travelled): the hour and the date follow it.
+    case timeZoneChanged(TimeZone)
 }
 
 /// Time spent in one Activity. Short trips away pause it; long ones end it.
@@ -283,7 +285,7 @@ public struct Controller {
     public private(set) var hat: Hat?
     /// Every hat counts as earned (the developer's allHats setting).
     private let allHats: Bool
-    private let calendar: Calendar
+    private var calendar: Calendar
 
     /// How long a Focus session lasts.
     public static let focusLength: TimeInterval = 25 * 60
@@ -491,6 +493,8 @@ public struct Controller {
             let heated = nowHot && !hot
             hot = nowHot
             if heated, case .room = bar { return .overheated }
+        case .timeZoneChanged(let zone):
+            calendar.timeZone = zone
         case .chooseHat(let chosen):
             if chosen.map(wearableHats.contains) ?? true { hat = chosen }
         case .agent(let state, let agent):
