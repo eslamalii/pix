@@ -291,6 +291,13 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     #expect(routine.handle(.finished, at: at(6)) == idling(.couch))
 }
 
+@Test func afterFlyingEastTheLampFollowsTheNewHour() {
+    var routine = started(at: .desk, time: at(12))
+    #expect(routine.handle(.minutePassed, at: at(12, 1)) == nil)
+    routine.handle(.timeZoneChanged(TimeZone(identifier: "Asia/Singapore")!), at: at(12, 2))  // 20:02 there
+    #expect(routine.handle(.minutePassed, at: at(12, 3)) == .errand(.switchLamp))
+}
+
 @Test func atTheWindowTheLampWaitsUntilPixIsBackOnTheDeskSide() {
     var routine = started(at: .window, time: at(18, 59))
     #expect(routine.handle(.minutePassed, at: at(19)) == nil)

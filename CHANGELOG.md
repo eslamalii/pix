@@ -3,6 +3,11 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.1] - 2026-10-12
+
+### Fixed
+- **Pix follows you across time zones:** after a flight, Pix gets sleepy, greets you, celebrates Occasions and switches its lamp by the new local time, without a restart. Before, only the Clock and the sky moved.
+
 ## [1.1.0] - 2026-10-12
 
 ### Added

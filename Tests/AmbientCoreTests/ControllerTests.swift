@@ -1098,6 +1098,22 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
     #expect(c.hat == .topHat)
 }
 
+// MARK: - Time zones
+
+@Test func afterATimeZoneChangePixGetsSleepyByTheNewHour() {
+    var c = launched(in: "com.apple.Safari", at: at(22, 30))
+    #expect(c.bar == room(.window, .browsing))
+    c.handle(.timeZoneChanged(TimeZone(identifier: "Africa/Lagos")!), at: at(22, 31))  // 23:31 there
+    #expect(c.bar == room(.window, .browsing, .sleepy))
+}
+
+@Test func aGreetingAfterATimeZoneChangeIsForTheNewDate() {
+    let halloweenEve = at(23, 30) + 18 * 86_400  // Friday 2026-10-30, 23:30 UTC
+    var c = launched(in: "com.apple.Safari", at: halloweenEve)
+    c.handle(.timeZoneChanged(TimeZone(identifier: "Africa/Lagos")!), at: halloweenEve)  // already Halloween there
+    #expect(c.handle(.appStarted, at: halloweenEve + 60) == .greeting(.halloween))
+}
+
 // MARK: - A hot Mac
 
 @Test func aHotMacMakesPixGrumpyAndSlowerUntilItCools() {

@@ -206,6 +206,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(forName: ProcessInfo.thermalStateDidChangeNotification, object: nil, queue: .main) { _ in
             send(.thermalChanged(hot: macIsHot()))
         }
+        // The user travelled: Mood, Greetings, Occasions and the lamp follow the new hour and date.
+        NotificationCenter.default.addObserver(forName: .NSSystemTimeZoneDidChange, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                NSTimeZone.resetSystemTimeZone()
+                send(.timeZoneChanged(.current))
+                self?.view.timeZoneChanged(.current)
+            }
+        }
         // Charger plugged/unplugged. Fires on every battery % change too; send() ignores no-op changes.
         let context = Unmanaged.passUnretained(self).toOpaque()
         if let source = IOPSNotificationCreateRunLoopSource({ context in
