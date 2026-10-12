@@ -194,6 +194,8 @@ public enum Event: Sendable {
     case agent(AgentState, agent: String? = nil)
     /// macOS says the Mac is running hot (serious or critical), or has cooled down.
     case thermalChanged(hot: Bool)
+    /// The user chose a hat to wear in the menu, or none.
+    case chooseHat(Hat?)
 }
 
 /// Time spent in one Activity. Short trips away pause it; long ones end it.
@@ -277,6 +279,10 @@ public struct Controller {
     private var hot = false
     /// What Pix remembers of the user's days; the app keeps it between launches.
     public private(set) var memory: Memory
+    /// The hat Pix wears; the app keeps it between launches.
+    public private(set) var hat: Hat?
+    /// Every hat counts as earned (the developer's allHats setting).
+    private let allHats: Bool
     private let calendar: Calendar
 
     /// How long a Focus session lasts.
@@ -315,12 +321,13 @@ public struct Controller {
     }
 
     public init(selfBundleID: String, frontApp: String?, power: Power, at time: Date, timeZone: TimeZone, hidden: Bool = false,
-                overrides: [String: Override] = [:], memory: Memory = Memory()) {
+                overrides: [String: Override] = [:], memory: Memory = Memory(), hat: Hat? = nil, allHats: Bool = false) {
         self.selfBundleID = selfBundleID
         self.hidden = hidden
         self.frontApp = frontApp
         self.overrides = overrides
         self.memory = memory
+        self.allHats = allHats
         now = time
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
@@ -329,7 +336,11 @@ public struct Controller {
         activity = Self.activity(for: frontApp, overrides: overrides)
         self.power = power
         sessions[activity] = Session(startingAt: time)
+        self.hat = hat.flatMap { wearableHats.contains($0) ? $0 : nil }
     }
+
+    /// The hats Pix may wear: those it has earned, or all of them with allHats.
+    public var wearableHats: [Hat] { allHats ? Hat.allCases : Hat.earned(by: memory) }
 
     /// Pix's hello: on the day's first arrival maybe a special one from its Memory, otherwise in its Mood.
     /// The arrival is remembered either way, but nobody sees a Greeting on the Default bar, so there's none then.
@@ -355,9 +366,12 @@ public struct Controller {
 
     @discardableResult
     public mutating func handle(_ event: Event, at time: Date) -> Moment? {
-        let hatsBefore = Hat.earned(by: memory).count
+        let hatsBefore = Hat.earned(by: memory)
         let moment = react(to: event, at: time)
-        let earned = Hat.earned(by: memory).count > hatsBefore
+        let newHats = Hat.earned(by: memory).filter { !hatsBefore.contains($0) }
+        if let newest = newHats.last { hat = newest }  // a hat just earned goes straight on
+        if let worn = hat, !wearableHats.contains(worn) { hat = nil }  // given back with the Memory
+        let earned = !newHats.isEmpty
         if earned { newHatOwed = true }
         guard newHatOwed, case .room = bar else { return moment }  // nobody sees it on the Default bar: it waits
         switch moment {
@@ -477,6 +491,8 @@ public struct Controller {
             let heated = nowHot && !hot
             hot = nowHot
             if heated, case .room = bar { return .overheated }
+        case .chooseHat(let chosen):
+            if chosen.map(wearableHats.contains) ?? true { hat = chosen }
         case .agent(let state, let agent):
             workingAgents[agent] = state == .working ? time : nil
             guard case .room = bar else { return nil }  // nobody would see it

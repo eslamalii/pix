@@ -66,7 +66,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let item = NSCustomTouchBarItem(identifier: barID)
         item.view = view
         view.clockStyle = Settings.clock
-        view.hat = Settings.hat
         view.skin = Settings.skin.map { Settings.skinsFolder.appendingPathComponent($0, isDirectory: true) }
         view.onPixTapped = { [weak self] in self?.send(.pixTapped) }
         view.onPixPetted = { [weak self] in self?.send(.pixPetted) }
@@ -75,8 +74,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.defaultItemIdentifiers = [barID]
 
         controller = Controller(selfBundleID: appID, frontApp: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, power: currentPower(),
-                                at: Date(), timeZone: .current, hidden: Settings.hidden, overrides: Settings.overrides, memory: Settings.memory)
+                                at: Date(), timeZone: .current, hidden: Settings.hidden, overrides: Settings.overrides, memory: Settings.memory,
+                                hat: Settings.hat, allHats: Settings.allHats)
         savedMemory = controller.memory
+        (Settings.hat, view.hat) = (controller.hat, controller.hat)  // a saved hat no longer earned comes off
         menu.hidden = Settings.hidden
         menu.onHidden = { [weak self] hide in self?.send(hide ? .hidePix : .showPix) }
         menu.onStartAtLogin = { [weak self] on in self?.startAtLogin(on) }
@@ -88,8 +89,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.focusLeft = { [weak self] in self?.controller.focusMinutesLeft(at: Date()) }
         menu.onFocus = { [weak self] on in self?.send(on ? .startFocus : .stopFocus) }
         menu.onForget = { [weak self] in self?.confirmForget() }
-        menu.earnedHats = { [weak self] in self?.wearableHats ?? [] }
-        menu.onHat = { [weak self] hat in self?.wear(hat) }
+        menu.earnedHats = { [weak self] in self?.controller.wearableHats ?? [] }
+        menu.onHat = { [weak self] hat in self?.send(.chooseHat(hat)) }
         menu.onSkin = { [weak self] name in
             Settings.skin = name
             self?.view.skin = name.map { Settings.skinsFolder.appendingPathComponent($0, isDirectory: true) }
@@ -136,14 +137,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// The hats Pix may wear: those it has earned, or all of them with Settings.allHats.
-    private var wearableHats: [Hat] { Settings.allHats ? Hat.allCases : Hat.earned(by: controller.memory) }
-
-    private func wear(_ hat: Hat?) {
-        Settings.hat = hat
-        view.hat = hat
-    }
-
     /// Forget Pix's Memory, once the user confirms it.
     private func confirmForget() {
         let alert = NSAlert()
@@ -157,10 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func send(_ event: Event) {
         let before = controller.bar
-        let hatsBefore = Hat.earned(by: controller.memory)
         let moment = controller.handle(event, at: Date())
-        if let new = Hat.earned(by: controller.memory).last(where: { !hatsBefore.contains($0) }) { wear(new) }  // a hat just earned goes straight on
-        if let worn = Settings.hat, !wearableHats.contains(worn) { wear(nil) }  // forgotten with the Memory
+        if controller.hat != view.hat { (Settings.hat, view.hat) = (controller.hat, controller.hat) }
         (Settings.hidden, menu.hidden) = (controller.hidden, controller.hidden)  // Hide Pix sticks across launches
         if controller.memory != savedMemory { (Settings.memory, savedMemory) = (controller.memory, controller.memory) }
         defer { if let moment { view.play(moment) } }
