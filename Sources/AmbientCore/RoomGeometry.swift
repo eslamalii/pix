@@ -33,10 +33,9 @@ public struct RoomGeometry: Sendable {
     /// black, and on a narrower one both ends are cropped evenly.
     public func scroll(for spot: Spot) -> CGFloat { -stripX(Art.spot(spot).strip) + (barWidth - CGFloat(Art.stripWidth)) / 2 }
 
-    /// The two ends Pix wanders between at the window.
-    public var strollEnds: (left: CGFloat, right: CGFloat) {
-        let strip = stripX(Art.spot(.window).strip)
-        return (strip + CGFloat(Art.wanderFrom), strip + CGFloat(Art.wanderTo))
+    /// Where Pix stands at an end of the window, on the Stroll.
+    public func strollEnd(_ end: WindowEnd) -> CGFloat {
+        stripX(Art.spot(.window).strip) + CGFloat(end == .left ? Art.wanderFrom : Art.wanderTo)
     }
 
     /// Where Pix stands to use an Errand's Prop, and which way it faces.

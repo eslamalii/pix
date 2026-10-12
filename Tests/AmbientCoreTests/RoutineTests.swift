@@ -189,6 +189,99 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
     #expect(rolled.handle(.fidgetDue, at: at(12, 1)) == nil)
 }
 
+// MARK: - The Stroll
+
+@Test func arrivingAtTheWindowPixRestsThenStrollsLeft() {
+    var routine = started(at: .window)
+    #expect(routine.handle(.finished, at: at(12)) == .stroll(to: .left))
+}
+
+@Test func theStrollStandsAtTheLeftEndStretchesAtTheRightAndGoesBackAndForth() {
+    var routine = started(at: .window)
+    routine.handle(.finished, at: at(12))  // walking left
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stopAt(.left, body: nil))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))
+    #expect(routine.handle(.finished, at: at(12, 2)) == .stopAt(.right, body: "stretch"))
+    #expect(routine.handle(.finished, at: at(12, 2)) == .stroll(to: .left))
+}
+
+@Test func aFidgetDueMidWalkWaitsForTheEndOfTheWindowThenAnotherWalk() {
+    var routine = started(at: .window, dice: Dice([0.5, 0]))  // the window's first Fidget
+    routine.handle(.finished, at: at(12))  // walking left
+    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget("gaze"))
+    #expect(routine.handle(.finished, at: at(12, 1)) == idling(.window))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))  // it had reached the left end
+}
+
+@Test func aFidgetDueWhilePixStopsAtAnEndPlaysAtOnce() {
+    var routine = started(at: .window, dice: Dice([0.5, 0]))
+    routine.handle(.finished, at: at(12))  // walking left
+    routine.handle(.finished, at: at(12, 1))  // stopped at the left end
+    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == .fidget("gaze"))
+}
+
+/// Strolling right, after the first walk left and the stop at the left end.
+func strollingRight() -> Routine {
+    var routine = started(at: .window)
+    for _ in 0..<3 { routine.handle(.finished, at: at(12)) }
+    return routine
+}
+
+@Test func afterAMomentMidWalkPixKeepsHeadingForTheSameEnd() {
+    var routine = strollingRight()
+    #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1)) == .moment(.reaction(.wave)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == idling(.window))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))
+}
+
+@Test func aNewMoodMidWalkRestsAfreshAndTheWalkCarriesOnToItsStop() {
+    var routine = started(at: .window, .focused)  // no Fidget clock while focused
+    routine.handle(.finished, at: at(12))  // walking left
+    #expect(routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 1)) == idling(.window))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stopAt(.left, body: nil))
+}
+
+@Test func aFidgetDueAfterANewMoodMidWalkStillWaitsForTheEnd() {
+    var routine = started(at: .window, .focused)  // no Fidget clock while focused
+    routine.handle(.finished, at: at(12))  // walking left
+    #expect(routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 1)) == idling(.window))
+    #expect(routine.strolling)
+    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)  // still mid-walk
+    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget("wave"))
+}
+
+@Test func leavingTheWindowMidStrollAndComingBackStartsLeftAgain() {
+    var routine = strollingRight()
+    #expect(routine.handle(.roomChanged(scene(.desk)), at: at(12, 1)) == .walk(to: .desk))
+    routine.handle(.finished, at: at(12, 1))
+    routine.handle(.roomChanged(scene(.window)), at: at(12, 2))
+    #expect(routine.handle(.finished, at: at(12, 2)) == idling(.window))
+    #expect(routine.handle(.finished, at: at(12, 2)) == .stroll(to: .left))
+}
+
+@Test func whenTheSceneStartsAgainAtTheWindowTheStrollStartsLeftAgain() {
+    var routine = strollingRight()
+    routine.handle(.sceneStopped, at: at(12, 1))
+    #expect(routine.handle(.sceneStarted(scene(.window)), at: at(12, 2)) == idling(.window))
+    #expect(!routine.strolling)
+    #expect(routine.handle(.finished, at: at(12, 2)) == .stroll(to: .left))
+}
+
+@Test func switchingBetweenTwoAppsThatKeepPixAtTheWindowLeavesTheWalkAlone() {
+    var routine = strollingRight()
+    #expect(routine.handle(.roomChanged(scene(.window, activity: .other, fps: 10)), at: at(12, 1)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stopAt(.right, body: "stretch"))
+}
+
+@Test func afterAMomentAtAnEndPixHeadsForTheOtherEnd() {
+    var routine = strollingRight()
+    routine.handle(.finished, at: at(12, 1))  // stopped at the right end
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1))
+    routine.handle(.finished, at: at(12, 1))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .left))
+}
+
 // MARK: - Fidgets
 
 @Test(arguments: [

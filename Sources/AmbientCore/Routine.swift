@@ -16,6 +16,16 @@ public enum Errand: Equatable, Sendable {
     }
 }
 
+/// The two ends of the window that Pix strolls between.
+public enum WindowEnd: Sendable {
+    case left, right
+
+    var other: WindowEnd { self == .left ? .right : .left }
+
+    /// What Pix does on reaching the end, after looking around: stretch at the right, stand at the left.
+    var stopBody: String? { self == .right ? "stretch" : nil }
+}
+
 /// What Pix does next with its body in the Room. The view tells it what happened and performs the step it asks for;
 /// it decides in Spots and Props, never in screen points.
 public struct Routine {
@@ -50,6 +60,10 @@ public struct Routine {
         case walkBack(to: Spot)
         /// Arriving in the music corner: drop the needle on the record.
         case dropNeedle
+        /// The Stroll: walk to an end of the window.
+        case stroll(to: WindowEnd)
+        /// The Stroll: at an end of the window, look around, then play `body` (nil: stand a while).
+        case stopAt(WindowEnd, body: String?)
     }
 
     /// Where Pix is, as far as the Routine knows.
@@ -71,11 +85,21 @@ public struct Routine {
     private var waiting: Moment?
     private var needleDown = false
     private var lamp: Bool?  // nil until the scene first starts, when it takes the hour's state
+    /// The end of the window the Stroll heads for next.
+    private var heading = WindowEnd.left
+    /// The Stroll's walk or stop the view is performing. A new idle at the window leaves it running.
+    private var leg: Step?
+    /// A Fidget fell due mid-walk: it plays when Pix reaches the end.
+    private var fidgetHeld = false
 
     /// Where Pix was last seen: the scene starts with Pix there, and it walks into view if the Spot changed.
     public private(set) var lastSpot: Spot?
 
     public var lampLit: Bool { lamp == true }
+
+    /// A Stroll walk or stop is underway: an idle at the window sets Pix's Look and leaves it running. Otherwise the
+    /// idle reports finished and the Stroll starts.
+    public var strolling: Bool { leg != nil }
 
     /// `random` returns a number in 0..<1; tests pass fixed ones.
     public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
@@ -97,6 +121,7 @@ public struct Routine {
 
         case .sceneStopped:
             (running, current, waiting) = (false, nil, nil)
+            (leg, fidgetHeld, heading) = (nil, false, .left)  // the scene starts with Pix at its Spot
             return nil
 
         case .roomChanged(let new):
@@ -113,7 +138,10 @@ public struct Routine {
                 }
                 return walk(to: new.spot)
             }
-            if new.mood != old?.mood, case .idle = current { return settle(at: time) }
+            switch current {
+            case .idle?, .stroll?, .stopAt?: if new.mood != old?.mood { return settle(at: time) }
+            default: break
+            }
             return nil  // the Activity or frame rate alone changes nothing Pix does
 
         case .momentArrived(let moment):
@@ -132,17 +160,25 @@ public struct Routine {
             case .use(let errand):
                 if errand == .switchLamp { lamp = lampWanted(at: time) }
                 return start(.walkBack(to: room?.spot ?? .desk))
+            case .idle(.window, _, _), .stroll, .stopAt:
+                return nextStrollStep()  // resting at the window is strolling
             case .idle, .moment, .fidget, .dropNeedle:
                 break
             }
             return settle(at: time)
 
         case .fidgetDue:
-            guard running, let room, case .idle = current, room.mood != .focused else { return nil }
-            let choices = Self.fidgets(for: room)
-            guard !choices.isEmpty else { return nil }
-            let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
-            return choice == "water" ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
+            guard running else { return nil }
+            if case .stroll? = leg {
+                fidgetHeld = true  // never mid-walk
+                return nil
+            }
+            switch current {
+            case .idle?, .stopAt?:
+                return fidget()
+            default:
+                return nil
+            }
 
         case .timeZoneChanged(let zone):
             calendar.timeZone = zone
@@ -175,12 +211,37 @@ public struct Routine {
     }
 
     private mutating func walk(to spot: Spot) -> Step {
-        needleDown = false
+        (needleDown, heading) = (false, .left)  // arriving at the window, the Stroll starts left
         return start(.walk(to: spot))
+    }
+
+    /// The Stroll's next walk or stop: a walk ended at an end, so Pix stops there (or plays the Fidget it held);
+    /// otherwise it walks to the end it's heading for.
+    private mutating func nextStrollStep() -> Step {
+        if case .stroll(let end)? = leg {
+            heading = end.other
+            if fidgetHeld, let fidget = fidget() { return fidget }
+            return start(.stopAt(end, body: end.stopBody))
+        }
+        return start(.stroll(to: heading))
+    }
+
+    /// A Fidget that fits where Pix is and how it feels, if any.
+    private mutating func fidget() -> Step? {
+        guard let room, room.mood != .focused else { return nil }
+        let choices = Self.fidgets(for: room)
+        guard !choices.isEmpty else { return nil }
+        let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
+        return choice == "water" ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
     }
 
     private mutating func start(_ step: Step) -> Step {
         current = step
+        switch step {
+        case .stroll, .stopAt: (leg, fidgetHeld) = (step, false)
+        case .idle(.window, _, _): break  // the walk or stop carries on, and a held Fidget still waits for its end
+        default: (leg, fidgetHeld) = (nil, false)
+        }
         switch step {
         case .walk, .errand, .walkBack: place = .onTheWay  // until it finishes
         default: break

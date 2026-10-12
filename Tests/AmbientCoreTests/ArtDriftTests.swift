@@ -37,9 +37,10 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
     }
 }
 
-@Test func everyFidgetAndErrandIsABody() {
+@Test func everyFidgetErrandAndStrollStopIsABody() {
     for name in everyRoom.flatMap(Routine.fidgets(for:)) { #expect(bodies.contains(name), "fidget \(name)") }
     for errand in [Errand.switchLamp, .waterPlant(at: 0, fromRight: true)] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
+    for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }
 }
 
 @Test func everyMoodHasAFaceAndEveryHatACell() {
