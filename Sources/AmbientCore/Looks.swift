@@ -50,6 +50,7 @@ extension Moment {
         case .focusDone: MomentLook(body: "stretch", loops: 4, extra: .hearts, caption: Caption(emote: "star", word: "DONE"))
         case .agentAsks: MomentLook(body: "wave", loops: 3, emote: "exclaim", caption: Caption(emote: "exclaim", word: "ASKING"))
         case .agentDone: MomentLook(body: "jump", loops: 2, emote: "star", extra: .hop, caption: Caption(emote: "star", word: "DONE"))
+        case .agentFailed: MomentLook(body: "scratch", loops: 3, emote: "exclaim", caption: Caption(emote: "exclaim", word: "OOPS"))
         case .newHat: MomentLook(body: "jump", loops: 3, emote: "star", extra: .hop, caption: Caption(emote: "star", word: "NEW HAT"))
         case .overheated: MomentLook(body: "huff", loops: 3, emote: "steam", extra: .steam, caption: Caption(emote: "steam", word: "HOT"))
         case .charging: MomentLook(body: "jump", loops: 2, emote: "bolt", extra: .hop, caption: Caption(emote: "bolt", word: "CHARGE"))

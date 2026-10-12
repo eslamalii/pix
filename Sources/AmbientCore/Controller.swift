@@ -52,8 +52,8 @@ public enum Moment: Equatable, Sendable {
     case charging
     /// A Focus session began, or ran its full length.
     case focusStarted, focusDone
-    /// The user's AI agent needs them, or finished its work.
-    case agentAsks, agentDone
+    /// An Agent needs the user, finished its work, or its turn failed.
+    case agentAsks, agentDone, agentFailed
     /// Pix just earned a hat (and the app puts it on).
     case newHat
     /// The Mac started running hot.
@@ -75,16 +75,30 @@ public struct Room: Equatable, Sendable {
     }
 }
 
-/// What the user's AI coding agent (Claude Code, Codex, Cursor…) is doing, as its hooks tell Pix:
-/// `open -g pix://agent/working`, `…/waiting` (it needs the user) or `…/done`. Pix never looks for itself.
+/// What an Agent (one conversation with the user's AI coding agent: Claude Code, Codex, Cursor…) is doing, as its hooks
+/// tell Pix: `open -g pix://agent/working`, `…/waiting` (it needs the user), `…/done` or `…/failed`. Pix never looks for itself.
 public enum AgentState: String, Sendable {
-    case working, waiting, done
+    case working, waiting, done, failed
+}
 
-    /// A pix://agent/<state> link; nil for anything else.
+/// One pix://agent link: the state, and the anonymous ID of the Agent that sent it (nil: the nameless Agent).
+public struct AgentReport: Equatable, Sendable {
+    public var state: AgentState
+    public var agent: String?
+
+    public init(state: AgentState, agent: String? = nil) { (self.state, self.agent) = (state, agent) }
+
+    /// A pix://agent/<state>[?session=<id>] link; nil for anything else. Any app can open one, so an ID must be
+    /// 1–128 letters, digits, `-`, `_` or `.` (every tool's IDs are UUID-like), or the whole link is ignored.
     public init?(url: URL) {
-        guard url.scheme?.lowercased() == "pix", url.host?.lowercased() == "agent", url.pathComponents.count == 2 else { return nil }
-        self.init(rawValue: url.pathComponents[1].lowercased())
+        guard url.scheme?.lowercased() == "pix", url.host?.lowercased() == "agent", url.pathComponents.count == 2,
+              let state = AgentState(rawValue: url.pathComponents[1].lowercased()) else { return nil }
+        let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "session" }?.value ?? ""
+        guard id.count <= 128, id.allSatisfy(Self.idCharacters.contains) else { return nil }
+        self.init(state: state, agent: id.isEmpty ? nil : id)
     }
+
+    private static let idCharacters = Set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.")
 }
 
 public enum Bar: Equatable, Sendable {
@@ -176,8 +190,8 @@ public enum Event: Sendable {
     case stopFocus
     /// The user chose Forget Pix's Memory.
     case forgetMemory
-    /// The user's AI agent said what it's doing.
-    case agent(AgentState)
+    /// An Agent said what it's doing; `agent` is its anonymous ID (nil: the nameless Agent).
+    case agent(AgentState, agent: String? = nil)
     /// macOS says the Mac is running hot (serious or critical), or has cooled down.
     case thermalChanged(hot: Bool)
 }
@@ -229,7 +243,7 @@ enum Rules {
     static let dizzyTaps = 5, dizzyWindow: TimeInterval = 3
     static let cheerfulAfterPet: TimeInterval = 10 * 60
     static let lowBattery = 20  // percent, on battery: Pix is sleepy
-    static let agentQuietAfter: TimeInterval = 10 * 60  // an agent silent this long has stopped, done or not
+    static let agentQuietAfter: TimeInterval = 10 * 60  // an Agent silent this long has stopped, done or not
 }
 
 public struct Controller {
@@ -257,8 +271,8 @@ public struct Controller {
     private var focusUntil: Date?
     /// A hat was earned alongside a Greeting, or on the Default bar, and its NEW HAT is still to play.
     private var newHatOwed = false
-    /// When the user's AI agent last said it was working, while it is.
-    private var agentSince: Date?
+    /// When each working Agent last said so, by its ID (nil: the nameless Agent). In memory only, never in the Memory.
+    private var workingAgents: [String?: Date] = [:]
     /// The Mac is running hot.
     private var hot = false
     /// What Pix remembers of the user's days; the app keeps it between launches.
@@ -277,10 +291,10 @@ public struct Controller {
     /// The Room as Pix lives in it right now, whether or not it's on screen.
     public var room: Room {
         // Focusing, or with the user's agent at work, Pix works at the desk whatever's in front, unless a call takes it.
-        let atDesk = (focusUntil != nil || agentSince != nil) && activity != .meeting
+        let atDesk = (focusUntil != nil || !workingAgents.isEmpty) && activity != .meeting
         // Hot, Pix slows to the fewest frames, to help the Mac cool down.
         return Room(spot: atDesk ? .desk : Spot(for: activity), activity: activity, mood: mood, fps: hot ? min(6, power.fps) : power.fps,
-                    agentWorking: agentSince != nil, hot: hot)
+                    agentWorking: !workingAgents.isEmpty, hot: hot)
     }
 
     /// Whole minutes left in the Focus session (rounded up), or nil when there's none.
@@ -442,7 +456,7 @@ public struct Controller {
         case .locked: isLocked = true
         case .unlocked: isLocked = false
         case .clockTick:
-            if let since = agentSince, time.timeIntervalSince(since) >= Rules.agentQuietAfter { agentSince = nil }
+            workingAgents = workingAgents.filter { time.timeIntervalSince($0.value) < Rules.agentQuietAfter }
             if let until = focusUntil, time >= until {
                 focusUntil = nil
                 memory.finishedFocus()
@@ -463,13 +477,14 @@ public struct Controller {
             let heated = nowHot && !hot
             hot = nowHot
             if heated, case .room = bar { return .overheated }
-        case .agent(let state):
-            agentSince = state == .working ? time : nil
+        case .agent(let state, let agent):
+            workingAgents[agent] = state == .working ? time : nil
             guard case .room = bar else { return nil }  // nobody would see it
             switch state {
             case .working: return nil
             case .waiting: return .agentAsks
             case .done: return .agentDone
+            case .failed: return .agentFailed
             }
         }
         return nil

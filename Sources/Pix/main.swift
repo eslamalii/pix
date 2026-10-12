@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// The Memory as last saved, so it's only written when it changes.
     private var savedMemory = Memory()
     /// pix://agent links that arrived before launch finished (one can launch Pix).
-    private var earlyAgentStates: [AgentState] = []
+    private var earlyAgentEvents: [Event] = []
 
     func applicationDidFinishLaunching(_ note: Notification) {
         do { presenter = try TouchBarPresenter() } catch {
@@ -121,17 +121,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         render()
         send(.appStarted)  // Pix says hi
         if macIsHot() { send(.thermalChanged(hot: true)) }
-        for state in earlyAgentStates { send(.agent(state)) }
-        earlyAgentStates = []
+        earlyAgentEvents.forEach(send)
+        earlyAgentEvents = []
         checkForTouchBar()
     }
 
     @objc private func sparklesTapped() { send(.sparklesTapped) }
 
-    /// pix://agent/working, …/waiting or …/done, from the user's AI agent's hooks. Anything else is ignored.
+    /// pix://agent/working, …/waiting, …/done or …/failed, from an Agent's hooks. Anything else is ignored.
     func application(_ application: NSApplication, open urls: [URL]) {
-        for state in urls.compactMap(AgentState.init(url:)) {
-            if controller == nil { earlyAgentStates.append(state) } else { send(.agent(state)) }
+        for report in urls.compactMap(AgentReport.init(url:)) {
+            let event = Event.agent(report.state, agent: report.agent)
+            if controller == nil { earlyAgentEvents.append(event) } else { send(event) }
         }
     }
 

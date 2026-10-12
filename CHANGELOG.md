@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-10-12
+
+### Added
+- **Several agents at once:** each conversation's hooks can send its anonymous ID (`pix://agent/<state>?session=<id>`), and Pix follows each one. It cheers **★ DONE** for each conversation that finishes and keeps typing while any are still working; each one counts as stopped after its own 10 quiet minutes. Links without an ID count as one conversation, so existing setups keep working.
+- **! OOPS:** `pix://agent/failed` makes Pix scratch its head when a turn fails (a rate limit, an outage) instead of typing on for 10 minutes.
+
+### Changed
+- **Claude Code setup:** sends each conversation's ID, shows **! ASKING** only for notifications that ask you something (not sign-in or quota notices), goes back to typing once you approve a tool, and reports failed turns.
+- **Codex setup:** moves from `notify` to Codex's hooks, so Pix types along and asks too, not only cheers when it's done. Run `/hooks` in Codex to trust them.
+- **Cursor setup:** sends each conversation's ID, and a conversation that ends in an error shows **! OOPS**.
+
 ## [1.0.0] - 2026-10-12
 
 Pix's first release: a tiny pixel robot that lives on your MacBook Pro's Touch Bar.

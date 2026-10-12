@@ -51,25 +51,36 @@ The **menu-bar icon** (Pix's head) has:
 
 ![Pix on the Touch Bar while an AI agent works: typing at its desk, then ! ASKING when the agent needs you, then ★ DONE beside the clock](media/pix-agent.gif)
 
-Let your coding agent tell Pix what it's up to, and the Touch Bar becomes its status light, right above your hands: while the agent works, Pix types along at its desk (twice as fast); when it needs you, Pix waves with **! ASKING**; when it's finished, Pix hops with **★ DONE**. If the agent goes quiet for 10 minutes, Pix assumes it stopped.
+Let your coding agent tell Pix what it's up to, and the Touch Bar becomes its status light, right above your hands: while the agent works, Pix types along at its desk (twice as fast); when it needs you, Pix waves with **! ASKING**; when it's finished, Pix hops with **★ DONE**; and if a turn fails (a rate limit, an outage), Pix scratches its head with **! OOPS**. Run several conversations at once and Pix follows each one: it cheers each one that finishes and keeps typing while any are still working. A conversation that goes quiet for 10 minutes counts as stopped.
 
-Any tool that can run a command can do it: `open -g pix://agent/working`, `open -g pix://agent/waiting` or `open -g pix://agent/done`. For **Claude Code**, add these hooks to `~/.claude/settings.json`:
+Any tool that can run a command can do it: `open -g "pix://agent/<state>?session=<id>"`, where the state is `working`, `waiting`, `done` or `failed`, and the optional `id` (up to 128 letters, digits, `-`, `_` or `.`) tells conversations apart. Links without one all count as one conversation.
+
+For **Claude Code**, add these hooks to `~/.claude/settings.json`:
 
 ```json
 {
   "hooks": {
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "open -g pix://agent/working" }] }],
-    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "open -g pix://agent/working" }] }],
-    "Notification": [{ "hooks": [{ "type": "command", "command": "open -g pix://agent/waiting" }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "open -g pix://agent/done" }] }]
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/working?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "PreToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "open -g \"pix://agent/working?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "open -g \"pix://agent/working?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "Notification": [{ "matcher": "permission_prompt|elicitation_dialog|agent_needs_input", "hooks": [{ "type": "command", "command": "open -g \"pix://agent/waiting?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/done?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "StopFailure": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/failed?session=$(plutil -extract session_id raw -o - -)\"" }] }]
   }
 }
 ```
 
-**Codex** (untested) only reports finished turns. In `~/.codex/config.toml` (the `sh -c` swallows the details Codex appends):
+**Codex** (untested), in `~/.codex/hooks.json`. Then run `/hooks` in Codex and trust them: Codex doesn't run a new hook until you do.
 
-```toml
-notify = ["sh", "-c", "open -g pix://agent/done"]
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/working?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/working?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "PermissionRequest": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/waiting?session=$(plutil -extract session_id raw -o - -)\"" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "open -g \"pix://agent/done?session=$(plutil -extract session_id raw -o - -)\"" }] }]
+  }
+}
 ```
 
 **Cursor** (untested), in `~/.cursor/hooks.json`:
@@ -78,17 +89,17 @@ notify = ["sh", "-c", "open -g pix://agent/done"]
 {
   "version": 1,
   "hooks": {
-    "beforeSubmitPrompt": [{ "command": "open -g pix://agent/working; echo '{\"continue\":true}'" }],
-    "stop": [{ "command": "open -g pix://agent/done" }]
+    "beforeSubmitPrompt": [{ "command": "open -g \"pix://agent/working?session=$(plutil -extract conversation_id raw -o - -)\"; echo '{\"continue\":true}'" }],
+    "stop": [{ "command": "j=$(cat); s=done; [ \"$(printf %s \"$j\" | plutil -extract status raw -o - -)\" = error ] && s=failed; open -g \"pix://agent/$s?session=$(printf %s \"$j\" | plutil -extract conversation_id raw -o - -)\"" }]
   }
 }
 ```
 
-Pix doesn't watch your agent: it only hears these three words, and only from hooks you set up.
+Pix doesn't watch your agent: each hook picks the conversation's anonymous ID out of what the agent hands it, on your Mac, and sends Pix only that ID and a state word. Nothing about your work reaches Pix, and it keeps neither: the IDs live in memory and are gone once the conversation is.
 
 ## Privacy
 
-Pix only knows **which app is in front** (for example "Xcode" or "Spotify"), what your AI agent tells it if you set that up, the time of day, whether you're on battery and how full it is, whether macOS says it's running hot, and when your screen sleeps or locks. At launch it checks your Mac's list of input devices for a Touch Bar, and nothing else. It never looks at your screen or at what's inside an app, and never connects to the internet. The [source](Sources/) is all here to check.
+Pix only knows **which app is in front** (for example "Xcode" or "Spotify"), what your AI agents tell it if you set that up (a state word and an anonymous ID, kept in memory only), the time of day, whether you're on battery and how full it is, whether macOS says it's running hot, and when your screen sleeps or locks. At launch it checks your Mac's list of input devices for a Touch Bar, and nothing else. It never looks at your screen or at what's inside an app, and never connects to the internet. The [source](Sources/) is all here to check.
 
 So it can greet you like it knows you, Pix keeps a small **Memory** in its own preferences on this Mac, and nothing more: the days it saw you (the last 60), what time you first arrived on recent weekdays (the last 20), how many Pets it got each day (the last 14), three running totals (days together, Pets, and Focus sessions finished), and which Occasions (Halloween, the holidays, New Year's Day) you've spent together, all of which earn Pix its hats. It keeps nothing about which apps you used or what you did, and it never leaves your Mac. **Forget Pix's Memory…** in the menu clears it. Your menu choices, such as **Treat ‹app› as**, are kept there too.
 
