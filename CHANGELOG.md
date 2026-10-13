@@ -8,6 +8,9 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 ### Fixed
 - **Pix follows you across time zones:** after a flight, Pix gets sleepy, greets you, celebrates Occasions and switches its lamp by the new local time, without a restart. Before, only the Clock and the sky moved.
 
+### Changed
+- **Strolling at the window:** after a tap or an agent's news interrupts it, Pix carries on to the end of the window it was walking to instead of turning back to the farther one, and a change of Mood no longer stops it mid-walk.
+
 ## [1.1.0] - 2026-10-12
 
 ### Added
