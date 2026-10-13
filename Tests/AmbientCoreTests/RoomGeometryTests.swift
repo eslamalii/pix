@@ -50,8 +50,8 @@ let narrow = RoomGeometry(barWidth: 900)
 }
 
 @Test func theStrollAtTheWindowGoesBetweenItsEnds() {
-    #expect(m1.strollEnds.left == 1154)  // 1004 + 150
-    #expect(m1.strollEnds.right == 1864)  // 1004 + 860
+    #expect(m1.strollEnd(.left) == 1154)  // 1004 + 150
+    #expect(m1.strollEnd(.right) == 1864)  // 1004 + 860
 }
 
 @Test func propsAreFlippedIntoWorldPointsOnTheirStrip() {

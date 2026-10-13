@@ -107,16 +107,14 @@ final class PixView: NSView {
     private var monitors: [CALayer] = []       // the code scrolling on them
     private var ambient: [CALayer] = []        // particles that belong to the current idle (notes, Zs, desk steam)
     private var momentParticles: [CALayer] = [] // particles that belong to the Moment playing (hearts, Zs, coffee steam)
-    private var strolling = false
     private var faceHome: CGPoint = .zero  // where the face sits when Pix looks straight at the user
 
     // Only one step plays at a time. Each gets a token, so a completion that arrives after a newer step took over
     // does nothing.
     private var token = 0
     private var restTask: Task<Void, Never>?
+    /// The Fidget clock the last idle started; the Stroll's walks and stops leave it running.
     private var fidgetTask: Task<Void, Never>?
-    /// The token of a Fidget that fell due mid-stroll; the stroll leg's end sends it.
-    private var fidgetOwed: Int?
     private var pendingTap: Task<Void, Never>?
 
     /// The bar's width. It starts at one Room strip and takes the real width once the view is on the bar.
@@ -357,6 +355,8 @@ final class PixView: NSView {
         if fpsChanged { for screen in monitors { recap(screen.sublayers?.first, key: "scroll", fps: room.fps) } }
         if let next = routine.handle(.roomChanged(room), at: Date()) {
             run(next)
+        } else if routine.strolling {
+            if looksChanged { showRestLook(at: .window, mood: room.mood) }  // the walk carries on; a new cap waits for the next one
         } else if fpsChanged || looksChanged, let step, case .idle = step {
             run(step)  // its loops and particles take the new cap or typing speed; a busy step takes it when it ends
         }
@@ -382,17 +382,20 @@ final class PixView: NSView {
         for layer in [pix, body, face, emote] { layer.removeAllAnimations() }
         skyLife.sublayers = nil
         monitors = []
-        (self.world, shown, step, strolling, skyDaylight) = (nil, nil, nil, false, nil)
+        (self.world, shown, step, skyDaylight) = (nil, nil, nil, nil)
         log.info("scene stopped")
     }
 
-    /// Starts a new step: stale completions, rests and Fidgets stop, Pix freezes where it stands.
-    private func takeOver() -> Int {
+    /// Starts a new step: stale completions, rests and the Fidget clock stop (the Stroll's own steps keep the clock), and
+    /// Pix freezes where it stands.
+    private func takeOver(keepingFidgetClock: Bool = false) -> Int {
         token += 1
-        fidgetOwed = nil
         restTask?.cancel()
-        fidgetTask?.cancel()
-        (restTask, fidgetTask) = (nil, nil)
+        restTask = nil
+        if !keepingFidgetClock {
+            fidgetTask?.cancel()
+            fidgetTask = nil
+        }
         let x = pix.presentation()?.position.x ?? pix.position.x
         withoutAnimation { pix.position.x = x }
         pix.removeAnimation(forKey: "slide-position.x")
@@ -402,7 +405,6 @@ final class PixView: NSView {
         emote.removeAllAnimations()
         momentParticles.forEach { $0.removeFromSuperlayer() }
         momentParticles = []
-        strolling = false
         return token
     }
 
@@ -439,25 +441,24 @@ final class PixView: NSView {
             withoutAnimation { faceGlow.isHidden = true }
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
             perform("needle", loops: 1)
+        case .stroll(let end):
+            log.info("stroll: \(String(describing: end), privacy: .public)")
+            stroll(to: geometry.strollEnd(end), token: takeOver(keepingFidgetClock: true))
+        case .stopAt(let end, let body):
+            log.info("stop: \(String(describing: end), privacy: .public) · \(body ?? "stand", privacy: .public)")
+            stop(then: body)
         }
     }
 
-    /// The resting loop for the Spot and Mood, plus its particles and the next Fidget.
+    /// The resting loop for the Spot and Mood, plus its particles and the next Fidget. At the window, resting is the
+    /// Stroll: a walk or stop already underway carries on, otherwise the idle reports finished and the Routine starts one.
     private func idle(at spot: Spot, mood: Mood, fidgetIn: Double?) {
         guard let world else { return }
         log.info("idle: \(spot.rawValue, privacy: .public) · \(mood.rawValue, privacy: .public)")
-        let mine = takeOver()
-        blink(in: mood)
-        clearAmbient()
-        let look = RestLook(spot: spot, mood: mood, agentWorking: shown?.agentWorking == true, hot: shown?.hot == true)
-        withoutAnimation { faceGlow.isHidden = !look.faceGlows }
-        if spot == .couch { tvLight() } else { faceGlow.removeAnimation(forKey: "tv") }
-        showSkyLife(spot == .window)
-        for particle in look.particles {
-            ambient += particle == "zzz" ? particles(particle, count: 2, every: 3.5, from: besideHead, in: pix, rise: 10, life: 2.5)
-                                         : particles(particle, count: 2, every: 2.5, from: besideHead, in: pix, rise: 8)
-        }
-        if let body = look.body { setBody(body, speedUp: look.speedUp) }
+        let strollUnderway = spot == .window && routine.strolling
+        if !strollUnderway { _ = takeOver() }
+        showRestLook(at: spot, mood: mood)
+        startFidgetClock(fidgetIn)
         switch spot {
         case .desk:
             place(at: geometry.rest(at: .desk), facing: CATransform3DIdentity)
@@ -477,10 +478,23 @@ final class PixView: NSView {
             ambient += spinningRecord(record)
             ambient += particles("note", count: 3, every: 2.4, from: CGPoint(x: record.midX, y: record.maxY), in: world, rise: 10)
         case .window:
-            let (left, right) = geometry.strollEnds
-            stroll(to: abs(pix.position.x - right) > abs(pix.position.x - left) ? right : left, between: left, and: right, token: mine)
+            if !strollUnderway { send(.finished) }  // last: the Stroll's first walk starts now
         }
-        if let fidgetIn { scheduleFidget(in: fidgetIn, token: mine) }
+    }
+
+    /// The at-rest Look: the Mood's face, the body, the face's glow and the particles off Pix's head.
+    private func showRestLook(at spot: Spot, mood: Mood) {
+        blink(in: mood)
+        clearAmbient()
+        let look = RestLook(spot: spot, mood: mood, agentWorking: shown?.agentWorking == true, hot: shown?.hot == true)
+        withoutAnimation { faceGlow.isHidden = !look.faceGlows }
+        if spot == .couch { tvLight() } else { faceGlow.removeAnimation(forKey: "tv") }
+        showSkyLife(spot == .window)
+        for particle in look.particles {
+            ambient += particle == "zzz" ? particles(particle, count: 2, every: 3.5, from: besideHead, in: pix, rise: 10, life: 2.5)
+                                         : particles(particle, count: 2, every: 2.5, from: besideHead, in: pix, rise: 8)
+        }
+        if let body = look.body { setBody(body, speedUp: look.speedUp) }
     }
 
     /// A Moment's body, Emote, Caption and extra.
@@ -514,62 +528,64 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    /// Tells the Routine when a Fidget is due, though never mid-stroll: then it's owed, and the leg's end sends it
-    /// (no polling, so nothing wakes while Pix walks).
-    private func scheduleFidget(in delay: Double, token mine: Int) {
-        fidgetTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled, let self, mine == token else { return }
-            if strolling { fidgetOwed = mine } else { send(.fidgetDue) }
+    /// Tells the Routine when a Fidget is due (nil: none). A new idle starts the clock over.
+    private func startFidgetClock(_ delay: Double?) {
+        fidgetTask?.cancel()
+        fidgetTask = delay.map { delay in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(delay))
+                guard !Task.isCancelled else { return }
+                self?.send(.fidgetDue)
+            }
         }
     }
 
-    /// Wandering at the window: walk to one end, stretch (right) or stand a while (left), walk back, repeat.
-    private func stroll(to end: CGFloat, between left: CGFloat, and right: CGFloat, token mine: Int, turned: Bool = false) {
+    /// A Stroll walk to an end of the window. A beat before turning around, Pix holds still and its eyes go to the side
+    /// it's about to face.
+    private func stroll(to x: CGFloat, token mine: Int, turned: Bool = false) {
         guard mine == token, let fps = shown?.fps else { return }
-        let facing = end < pix.position.x ? facingLeft : CATransform3DIdentity
+        let from = pix.position.x
+        guard abs(x - from) >= 1 else { return send(.finished) }  // already there
+        let facing = x < from ? facingLeft : CATransform3DIdentity
         if !turned && !CATransform3DEqualToTransform(facing, pix.transform) {
-            // A beat before turning around: Pix holds still and its eyes go to the side it's about to face.
             look(-1)  // the back of Pix, which is the way it's turning (the mirror flips it either way)
             restTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .seconds(0.5))
                 guard !Task.isCancelled else { return }
-                self?.stroll(to: end, between: left, and: right, token: mine, turned: true)
+                self?.stroll(to: x, token: mine, turned: true)
             }
             return
         }
         withoutAnimation { pix.transform = facing }
         breathe(false)
-        strolling = true
         startWalking()  // loops forever, so it stays outside the completion's transaction
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, mine == self.token else { return }
-                self.strolling = false
                 self.pix.removeAnimation(forKey: "bounce")
                 self.look(0)
-                self.glance()
-                let atRight = end == right
-                self.setBody("idle")
-                self.breathe(true)
-                self.glance()  // stop and look around first; at the right end, a stretch follows
-                self.restTask = Task { @MainActor [weak self] in
-                    try? await Task.sleep(for: .seconds(1.5))
-                    guard !Task.isCancelled, let self else { return }
-                    let rest = atRight ? self.setBody("stretch", loops: 1) : 2.5
-                    try? await Task.sleep(for: .seconds(rest))
-                    guard !Task.isCancelled else { return }
-                    self.stroll(to: atRight ? left : right, between: left, and: right, token: mine)
-                }
-                if self.fidgetOwed == mine {  // last, so the Fidget's takeover cancels the rest just set up
-                    self.fidgetOwed = nil
-                    self.send(.fidgetDue)
-                }
+                self.send(.finished)
             }
         }
-        slide(pix, keyPath: "position.x", to: end, duration: RoomGeometry.strollDuration(from: pix.position.x, to: end), fps: fps)
+        slide(pix, keyPath: "position.x", to: x, duration: RoomGeometry.strollDuration(from: from, to: x), fps: fps)
         CATransaction.commit()
+    }
+
+    /// The Stroll's stop at an end: Pix looks around, then plays `body` once, or stands a while.
+    private func stop(then body: String?) {
+        let mine = takeOver(keepingFidgetClock: true)
+        setBody("idle")
+        breathe(true)
+        glance()
+        restTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(1.5))
+            guard !Task.isCancelled, let self, mine == token else { return }
+            let rest = body.map { setBody($0, loops: 1) } ?? 2.5
+            try? await Task.sleep(for: .seconds(rest))
+            guard !Task.isCancelled, mine == token else { return }
+            send(.finished)
+        }
     }
 
     private func walk(to spot: Spot) {

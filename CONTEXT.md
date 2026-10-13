@@ -83,8 +83,12 @@ _Avoid_: idle animation, tic, flourish
 A Fidget that uses a Prop: the Character walks to the Prop, uses it (waters the plant, switches the lamp) and walks back to its Spot. A Moment or an app switch can cut it short.
 _Avoid_: task, trip, chore
 
+**Stroll**:
+How the Character idles at the window: it walks from one end of the window to the other, stops at each end to look around, and stretches at the right end before walking back. A Fidget or a Moment can interrupt it; a Fidget waits for the current walk to finish.
+_Avoid_: wander, pace, patrol
+
 **Routine**:
-What the Character does next with its body in the Room: going to a Spot, idling there, Fidgets, Errands and Moments. It follows from the Activity, the Mood, the Moments and the time of day.
+What the Character does next with its body in the Room: going to a Spot, idling there (the Stroll, at the window), Fidgets, Errands and Moments. It follows from the Activity, the Mood, the Moments and the time of day.
 _Avoid_: behavior, AI, state, schedule
 
 **Pet**:
