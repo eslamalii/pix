@@ -45,8 +45,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let menu = StatusMenu()
     private var presenter: TouchBarPresenter!
     private var controller: Controller!
-    /// The Memory as last saved, so it's only written when it changes.
-    private var savedMemory = Memory()
+    /// What Pix keeps, as last saved, so it's only written when it changes.
+    private var lastSaved = Saved()
     /// pix://agent links that arrived before launch finished (one can launch Pix).
     private var earlyAgentEvents: [Event] = []
 
@@ -73,12 +73,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.templateItems = [item]
         bar.defaultItemIdentifiers = [barID]
 
+        lastSaved = Settings.saved
         controller = Controller(selfBundleID: appID, frontApp: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, power: currentPower(),
-                                at: Date(), timeZone: .current, hidden: Settings.hidden, overrides: Settings.overrides, memory: Settings.memory,
-                                hat: Settings.hat, allHats: Settings.allHats)
-        savedMemory = controller.memory
-        (Settings.hat, view.hat) = (controller.hat, controller.hat)  // a saved hat no longer earned comes off
-        menu.hidden = controller.hidden
+                                at: Date(), timeZone: .current, saved: lastSaved, allHats: Settings.allHats)
+        (view.hat, menu.hidden) = (controller.hat, controller.hidden)
+        save()  // a saved hat no longer earned comes off
         menu.state = { [weak self] in self?.menuState() ?? StatusMenu.State() }
         menu.onHidden = { [weak self] hide in self?.send(hide ? .hidePix : .showPix) }
         menu.onStartAtLogin = { [weak self] on in self?.startAtLogin(on) }
@@ -93,10 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? FileManager.default.createDirectory(at: Settings.skinsFolder, withIntermediateDirectories: true)
             NSWorkspace.shared.open(Settings.skinsFolder)
         }
-        menu.onOverride = { [weak self] id, choice in
-            Settings.overrides[id] = choice
-            self?.send(.overridesChanged(Settings.overrides))
-        }
+        menu.onOverride = { [weak self] id, choice in self?.send(.override(id, choice)) }
         menu.onClock = { [weak self] style in
             Settings.clock = style
             self?.view.clockStyle = style
@@ -142,12 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if alert.runModal() == .alertFirstButtonReturn { send(.forgetMemory) }
     }
 
-    /// What the menu shows when it opens: the Controller's state, and the user's saved choices.
+    /// What the menu shows when it opens: the Controller's state, and the user's other choices.
     private func menuState() -> StatusMenu.State {
         let front = controller.frontApp.flatMap { id -> (id: String, name: String, override: Override?)? in
             guard id != appID else { return nil }
             let name = NSRunningApplication.runningApplications(withBundleIdentifier: id).first?.localizedName ?? id
-            return (id, name, Settings.overrides[id])
+            return (id, name, controller.saved.overrides[id])
         }
         return StatusMenu.State(hidden: controller.hidden, frontApp: front, focusLeft: controller.focusMinutesLeft(at: Date()),
                                 hat: controller.hat, wearableHats: controller.wearableHats, clock: Settings.clock,
@@ -157,15 +153,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func send(_ event: Event) {
         let before = controller.bar
         let moment = controller.handle(event, at: Date())
-        if controller.hat != view.hat { (Settings.hat, view.hat) = (controller.hat, controller.hat) }
-        if controller.hidden != menu.hidden { (Settings.hidden, menu.hidden) = (controller.hidden, controller.hidden) }  // sticks across launches
-        if controller.memory != savedMemory { (Settings.memory, savedMemory) = (controller.memory, controller.memory) }
+        save()
         defer { if let moment { view.play(moment) } }
         switch event {
         // Re-present on these even if nothing changed: the system's ✕ may have closed the bar behind our back.
         case .frontAppChanged, .sparklesTapped, .showPix: render()
         default: if controller.bar != before { render() }
         }
+    }
+
+    /// Saves what Pix keeps when it changed (Hide Pix sticks across launches), and shows the hat and Hide Pix.
+    private func save() {
+        let saved = controller.saved
+        guard saved != lastSaved else { return }
+        (Settings.saved, lastSaved) = (saved, saved)
+        (view.hat, menu.hidden) = (saved.hat, saved.hidden)
     }
 
     private func render() {
