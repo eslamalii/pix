@@ -172,8 +172,8 @@ public enum Event: Sendable {
     case pixPetted
     case tappedElsewhere
     case frontAppChanged(String?)
-    /// The user chose what some apps are for (bundle ID → choice), overriding Pix's guess.
-    case overridesChanged([String: Override])
+    /// The user chose what an app is for (by bundle ID), overriding Pix's guess; nil goes back to the guess.
+    case override(String, Override?)
     case sparklesTapped
     /// The user chose Hide Pix or Show Pix in the menu.
     case hidePix
@@ -250,6 +250,22 @@ enum Rules {
     static let agentQuietAfter: TimeInterval = 10 * 60  // an Agent silent this long has stopped, done or not
 }
 
+/// What the Controller owns that Pix keeps between launches: the app saves it after each event and gives it back at
+/// launch.
+public struct Saved: Equatable, Sendable {
+    /// The user hid Pix; only Show Pix or ✨ brings it back.
+    public var hidden: Bool
+    /// What the user chose some apps are for, by bundle ID.
+    public var overrides: [String: Override]
+    public var memory: Memory
+    /// The hat Pix wears; nil for none.
+    public var hat: Hat?
+
+    public init(hidden: Bool = false, overrides: [String: Override] = [:], memory: Memory = Memory(), hat: Hat? = nil) {
+        (self.hidden, self.overrides, self.memory, self.hat) = (hidden, overrides, memory, hat)
+    }
+}
+
 public struct Controller {
     private let selfBundleID: String
     public private(set) var activity: Activity
@@ -279,9 +295,9 @@ public struct Controller {
     private var workingAgents: [String?: Date] = [:]
     /// The Mac is running hot.
     private var hot = false
-    /// What Pix remembers of the user's days; the app keeps it between launches.
+    /// What Pix remembers of the user's days.
     public private(set) var memory: Memory
-    /// The hat Pix wears; the app keeps it between launches.
+    /// The hat Pix wears.
     public private(set) var hat: Hat?
     /// Every hat counts as earned (the developer's allHats setting).
     private let allHats: Bool
@@ -322,13 +338,17 @@ public struct Controller {
         return .content
     }
 
-    public init(selfBundleID: String, frontApp: String?, power: Power, at time: Date, timeZone: TimeZone, hidden: Bool = false,
-                overrides: [String: Override] = [:], memory: Memory = Memory(), hat: Hat? = nil, allHats: Bool = false) {
+    /// What Pix keeps between launches, as it is now.
+    public var saved: Saved { Saved(hidden: hidden, overrides: overrides, memory: memory, hat: hat) }
+
+    /// `saved` is what the app kept from the last launch; `allHats` is the developer's setting, never saved back.
+    public init(selfBundleID: String, frontApp: String?, power: Power, at time: Date, timeZone: TimeZone, saved: Saved = Saved(),
+                allHats: Bool = false) {
         self.selfBundleID = selfBundleID
-        self.hidden = hidden
+        hidden = saved.hidden
         self.frontApp = frontApp
-        self.overrides = overrides
-        self.memory = memory
+        overrides = saved.overrides
+        memory = saved.memory
         self.allHats = allHats
         now = time
         var calendar = Calendar(identifier: .gregorian)
@@ -338,7 +358,7 @@ public struct Controller {
         activity = Self.activity(for: frontApp, overrides: overrides)
         self.power = power
         sessions[activity] = Session(startingAt: time)
-        self.hat = hat.flatMap { wearableHats.contains($0) ? $0 : nil }
+        hat = saved.hat.flatMap { wearableHats.contains($0) ? $0 : nil }
     }
 
     /// The hats Pix may wear: those it has earned, or all of them with allHats.
@@ -457,8 +477,8 @@ public struct Controller {
             frontApp = bundleID
             switchActivity(to: Self.activity(for: bundleID, overrides: overrides), at: time, wasAway: wasAway)
             (animating, showingAnyway) = (true, false)
-        case .overridesChanged(let new):
-            (overrides, showingAnyway) = (new, false)  // not a switch: it doesn't count toward grumpy
+        case .override(let app, let choice):
+            (overrides[app], showingAnyway) = (choice, false)  // not a switch: it doesn't count toward grumpy
             switchActivity(to: Self.activity(for: frontApp, overrides: overrides), at: time, wasAway: wasAway)
         case .sparklesTapped: (hidden, animating, showingAnyway) = (false, true, true)
         case .showPix: (hidden, animating) = (false, true)

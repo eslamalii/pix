@@ -553,7 +553,7 @@ func aMusicAppInFrontSendsPixToTheMusicCorner(app: String) {
 }
 
 @Test func aPixHiddenWhenTheAppQuitStartsHiddenWithoutAGreeting() {
-    var c = Controller(selfBundleID: selfID, frontApp: "com.microsoft.VSCode", power: charger, at: at(12), timeZone: utc, hidden: true)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.microsoft.VSCode", power: charger, at: at(12), timeZone: utc, saved: Saved(hidden: true))
     #expect(c.handle(.appStarted, at: at(12)) == nil)
     #expect(c.bar == .defaultBar)
 }
@@ -583,7 +583,7 @@ let momentMakers = [
 /// Shown, each one plays its Moment; hidden, none does.
 @Test(arguments: momentMakers, [false, true])
 func aMomentPlaysOnlyWhilePixIsShown(maker: MomentMaker, hidden: Bool) {
-    var c = Controller(selfBundleID: selfID, frontApp: "com.microsoft.VSCode", power: battery, at: at(12), timeZone: utc, hidden: hidden)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.microsoft.VSCode", power: battery, at: at(12), timeZone: utc, saved: Saved(hidden: hidden))
     let played = maker.events.map { c.handle($0.event, at: at(12, $0.minute)) }
     #expect((played.last! == nil) == hidden)
     #expect((c.bar == .defaultBar) == hidden)
@@ -609,7 +609,7 @@ func showPixAndSparklesBringAHiddenPixBack(event: Event) {
 
 @Test func anOverrideBeatsPixsGuessEvenForJetBrains() {
     var c = Controller(selfBundleID: selfID, frontApp: "com.jetbrains.intellij", power: charger, at: at(12), timeZone: utc,
-                       overrides: ["com.jetbrains.intellij": .activity(.music), "com.apple.finder": .activity(.watching)])
+                       saved: Saved(overrides: ["com.jetbrains.intellij": .activity(.music), "com.apple.finder": .activity(.watching)]))
     #expect(c.bar == room(.musicCorner, .music))
     c.handle(.frontAppChanged("com.apple.finder"), at: at(12, 1))
     #expect(c.bar == room(.couch, .watching))
@@ -617,15 +617,15 @@ func showPixAndSparklesBringAHiddenPixBack(event: Event) {
 
 @Test func overridingTheFrontAppMovesPixAtOnceAndClearingItGoesBackToTheGuess() {
     var c = launched(in: "com.apple.finder")
-    c.handle(.overridesChanged(["com.apple.finder": .activity(.coding)]), at: at(12, 1))
+    c.handle(.override("com.apple.finder", .activity(.coding)), at: at(12, 1))
     #expect(c.bar == room(.desk, .coding))
-    c.handle(.overridesChanged([:]), at: at(12, 2))
+    c.handle(.override("com.apple.finder", nil), at: at(12, 2))
     #expect(c.bar == room(.window, .other))
 }
 
 @Test func anOverrideForAnotherAppChangesNothingUntilThatAppIsInFront() {
     var c = launched(in: "com.apple.finder")
-    c.handle(.overridesChanged(["com.apple.mail": .activity(.music)]), at: at(12, 1))
+    c.handle(.override("com.apple.mail", .activity(.music)), at: at(12, 1))
     #expect(c.bar == room(.window, .other))
     c.handle(.frontAppChanged("com.apple.mail"), at: at(12, 2))
     #expect(c.bar == room(.musicCorner, .music))
@@ -633,8 +633,8 @@ func showPixAndSparklesBringAHiddenPixBack(event: Event) {
 
 @Test func aShortOverrideAndBackKeepsTheCodingSession() {
     var c = launched(in: "com.microsoft.VSCode", at: at(12))
-    c.handle(.overridesChanged(["com.microsoft.VSCode": .activity(.other)]), at: at(12, 40))
-    c.handle(.overridesChanged([:]), at: at(12, 41))
+    c.handle(.override("com.microsoft.VSCode", .activity(.other)), at: at(12, 40))
+    c.handle(.override("com.microsoft.VSCode", nil), at: at(12, 41))
     c.handle(.clockTick, at: at(12, 46))  // 40 + 5 minutes of coding
     #expect(c.bar == room(.desk, .coding, .focused))
 }
@@ -642,13 +642,13 @@ func showPixAndSparklesBringAHiddenPixBack(event: Event) {
 @Test func anOverrideIsNotASwitchSoItCannotTipPixIntoGrumpy() {
     var c = launched(in: "com.apple.finder", at: at(12, 0))
     switches(&c, at: (1...5).map { at(12, 0, $0 * 10) })  // one switch short of grumpy, ending in Notes
-    c.handle(.overridesChanged(["com.apple.Notes": .activity(.music)]), at: at(12, 1))
+    c.handle(.override("com.apple.Notes", .activity(.music)), at: at(12, 1))
     #expect(c.bar == room(.musicCorner, .music, .content))
 }
 
 @Test func inAnAppGivenItsOwnTouchBarPixStepsAsideAndComesBackElsewhere() {
     var c = launched(in: "com.apple.finder")
-    c.handle(.overridesChanged(["com.apple.finder": .defaultBar]), at: at(12, 1))
+    c.handle(.override("com.apple.finder", .defaultBar), at: at(12, 1))
     #expect(c.bar == .defaultBar)
     c.handle(.frontAppChanged("com.apple.Safari"), at: at(12, 2))
     #expect(c.bar == room(.window, .browsing))
@@ -658,13 +658,24 @@ func showPixAndSparklesBringAHiddenPixBack(event: Event) {
 
 @Test func sparklesShowPixInAnAppGivenItsOwnTouchBarUntilTheNextVisit() {
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.finder", power: charger, at: at(12), timeZone: utc,
-                       overrides: ["com.apple.finder": .defaultBar])
+                       saved: Saved(overrides: ["com.apple.finder": .defaultBar]))
     #expect(c.bar == .defaultBar)
     c.handle(.sparklesTapped, at: at(12, 1))
     #expect(c.bar == room(.window, .other))
     c.handle(.frontAppChanged("com.apple.Safari"), at: at(12, 2))
     c.handle(.frontAppChanged("com.apple.finder"), at: at(12, 3))
     #expect(c.bar == .defaultBar)
+}
+
+@Test func choosingOneAppsOverrideKeepsTheOthersAndPixsGuessForgetsIt() {
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.finder", power: charger, at: at(12), timeZone: utc,
+                       saved: Saved(overrides: ["com.apple.mail": .activity(.music)]))
+    c.handle(.override("com.apple.finder", .activity(.coding)), at: at(12, 1))
+    #expect(c.bar == room(.desk, .coding))
+    #expect(c.saved.overrides == ["com.apple.mail": .activity(.music), "com.apple.finder": .activity(.coding)])
+    c.handle(.override("com.apple.finder", nil), at: at(12, 2))
+    #expect(c.bar == room(.window, .other))
+    #expect(c.saved.overrides == ["com.apple.mail": .activity(.music)])
 }
 
 @Test func anOverrideIsStoredAsTheActivityOrDefaultBarAndUnknownOnesAreDropped() {
@@ -758,7 +769,7 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
 @Test func backAfterDaysAwayIsTheDaysFirstGreetingButNotTheNext() {
     var memory = Memory()
     memory.arrived(at: at(9) - 5 * 86_400, calendar: enUS)  // the Wednesday before
-    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, memory: memory)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: at(12)) == .greeting(.missedYou))
     c.handle(.screenSlept, at: at(12, 10))
     #expect(c.handle(.screenWoke, at: at(13)) == .greeting(.hello))
@@ -775,7 +786,7 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
 }
 
 @Test func onTheDefaultBarThereIsNoGreetingButTheArrivalIsRemembered() {
-    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, hidden: true)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(hidden: true))
     #expect(c.handle(.appStarted, at: at(12)) == nil)
     #expect(c.memory.days == ["2026-10-12"])
 }
@@ -813,7 +824,7 @@ func occasionsFallOnTheirDays(month: Int, day: Int, occasion: Occasion) {
     let halloween = at(12) + 19 * 86_400  // Saturday 2026-10-31
     var memory = Memory()
     memory.arrived(at: halloween - 10 * 86_400, calendar: enUS)  // long enough away to be missed
-    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, memory: memory)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: halloween) == .greeting(.halloween))
     c.handle(.screenSlept, at: halloween + 600)
     #expect(c.handle(.screenWoke, at: halloween + 3600) == .greeting(.hello))
@@ -973,10 +984,21 @@ func anyOtherLinkIsIgnored(link: String) {
 
 // MARK: - Hats
 
+@Test func whatPixKeepsFollowsHidingEarningAHatAndForgetting() {
+    var memory = Memory()
+    for d in 1...2 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }  // Saturday and Sunday
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
+    c.handle(.appStarted, at: at(12))  // the third day earns the cap
+    c.handle(.hidePix, at: at(12, 1))
+    #expect(c.saved.hidden && c.saved.hat == .cap && c.saved.memory.days.count == 3)
+    c.handle(.forgetMemory, at: at(12, 2))
+    #expect(c.saved == Saved(hidden: true))
+}
+
 @Test func theThirdDayTogetherEarnsACapAndItsNewHatFollowsTheGreeting() {
     var memory = Memory()
     for d in 1...2 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }  // Saturday and Sunday
-    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, memory: memory)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: at(12)) == .greeting(.hello))
     #expect(Hat.earned(by: c.memory) == [.cap])
     #expect(c.handle(.pixTapped, at: at(12, 0, 30)) == .reaction(.wave))  // a Moment of its own goes first
@@ -1083,7 +1105,7 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
     let halloween = at(12) + 19 * 86_400  // and the third day together
     var memory = Memory()
     for d in 1...2 { memory.arrived(at: halloween - Double(d) * 86_400, calendar: enUS) }
-    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, memory: memory)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, saved: Saved(memory: memory))
     c.handle(.appStarted, at: halloween)
     #expect(Hat.earned(by: c.memory) == [.cap, .witch])
     #expect(c.hat == .witch)
@@ -1114,14 +1136,14 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
 @Test func theHatWornAtLaunchStaysOnIfItsEarned() {
     var memory = Memory()
     for d in 1...3 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }
-    let c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, memory: memory, hat: .cap)
+    let c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory, hat: .cap))
     #expect(c.hat == .cap)
-    let notEarned = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, hat: .crown)
+    let notEarned = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(hat: .crown))
     #expect(notEarned.hat == nil)
 }
 
 @Test func withAllHatsEveryHatCanBeWornAndForgettingKeepsIt() {
-    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, hat: .crown, allHats: true)
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(hat: .crown), allHats: true)
     #expect(c.hat == .crown)
     #expect(c.wearableHats == Hat.allCases)
     c.handle(.chooseHat(.topHat), at: at(12, 1))
