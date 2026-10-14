@@ -353,9 +353,7 @@ final class PixView: NSView {
         let looksChanged = room.agentWorking != shown?.agentWorking || room.hot != shown?.hot
         shown = room
         if fpsChanged { for screen in monitors { recap(screen.sublayers?.first, key: "scroll", fps: room.fps) } }
-        let next = routine.handle(.roomChanged(room), at: Date())
-        scheduleWake()
-        if let next {
+        if let next = handle(.roomChanged(room)) {
             run(next)
         } else if routine.strolling {
             if looksChanged { showRestLook(at: .window, mood: room.mood) }  // the walk carries on; a new cap waits for the next one
@@ -409,9 +407,13 @@ final class PixView: NSView {
 
     /// Tells the Routine what happened, and performs the step it asks for, if any.
     private func send(_ event: Routine.Event) {
-        let next = routine.handle(event, at: Date())
-        scheduleWake()
-        if let next { run(next) }
+        if let next = handle(event) { run(next) }
+    }
+
+    /// Tells the Routine what happened, and moves the wake timer to its new deadline.
+    private func handle(_ event: Routine.Event) -> Routine.Step? {
+        defer { scheduleWake() }
+        return routine.handle(event, at: Date())
     }
 
     private func scheduleWake() {

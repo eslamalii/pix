@@ -28,7 +28,7 @@ func started(at spot: Spot, _ mood: Mood = .content, time: Date = at(12), dice: 
     return routine
 }
 
-/// Idling, with a Fidget due 60 s later (a roll of 0.5 on 30–90 s).
+/// Idling at the Spot in the Mood.
 func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot, mood) }
 
 // MARK: - Spots and walking
@@ -241,6 +241,12 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
     #expect(routine.nextWake == due)
     routine.handle(.finished, at: at(12, 0, 35))  // walking right
     #expect(routine.nextWake == due)
+}
+
+@Test func aNewMoodMidWalkRestartsTheFidgetDeadline() {
+    var routine = strollingRight()
+    routine.handle(.roomChanged(scene(.window, .cheerful)), at: at(12, 0, 40))
+    #expect(routine.nextWake == at(12, 1, 40))
 }
 
 @Test func aFidgetHeldMidWalkPlaysInPlaceOfTheStopAtTheEndPixReaches() {
