@@ -427,7 +427,7 @@ final class PixView: NSView {
         withoutAnimation { lampGlow.isHidden = !routine.lampLit }
         switch step {
         case .walk(let spot):
-            walk(to: spot)
+            walk(.spot(spot))
         case .idle(let spot, let look):
             idle(at: spot, look: look)
         case .moment(let moment):
@@ -438,12 +438,12 @@ final class PixView: NSView {
             perform(fidget.rawValue, loops: 1)
         case .errand(let errand):
             log.info("errand: \(errand.body, privacy: .public)")
-            walkOnErrand(to: geometry.standingPoint(for: errand).x)
+            walk(.errand(to: geometry.standingPoint(for: errand).x))
         case .use(let errand):
             withoutAnimation { pix.transform = geometry.standingPoint(for: errand).facingLeft ? facingLeft : CATransform3DIdentity }
             perform(errand.body, loops: 1)
         case .walkBack(let spot):
-            walkOnErrand(to: geometry.rest(at: spot).x)
+            walk(.errand(to: geometry.rest(at: spot).x))
         case .dropNeedle:
             withoutAnimation { faceGlow.isHidden = true }
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
@@ -451,7 +451,7 @@ final class PixView: NSView {
         case .stroll(let end, let restLook):
             log.info("stroll: \(String(describing: end), privacy: .public)")
             apply(restLook, at: .window)
-            stroll(to: geometry.strollEnd(end), token: takeOver())
+            walk(.stroll(to: geometry.strollEnd(end)))
         case .turn(let end, let restLook):
             log.info("turn: \(String(describing: end), privacy: .public)")
             _ = takeOver()
@@ -547,28 +547,6 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    /// A Stroll walk to an end of the window.
-    private func stroll(to x: CGFloat, token mine: Int) {
-        guard mine == token, let fps = shown?.fps else { return }
-        let from = pix.position.x
-        guard abs(x - from) >= 1 else { return send(.finished) }  // already there
-        let facing = x < from ? facingLeft : CATransform3DIdentity
-        withoutAnimation { pix.transform = facing }
-        breathe(false)
-        startWalking()  // loops forever, so it stays outside the completion's transaction
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, mine == self.token else { return }
-                self.pix.removeAnimation(forKey: "bounce")
-                self.look(0)
-                self.send(.finished)
-            }
-        }
-        slide(pix, keyPath: "position.x", to: x, duration: RoomGeometry.strollDuration(from: from, to: x), fps: fps)
-        CATransaction.commit()
-    }
-
     /// Pix looks around: one way, the other, then back at the user.
     private func lookAround(restLook: RestLook) {
         let mine = takeOver()
@@ -589,31 +567,72 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    private func walk(to spot: Spot) {
-        guard let world, let fps = shown?.fps else { return }
+    private enum WalkKind {
+        case spot(Spot)
+        case errand(to: CGFloat)
+        case stroll(to: CGFloat)
+    }
+
+    /// Pix walks: to a Spot (scrolling the Room), on an Errand (to or from a Prop), or along the Stroll.
+    private func walk(_ kind: WalkKind) {
+        guard let world else { return }
         let mine = takeOver()
-        clearAmbient()
         breathe(false)
-        withoutAnimation { faceGlow.isHidden = true }
-        if spot == .window { showSkyLife(true) }  // the window comes into view during the walk
-        faceGlow.removeAnimation(forKey: "tv")
-        let toX = geometry.rest(at: spot).x
-        let fromX = pix.presentation()?.position.x ?? pix.position.x
-        let duration = geometry.walkDuration(from: fromX, to: toX)
+        withoutAnimation { pix.position.y = px(Art.floor) }
+        switch kind {
+        case .spot(let spot):
+            clearAmbient()
+            faceGlow.removeAnimation(forKey: "tv")
+            withoutAnimation { faceGlow.isHidden = true }
+            if spot == .window { showSkyLife(true) }  // the window comes into view during the walk
+        case .errand:
+            clearAmbient()
+            faceGlow.removeAnimation(forKey: "tv")
+            withoutAnimation { faceGlow.isHidden = true }
+        case .stroll:
+            break
+        }
+
+        let toX: CGFloat
+        let duration: Double
+        let speedUp: Double
+        let fromX = pix.position.x
+
+        switch kind {
+        case .spot(let spot):
+            toX = geometry.rest(at: spot).x
+            duration = geometry.walkDuration(from: fromX, to: toX)
+            speedUp = 1.3
+        case .errand(let to):
+            toX = to
+            duration = RoomGeometry.errandWalkDuration(from: fromX, to: toX)
+            speedUp = 1.3
+        case .stroll(let to):
+            toX = to
+            duration = RoomGeometry.strollDuration(from: fromX, to: toX)
+            speedUp = 1
+        }
+
+        guard abs(toX - fromX) >= 1 else { return send(.finished) }
+
         withoutAnimation {
             pix.transform = toX < fromX ? facingLeft : CATransform3DIdentity
-            pix.position.y = px(Art.floor)  // off the couch, if it was on it
         }
-        startWalking(speedUp: 1.3)  // loops forever, so it stays outside the completion's transaction
+        startWalking(speedUp: speedUp)  // loops forever, so it stays outside the completion's transaction
+
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
             MainActor.assumeIsolated {
                 guard let self, mine == self.token else { return }
+                self.pix.removeAnimation(forKey: "bounce")
+                self.look(0)
                 self.send(.finished)
             }
         }
-        slide(pix, keyPath: "position.x", to: toX, duration: duration, fps: fps)
-        slide(world, keyPath: "position.x", to: geometry.scroll(for: spot), duration: duration, fps: fps)
+        slide(pix, keyPath: "position.x", to: toX, duration: duration)
+        if case .spot(let spot) = kind {
+            slide(world, keyPath: "position.x", to: geometry.scroll(for: spot), duration: duration)
+        }
         CATransaction.commit()
     }
 
@@ -771,38 +790,6 @@ final class PixView: NSView {
             world.addSublayer(glint)
             return glint
         }
-    }
-
-    /// Walking to a Prop for an Errand, or back to the Spot from one (or from wherever a Moment cut one short):
-    /// on foot, off the couch if Pix was on it.
-    private func walkOnErrand(to x: CGFloat) {
-        let mine = takeOver()
-        clearAmbient()
-        breathe(false)
-        faceGlow.removeAnimation(forKey: "tv")
-        withoutAnimation {
-            faceGlow.isHidden = true
-            pix.position.y = px(Art.floor)
-        }
-        errandWalk(to: x, token: mine)
-    }
-
-    private func errandWalk(to x: CGFloat, token mine: Int) {
-        let from = pix.position.x
-        guard abs(x - from) >= 1 else { return send(.finished) }  // already there
-        withoutAnimation { pix.transform = x < from ? facingLeft : CATransform3DIdentity }
-        startWalking(speedUp: 1.3)  // loops forever, so it stays outside the completion's transaction
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, mine == self.token else { return }
-                self.pix.removeAnimation(forKey: "bounce")
-                self.look(0)
-                self.send(.finished)
-            }
-        }
-        slide(pix, keyPath: "position.x", to: x, duration: RoomGeometry.errandWalkDuration(from: from, to: x), fps: shown?.fps ?? 12)
-        CATransaction.commit()
     }
 
     // MARK: - Particles
@@ -1049,7 +1036,7 @@ final class PixView: NSView {
         CAFrameRateRange(minimum: Float(min(6, fps)), maximum: Float(fps), preferred: Float(fps))
     }
 
-    private func slide(_ layer: CALayer, keyPath: String, to value: CGFloat, duration: Double, fps: Int) {
+    private func slide(_ layer: CALayer, keyPath: String, to value: CGFloat, duration: Double) {
         let from = layer.presentation()?.value(forKeyPath: keyPath) ?? layer.value(forKeyPath: keyPath)
         withoutAnimation { layer.setValue(value, forKeyPath: keyPath) }
         let move = CABasicAnimation(keyPath: keyPath)
@@ -1057,7 +1044,7 @@ final class PixView: NSView {
         move.toValue = value
         move.duration = duration
         move.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-        move.preferredFrameRateRange = capped(fps)
+        move.preferredFrameRateRange = frameRange
         layer.add(move, forKey: "slide-\(keyPath)")
     }
 
