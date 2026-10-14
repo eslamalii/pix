@@ -1,5 +1,5 @@
-# Homebrew formula for Pix. The published copy lives in the eslamalii/homebrew-tap repo; scripts/release.sh
-# prints the url, sha256 and build number to paste in.
+# Template for the Homebrew formula. The published copy lives in the eslamalii/homebrew-tap repo, and
+# .github/workflows/release.yml updates its url, sha256 and PIX_BUILD on every release; the values here are placeholders.
 class Pix < Formula
   desc "Tiny pixel robot that lives on your MacBook Pro's Touch Bar"
   homepage "https://meetpix.app"

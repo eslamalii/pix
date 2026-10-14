@@ -1,0 +1,86 @@
+# Pushing a v* tag publishes the release: the GitHub Release, the Homebrew tap and meetpix.app.
+# Running it by hand ("Run workflow") is a dry run: every check and the build, nothing published.
+# Needs the TAP_TOKEN secret: a fine-grained token with Contents: write on homebrew-tap and pix-website.
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency: release
+
+jobs:
+  release:
+    runs-on: macos-26
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PUBLISH: ${{ github.event_name == 'push' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the build number is the commit count
+
+      - name: Check the version and pull its notes from CHANGELOG.md
+        run: |
+          VERSION="$(cat VERSION)"
+          if [ "$PUBLISH" = true ] && [ "$GITHUB_REF_NAME" != "v$VERSION" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match VERSION ($VERSION)."; exit 1
+          fi
+          awk -v v="$VERSION" '/^## \[/ { p = index($0, "## [" v "]") == 1; next } p' CHANGELOG.md > "$RUNNER_TEMP/notes.md"
+          grep -q '[^[:space:]]' "$RUNNER_TEMP/notes.md" || { echo "::error::CHANGELOG.md has no section for $VERSION."; exit 1; }
+          cat "$RUNNER_TEMP/notes.md"
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "BUILD=$(git rev-list --count HEAD)" >> "$GITHUB_ENV"
+
+      - run: scripts/test.sh
+
+      - run: scripts/release.sh
+
+      - name: Publish the GitHub Release
+        if: env.PUBLISH == 'true'
+        run: |
+          gh release view "v$VERSION" >/dev/null 2>&1 ||
+            gh release create "v$VERSION" "build/Pix-$VERSION.zip" --title "Pix $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+
+      - name: Update the Homebrew tap
+        if: env.PUBLISH == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          URL="https://github.com/eslamalii/pix/archive/refs/tags/v$VERSION.tar.gz"
+          SHA="$(curl -fsSL "$URL" | shasum -a 256 | cut -d' ' -f1)"
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/eslamalii/homebrew-tap.git" "$RUNNER_TEMP/tap"
+          cd "$RUNNER_TEMP/tap"
+          sed -i '' -E \
+            -e "s|^  url \".*\"|  url \"$URL\"|" \
+            -e "s|^  sha256 \".*\"|  sha256 \"$SHA\"|" \
+            -e "s|(ENV\[\"PIX_BUILD\"\] = )\"[0-9]+\"|\1\"$BUILD\"|" \
+            Formula/pix.rb
+          grep -q "v$VERSION.tar.gz" Formula/pix.rb && grep -q "$SHA" Formula/pix.rb && grep -q "\"$BUILD\"" Formula/pix.rb
+          git diff --quiet && exit 0 # already up to date (a rerun)
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -am "pix $VERSION"
+          git push
+
+      - name: Update meetpix.app (Cloudflare deploys the push)
+        if: env.PUBLISH == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+        run: |
+          git clone "https://x-access-token:$TAP_TOKEN@github.com/eslamalii/pix-website.git" "$RUNNER_TEMP/site"
+          cd "$RUNNER_TEMP/site"
+          sed -i '' -E \
+            -e "s|(\"softwareVersion\": )\"[^\"]*\"|\1\"$VERSION\"|" \
+            -e "s|(<span class=\"logo-badge mono\">)v[^<]*<|\1v$VERSION<|" \
+            public/index.html
+          grep -q "\"softwareVersion\": \"$VERSION\"" public/index.html && grep -q "mono\">v$VERSION<" public/index.html
+          git diff --quiet && exit 0
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -am "Pix $VERSION"
+          git push
