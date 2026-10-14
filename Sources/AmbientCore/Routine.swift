@@ -42,7 +42,8 @@ public struct Routine {
         case momentArrived(Moment)
         /// The step the Routine last asked for played to its end.
         case finished
-        case fidgetDue
+        /// `nextWake` came: a wake before it changes nothing.
+        case wake
         case minutePassed
         /// macOS moved to another time zone: the lamp follows the new hour.
         case timeZoneChanged(TimeZone)
@@ -53,8 +54,8 @@ public struct Routine {
     public enum Step: Equatable, Sendable {
         /// Walk to a Spot from wherever Pix is, scrolling the Room if it's on another strip.
         case walk(to: Spot)
-        /// Rest at the Spot in the Mood; a Fidget is due after `fidgetIn` seconds (nil: none).
-        case idle(Spot, Mood, fidgetIn: Double?)
+        /// Rest at the Spot in the Mood.
+        case idle(Spot, Mood)
         case moment(Moment)
         /// A Fidget's body, played once.
         case fidget(Fidget)
@@ -97,6 +98,8 @@ public struct Routine {
     private var leg: Step?
     /// A Fidget fell due mid-walk: it plays when Pix reaches the end.
     private var fidgetHeld = false
+    /// When the next Fidget falls due: set by an idle, kept by the Stroll's walks and stops, cleared by anything else.
+    private var fidgetDue: Date?
 
     /// Where Pix was last seen: the scene starts with Pix there, and it walks into view if the Spot changed.
     public private(set) var lastSpot: Spot?
@@ -106,6 +109,9 @@ public struct Routine {
     /// A Stroll walk or stop is underway: an idle at the window sets Pix's Look and leaves it running. Otherwise the
     /// idle reports finished and the Stroll starts.
     public var strolling: Bool { leg != nil }
+
+    /// When the view should send `wake` (nil: no need).
+    public var nextWake: Date? { fidgetDue }
 
     /// `random` returns a number in 0..<1; tests pass fixed ones.
     public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
@@ -127,7 +133,7 @@ public struct Routine {
 
         case .sceneStopped:
             (running, current, waiting) = (false, nil, nil)
-            (leg, fidgetHeld, heading) = (nil, false, .left)  // the scene starts with Pix at its Spot
+            (leg, fidgetHeld, heading, fidgetDue) = (nil, false, .left, nil)  // the scene starts with Pix at its Spot
             return nil
 
         case .roomChanged(let new):
@@ -166,15 +172,16 @@ public struct Routine {
             case .use(let errand):
                 if errand == .switchLamp { lamp = lampWanted(at: time) }
                 return start(.walkBack(to: room?.spot ?? .desk))
-            case .idle(.window, _, _), .stroll, .stopAt:
+            case .idle(.window, _), .stroll, .stopAt:
                 return nextStrollStep()  // resting at the window is strolling
             case .idle, .moment, .fidget, .dropNeedle:
                 break
             }
             return settle(at: time)
 
-        case .fidgetDue:
-            guard running else { return nil }
+        case .wake:
+            guard running, let due = fidgetDue, time >= due else { return nil }
+            fidgetDue = nil
             if case .stroll? = leg {
                 fidgetHeld = true  // never mid-walk
                 return nil
@@ -212,8 +219,8 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        let fidgetIn = room.mood == .focused || Self.fidgets(for: room).isEmpty ? nil : 30 + random() * 60
-        return start(.idle(room.spot, room.mood, fidgetIn: fidgetIn))
+        fidgetDue = room.mood == .focused || Self.fidgets(for: room).isEmpty ? nil : time + 30 + random() * 60
+        return start(.idle(room.spot, room.mood))
     }
 
     private mutating func walk(to spot: Spot) -> Step {
@@ -244,9 +251,10 @@ public struct Routine {
     private mutating func start(_ step: Step) -> Step {
         current = step
         switch step {
-        case .stroll, .stopAt: (leg, fidgetHeld) = (step, false)
-        case .idle(.window, _, _): break  // the walk or stop carries on, and a held Fidget still waits for its end
-        default: (leg, fidgetHeld) = (nil, false)
+        case .stroll, .stopAt: (leg, fidgetHeld) = (step, false)  // the Fidget deadline carries on
+        case .idle(.window, _): break  // the walk or stop carries on, and a held Fidget still waits for its end
+        case .idle: (leg, fidgetHeld) = (nil, false)  // settle set the Fidget deadline
+        default: (leg, fidgetHeld, fidgetDue) = (nil, false, nil)
         }
         switch step {
         case .walk, .errand, .walkBack: place = .onTheWay  // until it finishes

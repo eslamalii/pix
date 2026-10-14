@@ -113,8 +113,8 @@ final class PixView: NSView {
     // does nothing.
     private var token = 0
     private var restTask: Task<Void, Never>?
-    /// The Fidget clock the last idle started; the Stroll's walks and stops leave it running.
-    private var fidgetTask: Task<Void, Never>?
+    /// Sends the Routine `wake` at its `nextWake`. Every call into the Routine moves it.
+    private var wakeTask: Task<Void, Never>?
     private var pendingTap: Task<Void, Never>?
 
     /// The bar's width. It starts at one Room strip and takes the real width once the view is on the bar.
@@ -353,7 +353,9 @@ final class PixView: NSView {
         let looksChanged = room.agentWorking != shown?.agentWorking || room.hot != shown?.hot
         shown = room
         if fpsChanged { for screen in monitors { recap(screen.sublayers?.first, key: "scroll", fps: room.fps) } }
-        if let next = routine.handle(.roomChanged(room), at: Date()) {
+        let next = routine.handle(.roomChanged(room), at: Date())
+        scheduleWake()
+        if let next {
             run(next)
         } else if routine.strolling {
             if looksChanged { showRestLook(at: .window, mood: room.mood) }  // the walk carries on; a new cap waits for the next one
@@ -386,16 +388,11 @@ final class PixView: NSView {
         log.info("scene stopped")
     }
 
-    /// Starts a new step: stale completions, rests and the Fidget clock stop (the Stroll's own steps keep the clock), and
-    /// Pix freezes where it stands.
-    private func takeOver(keepingFidgetClock: Bool = false) -> Int {
+    /// Starts a new step: stale completions and rests stop, and Pix freezes where it stands.
+    private func takeOver() -> Int {
         token += 1
         restTask?.cancel()
         restTask = nil
-        if !keepingFidgetClock {
-            fidgetTask?.cancel()
-            fidgetTask = nil
-        }
         let x = pix.presentation()?.position.x ?? pix.position.x
         withoutAnimation { pix.position.x = x }
         pix.removeAnimation(forKey: "slide-position.x")
@@ -412,7 +409,20 @@ final class PixView: NSView {
 
     /// Tells the Routine what happened, and performs the step it asks for, if any.
     private func send(_ event: Routine.Event) {
-        if let next = routine.handle(event, at: Date()) { run(next) }
+        let next = routine.handle(event, at: Date())
+        scheduleWake()
+        if let next { run(next) }
+    }
+
+    private func scheduleWake() {
+        wakeTask?.cancel()
+        wakeTask = routine.nextWake.map { deadline in
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(max(0, deadline.timeIntervalSinceNow)))
+                guard !Task.isCancelled else { return }
+                self?.send(.wake)  // early, by the wall clock: the Routine ignores it and the timer is set again
+            }
+        }
     }
 
     private func run(_ step: Routine.Step) {
@@ -421,8 +431,8 @@ final class PixView: NSView {
         switch step {
         case .walk(let spot):
             walk(to: spot)
-        case .idle(let spot, let mood, let fidgetIn):
-            idle(at: spot, mood: mood, fidgetIn: fidgetIn)
+        case .idle(let spot, let mood):
+            idle(at: spot, mood: mood)
         case .moment(let moment):
             log.notice("moment: \(String(describing: moment), privacy: .public)")
             playMoment(moment.look)
@@ -443,22 +453,21 @@ final class PixView: NSView {
             perform("needle", loops: 1)
         case .stroll(let end):
             log.info("stroll: \(String(describing: end), privacy: .public)")
-            stroll(to: geometry.strollEnd(end), token: takeOver(keepingFidgetClock: true))
+            stroll(to: geometry.strollEnd(end), token: takeOver())
         case .stopAt(let end, let body):
             log.info("stop: \(String(describing: end), privacy: .public) · \(body ?? "stand", privacy: .public)")
             stop(then: body)
         }
     }
 
-    /// The resting loop for the Spot and Mood, plus its particles and the next Fidget. At the window, resting is the
-    /// Stroll: a walk or stop already underway carries on, otherwise the idle reports finished and the Routine starts one.
-    private func idle(at spot: Spot, mood: Mood, fidgetIn: Double?) {
+    /// The resting loop for the Spot and Mood, plus its particles. At the window, resting is the Stroll: a walk
+    /// or stop already underway carries on, otherwise the idle reports finished and the Routine starts one.
+    private func idle(at spot: Spot, mood: Mood) {
         guard let world else { return }
         log.info("idle: \(spot.rawValue, privacy: .public) · \(mood.rawValue, privacy: .public)")
         let strollUnderway = spot == .window && routine.strolling
         if !strollUnderway { _ = takeOver() }
         showRestLook(at: spot, mood: mood)
-        startFidgetClock(fidgetIn)
         switch spot {
         case .desk:
             place(at: geometry.rest(at: .desk), facing: CATransform3DIdentity)
@@ -528,18 +537,6 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    /// Tells the Routine when a Fidget is due (nil: none). A new idle starts the clock over.
-    private func startFidgetClock(_ delay: Double?) {
-        fidgetTask?.cancel()
-        fidgetTask = delay.map { delay in
-            Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(delay))
-                guard !Task.isCancelled else { return }
-                self?.send(.fidgetDue)
-            }
-        }
-    }
-
     /// A Stroll walk to an end of the window. A beat before turning around, Pix holds still and its eyes go to the side
     /// it's about to face.
     private func stroll(to x: CGFloat, token mine: Int, turned: Bool = false) {
@@ -574,7 +571,7 @@ final class PixView: NSView {
 
     /// The Stroll's stop at an end: Pix looks around, then plays `body` once, or stands a while.
     private func stop(then body: String?) {
-        let mine = takeOver(keepingFidgetClock: true)
+        let mine = takeOver()
         setBody("idle")
         breathe(true)
         glance()
