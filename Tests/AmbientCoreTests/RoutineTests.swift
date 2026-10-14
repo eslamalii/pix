@@ -28,14 +28,16 @@ func started(at spot: Spot, _ mood: Mood = .content, time: Date = at(12), dice: 
     return routine
 }
 
-/// Idling with a Fidget due in 60 s (a roll of 0.5 on 30–90 s).
-func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot, mood, fidgetIn: 60) }
+/// Idling at the Spot in the Mood.
+func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot, mood) }
 
 // MARK: - Spots and walking
 
-@Test func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds() {
-    var routine = Routine(timeZone: utc, random: Dice([0]).roll)
-    #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .idle(.desk, .content, fidgetIn: 30))
+@Test(arguments: [(0.0, 30), (0.5, 60), (0.99, 89)])
+func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Double, seconds: Int) {
+    var routine = Routine(timeZone: utc, random: Dice([roll]).roll)
+    #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .idle(.desk, .content))
+    #expect(routine.nextWake.map { Int($0.timeIntervalSince(at(12))) } == seconds)
 }
 
 @Test func aNewSpotSendsPixWalkingThereAndItIdlesOnArrival() {
@@ -69,7 +71,8 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
 
 @Test func whenFocusedNoFidgetIsDue() {
     var routine = started(at: .desk)
-    #expect(routine.handle(.roomChanged(scene(.desk, .focused)), at: at(12, 1)) == .idle(.desk, .focused, fidgetIn: nil))
+    #expect(routine.handle(.roomChanged(scene(.desk, .focused)), at: at(12, 1)) == .idle(.desk, .focused))
+    #expect(routine.nextWake == nil)
 }
 
 // MARK: - Moments
@@ -127,7 +130,7 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
     var routine = started(at: .desk)
     routine.handle(.sceneStopped, at: at(12, 1))
     #expect(routine.handle(.roomChanged(scene(.window)), at: at(12, 2)) == nil)
-    #expect(routine.handle(.fidgetDue, at: at(12, 2)) == nil)
+    #expect(routine.handle(.wake, at: at(12, 2)) == nil)
     #expect(routine.handle(.minutePassed, at: at(20)) == nil)
 }
 
@@ -186,7 +189,7 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
 
 @Test func onACallASleepyPixDoesNoFidgets() {
     var rolled = started(at: .call, .sleepy, dice: Dice([0]))
-    #expect(rolled.handle(.fidgetDue, at: at(12, 1)) == nil)
+    #expect(rolled.handle(.wake, at: at(12, 1)) == nil)
 }
 
 // MARK: - The Stroll
@@ -208,7 +211,7 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
 @Test func aFidgetDueMidWalkWaitsForTheEndOfTheWindowThenAnotherWalk() {
     var routine = started(at: .window, dice: Dice([0.5, 0]))  // the window's first Fidget
     routine.handle(.finished, at: at(12))  // walking left
-    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)
+    #expect(routine.handle(.wake, at: at(12, 1)) == nil)
     #expect(routine.handle(.finished, at: at(12, 1)) == .fidget(.gaze))
     #expect(routine.handle(.finished, at: at(12, 1)) == idling(.window))
     #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))  // it had reached the left end
@@ -218,14 +221,41 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
     var routine = started(at: .window, dice: Dice([0.5, 0]))
     routine.handle(.finished, at: at(12))  // walking left
     routine.handle(.finished, at: at(12, 1))  // stopped at the left end
-    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == .fidget(.gaze))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.gaze))
 }
 
-/// Strolling right, after the first walk left and the stop at the left end.
-func strollingRight() -> Routine {
-    var routine = started(at: .window)
+/// Strolling right, after the first walk left and the stop at the left end. A Fidget is due at 12:01.
+func strollingRight(dice: Dice = Dice([])) -> Routine {
+    var routine = started(at: .window, dice: dice)
     for _ in 0..<3 { routine.handle(.finished, at: at(12)) }
     return routine
+}
+
+@Test func theStrollsWalksAndStopsKeepTheFidgetDeadline() {
+    var routine = started(at: .window)
+    let due = routine.nextWake
+    #expect(due == at(12, 1))
+    routine.handle(.finished, at: at(12))  // walking left
+    #expect(routine.nextWake == due)
+    routine.handle(.finished, at: at(12, 0, 30))  // stopped at the left end
+    #expect(routine.nextWake == due)
+    routine.handle(.finished, at: at(12, 0, 35))  // walking right
+    #expect(routine.nextWake == due)
+}
+
+@Test func aNewMoodMidWalkRestartsTheFidgetDeadline() {
+    var routine = strollingRight()
+    routine.handle(.roomChanged(scene(.window, .cheerful)), at: at(12, 0, 40))
+    #expect(routine.nextWake == at(12, 1, 40))
+}
+
+@Test func aFidgetHeldMidWalkPlaysInPlaceOfTheStopAtTheEndPixReaches() {
+    var routine = strollingRight(dice: Dice([0.5, 0.9]))  // the window's third Fidget
+    #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // never mid-walk
+    #expect(routine.nextWake == nil)
+    #expect(routine.handle(.finished, at: at(12, 2)) == .fidget(.scratch))  // no stop or stretch at the right end
+    #expect(routine.handle(.finished, at: at(12, 2)) == idling(.window))
+    #expect(routine.handle(.finished, at: at(12, 2)) == .stroll(to: .left))
 }
 
 @Test func afterAMomentMidWalkPixKeepsHeadingForTheSameEnd() {
@@ -247,8 +277,8 @@ func strollingRight() -> Routine {
     routine.handle(.finished, at: at(12))  // walking left
     #expect(routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 1)) == idling(.window))
     #expect(routine.strolling)
-    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)  // still mid-walk
-    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget(.wave))
+    #expect(routine.handle(.wake, at: at(12, 2)) == nil)  // still mid-walk
+    #expect(routine.handle(.finished, at: at(12, 2)) == .fidget(.wave))
 }
 
 @Test func leavingTheWindowMidStrollAndComingBackStartsLeftAgain() {
@@ -293,7 +323,7 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
     for (i, body) in bodies.enumerated() {
         let count = spot == .desk && mood != .sleepy ? 4 : bodies.count  // the desk's fourth is watering the plant
         var routine = started(at: spot, mood, dice: Dice([0.5, (Double(i) + 0.5) / Double(count)]))
-        #expect(routine.handle(.fidgetDue, at: at(12, 1)) == .fidget(body))
+        #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(body))
         #expect(routine.handle(.finished, at: at(12, 1)) == idling(spot, mood))
     }
 }
@@ -302,18 +332,49 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
     var routine = started(at: .couch, .sleepy)
     #expect(routine.handle(.roomChanged(scene(.couch, .sleepy)), at: at(12)) == nil)
     var rolled = started(at: .couch, .sleepy, dice: Dice([0]))
-    #expect(rolled.handle(.fidgetDue, at: at(12, 1)) == nil)
+    #expect(rolled.handle(.wake, at: at(12, 1)) == nil)
 }
 
 @Test func asleepOnTheCouchNoFidgetIsDue() {
     var routine = Routine(timeZone: utc, random: Dice([]).roll)
-    #expect(routine.handle(.sceneStarted(scene(.couch, .sleepy)), at: at(12)) == .idle(.couch, .sleepy, fidgetIn: nil))
+    #expect(routine.handle(.sceneStarted(scene(.couch, .sleepy)), at: at(12)) == .idle(.couch, .sleepy))
+    #expect(routine.nextWake == nil)
+}
+
+@Test func aWakeBeforeTheFidgetDeadlineDoesNothing() {
+    var routine = started(at: .desk)
+    #expect(routine.handle(.wake, at: at(12, 0, 59)) == nil)
+    #expect(routine.nextWake == at(12, 1))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.lookaround))
+}
+
+@Test func aLateWakeStillPlaysTheFidgetAndAStaleOneDoesNothing() {
+    var routine = started(at: .desk)
+    #expect(routine.handle(.wake, at: at(12, 5)) == .fidget(.lookaround))
+    #expect(routine.nextWake == nil)
+    #expect(routine.handle(.wake, at: at(12, 6)) == nil)
+}
+
+@Test func aFidgetEndingRestartsTheClockFromTheNewIdle() {
+    var routine = started(at: .desk)
+    routine.handle(.wake, at: at(12, 1))
+    #expect(routine.nextWake == nil)  // no Fidget clock while one plays
+    #expect(routine.handle(.finished, at: at(12, 1, 10)) == idling(.desk))
+    #expect(routine.nextWake == at(12, 2, 10))
+}
+
+@Test func aStepOutsideTheStrollClearsTheFidgetDeadline() {
+    var routine = started(at: .desk)
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 30))
+    #expect(routine.nextWake == nil)
+    routine.handle(.roomChanged(scene(.window)), at: at(12, 0, 40))
+    #expect(routine.nextWake == nil)  // walking to the window
 }
 
 @Test func aFidgetThatComesDueWhileBusyIsSkipped() {
     var routine = started(at: .desk)
     routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1))
-    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)
+    #expect(routine.handle(.wake, at: at(12, 1)) == nil)
 }
 
 // MARK: - Errands
@@ -326,7 +387,7 @@ func wateringThePlant() -> Routine {
 
 @Test func wateringThePlantWalksToItUsesItAndWalksBack() {
     var routine = wateringThePlant()
-    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == .errand(wateringFromTheDesk))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(wateringFromTheDesk))
     #expect(routine.handle(.finished, at: at(12, 1)) == .use(wateringFromTheDesk))
     #expect(routine.handle(.finished, at: at(12, 1)) == .walkBack(to: .desk))
     #expect(routine.handle(.finished, at: at(12, 1)) == idling(.desk))
@@ -335,7 +396,7 @@ func wateringThePlant() -> Routine {
 @Test(arguments: [0, 1, 2])
 func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     var routine = wateringThePlant()
-    routine.handle(.fidgetDue, at: at(12, 1))
+    routine.handle(.wake, at: at(12, 1))
     for _ in 0..<leg { routine.handle(.finished, at: at(12, 1)) }  // out, at the plant, or on the way back
     #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1)) == .moment(.reaction(.wave)))
     #expect(routine.handle(.finished, at: at(12, 1)) == .walkBack(to: .desk))
@@ -344,7 +405,7 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
 
 @Test func aMomentDuringTheWalkHomeIsFollowedByAnotherWalkHome() {
     var routine = wateringThePlant()
-    routine.handle(.fidgetDue, at: at(12, 1))
+    routine.handle(.wake, at: at(12, 1))
     routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1))
     routine.handle(.finished, at: at(12, 1))  // now walking home
     routine.handle(.momentArrived(.reaction(.pet)), at: at(12, 1))
@@ -353,7 +414,7 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
 
 @Test func anAppSwitchDuringAnErrandSendsPixStraightToTheNewSpot() {
     var routine = wateringThePlant()
-    routine.handle(.fidgetDue, at: at(12, 1))
+    routine.handle(.wake, at: at(12, 1))
     #expect(routine.handle(.roomChanged(scene(.window)), at: at(12, 1)) == .walk(to: .window))
     #expect(routine.handle(.finished, at: at(12, 1)) == idling(.window))
 }
