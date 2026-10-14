@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds the release zip for GitHub Releases (Apple Silicon, ad hoc signed) and prints what the Homebrew
-# formula needs. Run it on a clean, tagged commit.
+# Builds the release zip for GitHub Releases (Apple Silicon, ad hoc signed). Run it on a clean, tagged commit.
+# .github/workflows/release.yml runs it on every v* tag, then publishes the release, the tap and the website.
 set -e
 cd "$(dirname "$0")/.."
 VERSION="$(cat VERSION)"
@@ -16,8 +16,3 @@ ditto -c -k --keepParent build/Pix.app "$ZIP"
 echo
 echo "Release zip: $ZIP"
 echo "  sha256 $(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
-echo
-echo "Homebrew formula (packaging/homebrew/pix.rb), once tag v$VERSION is on GitHub:"
-echo "  url    https://github.com/eslamalii/pix/archive/refs/tags/v$VERSION.tar.gz"
-echo "  sha256 \$(curl -sL https://github.com/eslamalii/pix/archive/refs/tags/v$VERSION.tar.gz | shasum -a 256 | cut -d' ' -f1)"
-echo "  PIX_BUILD $BUILD"
