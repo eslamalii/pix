@@ -28,12 +28,14 @@ public struct Caption: Equatable, Sendable {
 /// How Pix looks at rest at a Spot: its body (nil at the window, where it strolls), how fast it plays, whether a screen
 /// lights its face, and the particles drifting off its head.
 public struct RestLook: Equatable, Sendable {
+    public var mood: Mood
     public var body: String?
     public var speedUp: Double
     public var faceGlows: Bool
     public var particles: [String]
 
     public init(spot: Spot, mood: Mood, agentWorking: Bool = false, hot: Bool = false) {
+        self.mood = mood
         body = switch spot {
         case .desk: "type"
         case .call: "call"
