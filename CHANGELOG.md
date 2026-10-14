@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.2] - 2026-10-14
+
+### Changed
+- **The Routine owns timing:** Pix's timing and idle decisions live entirely in the Routine. The view runs a single wake timer, with the Routine setting wake deadlines and managing Fidget timing.
+- **Stroll driven by Routine:** pausing before turning, looking around, and stretching or standing at the ends of the window are now driven directly by Routine steps and wake deadlines rather than view-side timers.
+- **Strongly-typed Fidgets:** Fidgets are now type-safe enum cases, mapping directly to body sheets or Errands (such as watering the plant) and validated by art-drift tests.
+- **Unified walk performer:** walks between Spots (with Room scrolling), Errand walks to and from Props, and Stroll walks are performed by a single unified routine in the view with consistent frame-rate capping.
+
 ## [1.1.1] - 2026-10-13
 
 ### Fixed
