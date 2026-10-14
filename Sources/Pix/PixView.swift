@@ -112,7 +112,6 @@ final class PixView: NSView {
     // Only one step plays at a time. Each gets a token, so a completion that arrives after a newer step took over
     // does nothing.
     private var token = 0
-    private var restTask: Task<Void, Never>?
     /// Sends the Routine `wake` at its `nextWake`. Every call into the Routine moves it.
     private var wakeTask: Task<Void, Never>?
     private var pendingTap: Task<Void, Never>?
@@ -355,8 +354,6 @@ final class PixView: NSView {
         if fpsChanged { for screen in monitors { recap(screen.sublayers?.first, key: "scroll", fps: room.fps) } }
         if let next = handle(.roomChanged(room)) {
             run(next)
-        } else if routine.strolling {
-            if looksChanged { showRestLook(at: .window, mood: room.mood) }  // the walk carries on; a new cap waits for the next one
         } else if fpsChanged || looksChanged, let step, case .idle = step {
             run(step)  // its loops and particles take the new cap or typing speed; a busy step takes it when it ends
         }
@@ -389,8 +386,6 @@ final class PixView: NSView {
     /// Starts a new step: stale completions and rests stop, and Pix freezes where it stands.
     private func takeOver() -> Int {
         token += 1
-        restTask?.cancel()
-        restTask = nil
         let x = pix.presentation()?.position.x ?? pix.position.x
         withoutAnimation { pix.position.x = x }
         pix.removeAnimation(forKey: "slide-position.x")
@@ -433,8 +428,8 @@ final class PixView: NSView {
         switch step {
         case .walk(let spot):
             walk(to: spot)
-        case .idle(let spot, let mood):
-            idle(at: spot, mood: mood)
+        case .idle(let spot, let look):
+            idle(at: spot, look: look)
         case .moment(let moment):
             log.notice("moment: \(String(describing: moment), privacy: .public)")
             playMoment(moment.look)
@@ -453,51 +448,64 @@ final class PixView: NSView {
             withoutAnimation { faceGlow.isHidden = true }
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
             perform("needle", loops: 1)
-        case .stroll(let end):
+        case .stroll(let end, let restLook):
             log.info("stroll: \(String(describing: end), privacy: .public)")
+            apply(restLook, at: .window)
             stroll(to: geometry.strollEnd(end), token: takeOver())
-        case .stopAt(let end, let body):
-            log.info("stop: \(String(describing: end), privacy: .public) · \(body ?? "stand", privacy: .public)")
-            stop(then: body)
+        case .turn(let end, let restLook):
+            log.info("turn: \(String(describing: end), privacy: .public)")
+            _ = takeOver()
+            apply(restLook, at: .window)
+            setBody("idle")
+            breathe(true)
+            look(-1)
+        case .lookAround(let restLook):
+            log.info("lookaround")
+            lookAround(restLook: restLook)
+        case .stand(let restLook):
+            log.info("stand")
+            _ = takeOver()
+            apply(restLook, at: .window)
+            look(0)
+            setBody("idle")
+            breathe(true)
+        case .stretch(let restLook):
+            log.info("stretch")
+            apply(restLook, at: .window)
+            perform("stretch", loops: 1)
+        case .relook(let restLook):
+            log.info("relook")
+            apply(restLook, at: .window)
         }
     }
 
-    /// The resting loop for the Spot and Mood, plus its particles. At the window, resting is the Stroll: a walk
-    /// or stop already underway carries on, otherwise the idle reports finished and the Routine starts one.
-    private func idle(at spot: Spot, mood: Mood) {
+    /// The resting loop for the Spot and Look, plus its particles.
+    private func idle(at spot: Spot, look: RestLook) {
         guard let world else { return }
-        log.info("idle: \(spot.rawValue, privacy: .public) · \(mood.rawValue, privacy: .public)")
-        let strollUnderway = spot == .window && routine.strolling
-        if !strollUnderway { _ = takeOver() }
-        showRestLook(at: spot, mood: mood)
+        log.info("idle: \(spot.rawValue, privacy: .public) · \(look.mood.rawValue, privacy: .public)")
+        _ = takeOver()
+        apply(look, at: spot)
+        place(at: geometry.rest(at: spot), facing: CATransform3DIdentity)
+        breathe(true)
         switch spot {
         case .desk:
-            place(at: geometry.rest(at: .desk), facing: CATransform3DIdentity)
-            breathe(true)
             let mug = geometry.rect(Art.mug, on: "desk")
             ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
-        case .call:
-            place(at: geometry.rest(at: .call), facing: CATransform3DIdentity)
-            breathe(true)
-        case .couch:
-            place(at: geometry.rest(at: .couch), facing: CATransform3DIdentity)
-            breathe(true)
+        case .call, .couch:
+            break
         case .musicCorner:
-            place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
-            breathe(true)
             let record = geometry.rect(Art.turntable, on: "desk")
             ambient += spinningRecord(record)
             ambient += particles("note", count: 3, every: 2.4, from: CGPoint(x: record.midX, y: record.maxY), in: world, rise: 10)
         case .window:
-            if !strollUnderway { send(.finished) }  // last: the Stroll's first walk starts now
+            break
         }
     }
 
-    /// The at-rest Look: the Mood's face, the body, the face's glow and the particles off Pix's head.
-    private func showRestLook(at spot: Spot, mood: Mood) {
-        blink(in: mood)
+    /// Applies the at-rest Look carried by the Step: face, glow, sky life, particles and body.
+    private func apply(_ look: RestLook, at spot: Spot) {
+        blink(in: look.mood)
         clearAmbient()
-        let look = RestLook(spot: spot, mood: mood, agentWorking: shown?.agentWorking == true, hot: shown?.hot == true)
         withoutAnimation { faceGlow.isHidden = !look.faceGlows }
         if spot == .couch { tvLight() } else { faceGlow.removeAnimation(forKey: "tv") }
         showSkyLife(spot == .window)
@@ -539,22 +547,12 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    /// A Stroll walk to an end of the window. A beat before turning around, Pix holds still and its eyes go to the side
-    /// it's about to face.
-    private func stroll(to x: CGFloat, token mine: Int, turned: Bool = false) {
+    /// A Stroll walk to an end of the window.
+    private func stroll(to x: CGFloat, token mine: Int) {
         guard mine == token, let fps = shown?.fps else { return }
         let from = pix.position.x
         guard abs(x - from) >= 1 else { return send(.finished) }  // already there
         let facing = x < from ? facingLeft : CATransform3DIdentity
-        if !turned && !CATransform3DEqualToTransform(facing, pix.transform) {
-            look(-1)  // the back of Pix, which is the way it's turning (the mirror flips it either way)
-            restTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(0.5))
-                guard !Task.isCancelled else { return }
-                self?.stroll(to: x, token: mine, turned: true)
-            }
-            return
-        }
         withoutAnimation { pix.transform = facing }
         breathe(false)
         startWalking()  // loops forever, so it stays outside the completion's transaction
@@ -571,20 +569,24 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    /// The Stroll's stop at an end: Pix looks around, then plays `body` once, or stands a while.
-    private func stop(then body: String?) {
+    /// Pix looks around: one way, the other, then back at the user.
+    private func lookAround(restLook: RestLook) {
         let mine = takeOver()
+        apply(restLook, at: .window)
+        let facing = pix.position.x < (geometry.stripX("window") + CGFloat(Art.stripWidth) / 2) ? CATransform3DIdentity : facingLeft
+        withoutAnimation { pix.transform = facing }
+        look(0)
         setBody("idle")
         breathe(true)
-        glance()
-        restTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(1.5))
-            guard !Task.isCancelled, let self, mine == token else { return }
-            let rest = body.map { setBody($0, loops: 1) } ?? 2.5
-            try? await Task.sleep(for: .seconds(rest))
-            guard !Task.isCancelled, mine == token else { return }
-            send(.finished)
+        CATransaction.begin()
+        CATransaction.setCompletionBlock { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self, mine == self.token else { return }
+                self.send(.finished)
+            }
         }
+        glance()
+        CATransaction.commit()
     }
 
     private func walk(to spot: Spot) {
