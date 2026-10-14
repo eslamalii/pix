@@ -571,6 +571,20 @@ final class PixView: NSView {
         case spot(Spot)
         case errand(to: CGFloat)
         case stroll(to: CGFloat)
+
+        var speedUp: Double {
+            switch self {
+            case .spot, .errand: 1.3
+            case .stroll: 1
+            }
+        }
+    }
+
+    /// Clears any ambient particles and face glow from resting at a Spot.
+    private func resetRestingEffects() {
+        clearAmbient()
+        faceGlow.removeAnimation(forKey: "tv")
+        withoutAnimation { faceGlow.isHidden = true }
     }
 
     /// Pix walks: to a Spot (scrolling the Room), on an Errand (to or from a Prop), or along the Stroll.
@@ -579,38 +593,30 @@ final class PixView: NSView {
         let mine = takeOver()
         breathe(false)
         withoutAnimation { pix.position.y = px(Art.floor) }
-        switch kind {
-        case .spot(let spot):
-            clearAmbient()
-            faceGlow.removeAnimation(forKey: "tv")
-            withoutAnimation { faceGlow.isHidden = true }
-            if spot == .window { showSkyLife(true) }  // the window comes into view during the walk
-        case .errand:
-            clearAmbient()
-            faceGlow.removeAnimation(forKey: "tv")
-            withoutAnimation { faceGlow.isHidden = true }
-        case .stroll:
-            break
-        }
 
+        let fromX = pix.position.x
         let toX: CGFloat
         let duration: Double
-        let speedUp: Double
-        let fromX = pix.position.x
+        let scrollTarget: CGFloat?
 
         switch kind {
         case .spot(let spot):
+            resetRestingEffects()
+            if spot == .window { showSkyLife(true) }  // the window comes into view during the walk
             toX = geometry.rest(at: spot).x
             duration = geometry.walkDuration(from: fromX, to: toX)
-            speedUp = 1.3
+            scrollTarget = geometry.scroll(for: spot)
+
         case .errand(let to):
+            resetRestingEffects()
             toX = to
             duration = RoomGeometry.errandWalkDuration(from: fromX, to: toX)
-            speedUp = 1.3
+            scrollTarget = nil
+
         case .stroll(let to):
             toX = to
             duration = RoomGeometry.strollDuration(from: fromX, to: toX)
-            speedUp = 1
+            scrollTarget = nil
         }
 
         guard abs(toX - fromX) >= 1 else { return send(.finished) }
@@ -618,7 +624,7 @@ final class PixView: NSView {
         withoutAnimation {
             pix.transform = toX < fromX ? facingLeft : CATransform3DIdentity
         }
-        startWalking(speedUp: speedUp)  // loops forever, so it stays outside the completion's transaction
+        startWalking(speedUp: kind.speedUp)  // loops forever, so it stays outside the completion's transaction
 
         CATransaction.begin()
         CATransaction.setCompletionBlock { [weak self] in
@@ -630,8 +636,8 @@ final class PixView: NSView {
             }
         }
         slide(pix, keyPath: "position.x", to: toX, duration: duration)
-        if case .spot(let spot) = kind {
-            slide(world, keyPath: "position.x", to: geometry.scroll(for: spot), duration: duration)
+        if let scrollTarget {
+            slide(world, keyPath: "position.x", to: scrollTarget, duration: duration)
         }
         CATransaction.commit()
     }
