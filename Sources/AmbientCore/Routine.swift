@@ -16,6 +16,12 @@ public enum Errand: Equatable, Sendable {
     }
 }
 
+/// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for water, runs the
+/// plant Errand.
+public enum Fidget: String, CaseIterable, Sendable {
+    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, water
+}
+
 /// The two ends of the window that Pix strolls between.
 public enum WindowEnd: Sendable {
     case left, right
@@ -50,8 +56,8 @@ public struct Routine {
         /// Rest at the Spot in the Mood; a Fidget is due after `fidgetIn` seconds (nil: none).
         case idle(Spot, Mood, fidgetIn: Double?)
         case moment(Moment)
-        /// A Fidget body, played once.
-        case fidget(String)
+        /// A Fidget's body, played once.
+        case fidget(Fidget)
         /// An Errand's first leg: walk to the Prop.
         case errand(Errand)
         /// At the Prop: use it.
@@ -232,7 +238,7 @@ public struct Routine {
         let choices = Self.fidgets(for: room)
         guard !choices.isEmpty else { return nil }
         let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
-        return choice == "water" ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
+        return choice == .water ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
     }
 
     private mutating func start(_ step: Step) -> Step {
@@ -249,15 +255,15 @@ public struct Routine {
         return step
     }
 
-    /// The Fidgets that fit where Pix is and how it feels. "water" is the plant Errand.
-    static func fidgets(for room: Room) -> [String] {
-        if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : ["nod"] }  // asleep on the couch, awake on a call: none
+    /// The Fidgets that fit where Pix is and how it feels.
+    static func fidgets(for room: Room) -> [Fidget] {
+        if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : [.nod] }  // asleep on the couch, awake on a call: none
         return switch room.spot {
-        case .desk: ["sip", "stretch", "lookaround", "water"]
-        case .call: ["nod"]
-        case .couch: ["popcorn"]
-        case .musicCorner: ["spin"]
-        case .window: ["gaze", "wave", "scratch"]
+        case .desk: [.sip, .stretch, .lookaround, .water]
+        case .call: [.nod]
+        case .couch: [.popcorn]
+        case .musicCorner: [.spin]
+        case .window: [.gaze, .wave, .scratch]
         }
     }
 

@@ -38,7 +38,8 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 }
 
 @Test func everyFidgetErrandAndStrollStopIsABody() {
-    for name in everyRoom.flatMap(Routine.fidgets(for:)) { #expect(bodies.contains(name), "fidget \(name)") }
+    for fidget in Fidget.allCases where fidget != .water { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // water is the plant Errand
+    #expect(Set(everyRoom.flatMap(Routine.fidgets(for:))) == Set(Fidget.allCases))
     for errand in [Errand.switchLamp, .waterPlant(at: 0, fromRight: true)] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
     for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }
 }
