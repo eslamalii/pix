@@ -426,9 +426,9 @@ final class PixView: NSView {
         case .moment(let moment):
             log.notice("moment: \(String(describing: moment), privacy: .public)")
             playMoment(moment.look)
-        case .fidget(let sheet):
-            log.info("fidget: \(sheet, privacy: .public)")
-            perform(sheet, loops: 1)
+        case .fidget(let fidget):
+            log.info("fidget: \(fidget.rawValue, privacy: .public)")
+            perform(fidget.rawValue, loops: 1)
         case .errand(let errand):
             log.info("errand: \(errand.body, privacy: .public)")
             walkOnErrand(to: geometry.standingPoint(for: errand).x)

@@ -209,7 +209,7 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
     var routine = started(at: .window, dice: Dice([0.5, 0]))  // the window's first Fidget
     routine.handle(.finished, at: at(12))  // walking left
     #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)
-    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget("gaze"))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget(.gaze))
     #expect(routine.handle(.finished, at: at(12, 1)) == idling(.window))
     #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))  // it had reached the left end
 }
@@ -218,7 +218,7 @@ func idling(_ spot: Spot, _ mood: Mood = .content) -> Routine.Step { .idle(spot,
     var routine = started(at: .window, dice: Dice([0.5, 0]))
     routine.handle(.finished, at: at(12))  // walking left
     routine.handle(.finished, at: at(12, 1))  // stopped at the left end
-    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == .fidget("gaze"))
+    #expect(routine.handle(.fidgetDue, at: at(12, 1)) == .fidget(.gaze))
 }
 
 /// Strolling right, after the first walk left and the stop at the left end.
@@ -248,7 +248,7 @@ func strollingRight() -> Routine {
     #expect(routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 1)) == idling(.window))
     #expect(routine.strolling)
     #expect(routine.handle(.fidgetDue, at: at(12, 1)) == nil)  // still mid-walk
-    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget("wave"))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget(.wave))
 }
 
 @Test func leavingTheWindowMidStrollAndComingBackStartsLeftAgain() {
@@ -285,11 +285,11 @@ func strollingRight() -> Routine {
 // MARK: - Fidgets
 
 @Test(arguments: [
-    (Spot.desk, Mood.content, ["sip", "stretch", "lookaround"]), (.couch, .content, ["popcorn"]),
-    (.musicCorner, .content, ["spin"]), (.window, .content, ["gaze", "wave", "scratch"]),
-    (.desk, .sleepy, ["nod"]), (.window, .sleepy, ["nod"]), (.call, .content, ["nod"]),
+    (Spot.desk, Mood.content, [Fidget.sip, .stretch, .lookaround]), (.couch, .content, [.popcorn]),
+    (.musicCorner, .content, [.spin]), (.window, .content, [.gaze, .wave, .scratch]),
+    (.desk, .sleepy, [.nod]), (.window, .sleepy, [.nod]), (.call, .content, [.nod]),
 ])
-func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [String]) {
+func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget]) {
     for (i, body) in bodies.enumerated() {
         let count = spot == .desk && mood != .sleepy ? 4 : bodies.count  // the desk's fourth is watering the plant
         var routine = started(at: spot, mood, dice: Dice([0.5, (Double(i) + 0.5) / Double(count)]))
