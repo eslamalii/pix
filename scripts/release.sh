@@ -13,6 +13,16 @@ ZIP="build/Pix-$VERSION.zip"
 rm -f "$ZIP"
 ditto -c -k --keepParent build/Pix.app "$ZIP"
 
+DMG="build/Pix-$VERSION.dmg"
+rm -f "$DMG"
+DMG_DIR=$(mktemp -d)
+cp -R build/Pix.app "$DMG_DIR/"
+ln -s /Applications "$DMG_DIR/Applications"
+hdiutil create -volname "Pix" -srcfolder "$DMG_DIR" -ov -format UDZO "$DMG" >/dev/null 2>&1
+rm -rf "$DMG_DIR"
+
 echo
 echo "Release zip: $ZIP"
 echo "  sha256 $(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
+echo "Release dmg: $DMG"
+echo "  sha256 $(shasum -a 256 "$DMG" | cut -d' ' -f1)"
