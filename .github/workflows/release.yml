@@ -46,7 +46,7 @@ jobs:
         if: env.PUBLISH == 'true'
         run: |
           gh release view "v$VERSION" >/dev/null 2>&1 ||
-            gh release create "v$VERSION" "build/Pix-$VERSION.zip" --title "Pix $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+            gh release create "v$VERSION" "build/Pix-$VERSION.zip" "build/Pix-$VERSION.dmg" --title "Pix $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
 
       - name: Update the Homebrew tap
         if: env.PUBLISH == 'true'
@@ -78,6 +78,7 @@ jobs:
           sed -i '' -E \
             -e "s|(\"softwareVersion\": )\"[^\"]*\"|\1\"$VERSION\"|" \
             -e "s|(<span class=\"logo-badge mono\">)v[^<]*<|\1v$VERSION<|" \
+            -e "s|download/v[0-9.]+/Pix-[0-9.]+\.dmg|download/v$VERSION/Pix-$VERSION.dmg|g" \
             public/index.html
           grep -q "\"softwareVersion\": \"$VERSION\"" public/index.html && grep -q "mono\">v$VERSION<" public/index.html
           git diff --quiet && exit 0
