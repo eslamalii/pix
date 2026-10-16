@@ -10,6 +10,7 @@
 
 [![Website](https://img.shields.io/badge/website-meetpix.app-black?style=flat-square)](https://meetpix.app)
 [![Release](https://img.shields.io/github/v/release/eslamalii/pix?style=flat-square)](https://github.com/eslamalii/pix/releases)
+[![Discussions](https://img.shields.io/github/discussions/eslamalii/pix?style=flat-square)](https://github.com/eslamalii/pix/discussions)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey?style=flat-square)](#which-macs)
 
@@ -280,4 +281,5 @@ Sample skins (**Rose**, **Midnight**, and **Mint**) are included in `Skins/` (`.
 
 - **Code:** [MIT License](LICENSE).
 - **Artwork & Character:** Copyright & reserved. Free to play, build, and make personal skins; no commercial redistribution of the art.
-- **Issues & Ideas:** Welcomed via [GitHub Issues](https://github.com/eslamalii/pix/issues).
+- **Discussions & Ideas:** Ask questions, suggest features, or share custom skins in [GitHub Discussions](https://github.com/eslamalii/pix/discussions).
+- **Bug Reports:** Welcomed via [GitHub Issues](https://github.com/eslamalii/pix/issues).
