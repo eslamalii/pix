@@ -16,10 +16,21 @@ ditto -c -k --keepParent build/Pix.app "$ZIP"
 DMG="build/Pix-$VERSION.dmg"
 rm -f "$DMG"
 DMG_DIR=$(mktemp -d)
+RW_DMG="$DMG_DIR.rw.dmg"
+MOUNT_DIR=$(mktemp -d)
+trap 'hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1 || true; rm -rf "$DMG_DIR" "$RW_DMG" "$MOUNT_DIR"' EXIT
+chmod 755 "$DMG_DIR"
 cp -R build/Pix.app "$DMG_DIR/"
 ln -s /Applications "$DMG_DIR/Applications"
-hdiutil create -volname "Pix" -srcfolder "$DMG_DIR" -ov -format UDZO "$DMG" >/dev/null 2>&1
-rm -rf "$DMG_DIR"
+if [ -f packaging/AppIcon.icns ]; then
+  cp packaging/AppIcon.icns "$DMG_DIR/.VolumeIcon.icns"
+  SetFile -c icnC "$DMG_DIR/.VolumeIcon.icns"
+fi
+hdiutil create -volname "Pix" -srcfolder "$DMG_DIR" -ov -format UDRW "$RW_DMG" >/dev/null 2>&1
+hdiutil attach "$RW_DMG" -mountpoint "$MOUNT_DIR" -nobrowse >/dev/null 2>&1
+[ -f "$MOUNT_DIR/.VolumeIcon.icns" ] && SetFile -a C "$MOUNT_DIR"
+hdiutil detach "$MOUNT_DIR" >/dev/null 2>&1
+hdiutil convert "$RW_DMG" -format UDZO -o "$DMG" >/dev/null 2>&1
 
 echo
 echo "Release zip: $ZIP"

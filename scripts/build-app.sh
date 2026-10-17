@@ -31,6 +31,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>$BUILD</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
+  <key>LSMultipleInstancesProhibited</key><true/>
   <key>CFBundleURLTypes</key><array><dict>
     <key>CFBundleURLName</key><string>io.github.eslamalii.Pix</string>
     <key>CFBundleURLSchemes</key><array><string>pix</string></array>
