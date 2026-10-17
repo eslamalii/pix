@@ -61,7 +61,7 @@ public enum Art {
         Prop(name: "chair", strip: "desk", x: seatX - 11, y: nil),
         Prop(name: "monitor", strip: "desk", x: Int(monitors[0].minX) - 1, y: Int(monitors[0].minY) - 1),
         Prop(name: "monitor", strip: "desk", x: Int(monitors[1].minX) - 1, y: Int(monitors[1].minY) - 1),
-        Prop(name: "keyboard", strip: "desk", x: 548, y: 18),
+        Prop(name: "keyboard", strip: "desk", x: 548, y: 17),
         Prop(name: "mug", strip: "desk", x: Int(mug.minX), y: Int(mug.minY)),
         Prop(name: "lamp", strip: "desk", x: Int(lamp.minX), y: Int(lamp.minY)),
         Prop(name: "plant", strip: "desk", x: 730, y: nil),

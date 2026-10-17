@@ -3,6 +3,12 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- **A more detailed Room:** every Prop is drawn with more detail, down to the smallest ones. Spine bands, a leaning book and a bookend on the shelves; a night sky over the mountains in the print; tufted cushions and a throw pillow on the couch; drawers, a cable and a lit edge on the desk; casters on the chair; a camera, glare and power light on the monitors; keys on the keyboard; crema in the mug; a switch and weighted base on the lamp; record sleeves, knobs and a two-way speaker in the music corner; latches on the window; a flower on the cactus; and a bookmark in the books by the window. Every working Prop keeps its size, so the code, steam, light, record and sky still line up, and your own drawings in `Art/props` still replace them.
+
 ## [1.1.3] - 2026-10-14
 
 ### Changed
