@@ -28,10 +28,26 @@ Free, open source, 100% private, and featherlight (~**0.01% CPU**).
 
 ## Install
 
+**Homebrew:**
+
 ```sh
 brew install eslamalii/tap/pix
 open $(brew --prefix)/opt/pix/Pix.app
 ```
+
+**One-liner (Apple Silicon, no Homebrew required):**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/eslamalii/pix/main/scripts/install.sh | sh
+```
+
+**Direct Download (`.dmg`):**
+
+1. Download the latest `.dmg` from [GitHub Releases](https://github.com/eslamalii/pix/releases/latest) and drag **Pix** to **Applications**.
+2. Because Pix is signed ad hoc (without a paid Apple Developer account), clear macOS quarantine before first launch to skip *Privacy & Security → Open Anyway*:
+   ```sh
+   xattr -cr /Applications/Pix.app && open /Applications/Pix.app
+   ```
 
 > **Requires:** MacBook Pro with Touch Bar running macOS 14 (Sonoma) or newer. Starts automatically at login (toggleable from the menu bar).
 

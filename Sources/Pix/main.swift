@@ -42,15 +42,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let bar = NSTouchBar()
     private let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30))  // it takes the bar's real width
     private let monitor = UsageMonitor()
-    private let menu = StatusMenu()
+    private lazy var menu = StatusMenu()
     private var presenter: TouchBarPresenter!
     private var controller: Controller!
     /// What Pix keeps, as last saved, so it's only written when it changes.
     private var lastSaved = Saved()
     /// pix://agent links that arrived before launch finished (one can launch Pix).
     private var earlyAgentEvents: [Event] = []
+    private var forwardingToOther = false
 
     func applicationDidFinishLaunching(_ note: Notification) {
+        // Only one Pix may run at a time, even when opened from another path (DMG, Homebrew, or App Translocation).
+        if NSRunningApplication.runningApplications(withBundleIdentifier: appID).contains(where: { $0 != .current }) {
+            if !forwardingToOther { NSApp.terminate(nil) }
+            return
+        }
         do { presenter = try TouchBarPresenter() } catch {
             log.fault("\(String(describing: error), privacy: .public) — quitting")
             startAtLogin(false)  // so the explanation doesn't come back at every login
@@ -121,6 +127,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// pix://agent/working, …/waiting, …/done or …/failed, from an Agent's hooks. Anything else is ignored.
     func application(_ application: NSApplication, open urls: [URL]) {
+        // If a hook launched a second copy of Pix while one is already running, hand the links to the running copy.
+        if let other = NSRunningApplication.runningApplications(withBundleIdentifier: appID).first(where: { $0 != .current }),
+           let appURL = other.bundleURL {
+            forwardingToOther = true
+            let config = NSWorkspace.OpenConfiguration()
+            config.activates = false
+            config.createsNewApplicationInstance = false
+            NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: config) { _, _ in
+                DispatchQueue.main.async { NSApp.terminate(nil) }
+            }
+            return
+        }
         for report in urls.compactMap(AgentReport.init(url:)) {
             let event = Event.agent(report.state, agent: report.agent)
             if controller == nil { earlyAgentEvents.append(event) } else { send(event) }
