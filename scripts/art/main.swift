@@ -91,7 +91,7 @@ func drawPix(_ c: Canvas, at ox: Int, body: String, frame f: Int) {
         r(20, 9, 1, 3, limb); r(17, 12, 3, 1, limb); r(16, 12, 1, 1, dimGlow)  // the mic arm, down and in to the chin
     }
     // torso with a chest light that breathes with the bulb; walking leans it (and the arms) a pixel forward
-    let lean = body == "walk" ? 1 : 0
+    let lean = body == "walk" || body == "walkmug" ? 1 : 0
     func leaned(_ x: Int, _ y: Int, _ w: Int, _ h: Int, _ color: CGColor) { r(x + lean, y, w, h, color) }
     leaned(8, 13, 1, 5, outline); leaned(15, 13, 1, 5, outline); leaned(9, 18, 6, 1, outline)
     leaned(9, 13, 6, 5, shell); leaned(14, 13, 1, 5, shade); leaned(9, 17, 6, 1, shade)
@@ -103,7 +103,7 @@ func drawPix(_ c: Canvas, at ox: Int, body: String, frame f: Int) {
         r(9, 19, 7, 2, limb); r(14, 21, 2, 2, limb); r(14, 23, 3, 1, foot)
     case "couch", "popcorn":  // sitting on the couch's edge, feet dangling (the renderer lifts Pix onto the seat)
         r(9, 19, 2, 2, limb); r(13, 19, 2, 2, limb); r(8, 21, 3, 1, foot); r(13, 21, 3, 1, foot)
-    case "walk":  // six frames: left foot up, still up, pass, right foot up, still up, pass
+    case "walk", "walkmug":  // six frames: left foot up, still up, pass, right foot up, still up, pass
         let lift = ["L", "L", "", "R", "R", ""][f % 6]
         r(9, 19, 2, lift == "L" ? 3 : 4, limb); r(8, lift == "L" ? 22 : 23, 3, 1, foot)
         r(13, 19, 2, lift == "R" ? 3 : 4, limb); r(13, lift == "R" ? 22 : 23, 3, 1, foot)
@@ -131,6 +131,9 @@ func drawPix(_ c: Canvas, at ox: Int, body: String, frame f: Int) {
 
     switch body {
     case "walk": arm(6, [15, 15, 14, 14, 14, 14][f % 6]); arm(16, [14, 14, 14, 15, 15, 14][f % 6])
+    case "walkmug":  // the same walk with the mug held out in front, the hand under it
+        arm(6, [15, 15, 14, 14, 14, 14][f % 6])
+        reach(16, 16, 2); mug(17, 13)
     case "type":
         arm(6, 14)
         reach(16, even ? 15 : 16, 5); reach(16, even ? 16 : 15, 4)
@@ -172,6 +175,11 @@ func drawPix(_ c: Canvas, at ox: Int, body: String, frame f: Int) {
         r(18, 14, 4, 3, can); r(19, 13, 2, 1, can)
         if f == 0 { r(22, 14, 1, 1, can) } else { r(22, 16, 1, 1, can) }
         if f >= 2 { c.dots((f == 2 ? [(23, 18), (22, 20)] : [(23, 19), (23, 21)]).map { (ox + $0.0, $0.1) }, glow) }
+    case "pour":  // the mug held out under the coffee machine's spout, coffee streaming into it (the machine is in the Room)
+        arm(6, 14)
+        reach(16, 16, 2); mug(17, 13)
+        if f >= 1 { c.dots([(18, 10)].map { (ox + $0.0, $0.1) }, coffee) }
+        if f >= 2 { c.dots([(18, 11), (18, 12)].map { (ox + $0.0, $0.1) }, coffee) }
     case "call":  // on a call: hands resting, then one gestures while talking
         arm(6, 14)
         if f == 2 { reach(16, 15, 3) } else { arm(16, 14) }
@@ -335,6 +343,18 @@ let generatedProps: [String: () -> Canvas] = [
         c.dots([(1, 0)], hex(0x7a5238)); c.rect(2, 1, 1, 3, mugShade); c.dots([(3, 2)], mugShade)      // crema, shade
         return c
     },
+    "coffeemachine": {  // faces left: a spout over a drip tray, a lit button on the body
+        let c = Canvas(Int(Art.coffeeMachine.width), Int(Art.coffeeMachine.height)), steam = hex(0xd8d8e0)
+        c.rect(2, 0, 12, 12, silhouette); c.rect(2, 0, 12, 1, rim); c.rect(2, 1, 1, 11, rim); c.rect(3, 1, 10, 10, deep)  // body
+        c.rect(0, 1, 5, 3, silhouette); c.rect(0, 1, 5, 1, rim); c.rect(0, 1, 1, 3, rim)                                  // the head
+        c.rect(1, 4, 2, 1, steel)                                                                                         // spout tip
+        c.rect(7, 3, 4, 3, hex(0x06080e)); c.dots([(8, 4), (9, 4)], leaf)                                                // little display
+        c.dots([(8, 8)], bulb); c.dots([(10, 8)], steam)                                                                  // button, knob
+        c.rect(0, 12, 8, 1, silhouette); c.rect(0, 12, 8, 1, rim); c.rect(1, 13, 6, 1, deep)                              // drip tray
+        c.rect(2, 12, 12, 7, silhouette); c.rect(2, 12, 1, 7, rim); c.rect(3, 13, 10, 5, deep); c.rect(5, 15, 6, 3, hex(0x2c2c35))  // base, cup cabinet
+        c.dots([(3, 18), (12, 18)], steel)                                                                                // feet
+        return c
+    },
     "lamp": {
         let size = Art.workingProps["lamp"]!
         let c = Canvas(Int(size.width), Int(size.height))
@@ -441,10 +461,10 @@ func userProps(in folder: URL) -> [String: CGImage] {
 func warn(_ message: String) { FileHandle.standardError.write(Data("  warning: \(message)\n".utf8)) }
 
 /// One strip of the Room: the floor line, then every Prop on it (the user's drawing where there is one).
-func strip(_ strip: String, with drawings: [String: CGImage]) -> Canvas {
+func strip(_ strip: String, with drawings: [String: CGImage], without hidden: String? = nil) -> Canvas {
     let c = Canvas(Art.stripWidth, Art.height)
     c.rect(0, floorY, c.w, 1, floorLine)
-    for prop in Art.props where prop.strip == strip {
+    for prop in Art.props where prop.strip == strip && prop.name != hidden {
         guard let image = drawings[prop.name] ?? generatedProps[prop.name]?().image else {
             warn("no drawing for Prop \(prop.name)")
             continue
@@ -464,7 +484,7 @@ func strip(_ strip: String, with drawings: [String: CGImage]) -> Canvas {
 try? FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
 print("Writing art to \(out.path):")
 // Frame counts here; hand-drawn art can use any count (the renderer reads it from the width).
-let frameCounts = ["walk": 6, "idle": 6, "spin": 8]
+let frameCounts = ["walk": 6, "walkmug": 6, "idle": 6, "spin": 8]
 for (body, _) in Art.bodies {
     let frames = frameCounts[body] ?? 4
     let c = Canvas(Art.frame * frames, Art.frame)
@@ -489,4 +509,9 @@ cloud.rect(3, 0, 6, 2, hex(0xffffff, 0.9)); cloud.rect(1, 2, 14, 3, hex(0xffffff
 cloud.save("cloud")
 let drawings = userProps(in: out.appendingPathComponent("props"))
 for name in Art.strips { strip(name, with: drawings).save("room-\(name)") }
+// The desk behind the mug, shown over it while Pix carries the mug off.
+let bare = strip("desk", with: drawings, without: "mug").image
+let patch = Canvas(Int(Art.mug.width), Int(Art.mug.height))
+patch.stamp(bare.cropping(to: CGRect(x: Int(Art.mug.minX), y: Int(Art.mug.minY), width: Int(Art.mug.width), height: Int(Art.mug.height)))!, x: 0, y: 0)
+patch.save("mug-gone")
 drawHalloween()

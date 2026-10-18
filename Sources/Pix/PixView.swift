@@ -96,6 +96,8 @@ final class PixView: NSView {
     private var world: CALayer?
     private let sky = CAGradientLayer(), skyBox = CALayer(), skyLife = CALayer()
     private let lampGlow = CALayer()
+    /// The desk where the mug stands, over the mug while Pix carries it off.
+    private let mugGone = CALayer()
     private let halloween = HalloweenLayers()  // Halloween
     // The status corner at the right end of the bar: the clock, and a caption beside it while a Moment plays.
     // It sits outside the world, so it stays put while Pix walks between Spots.
@@ -308,6 +310,12 @@ final class PixView: NSView {
             strip.frame = CGRect(x: geometry.stripX(name), y: 0, width: px(Art.stripWidth), height: px(Art.height))
             world.addSublayer(strip)
         }
+        mugGone.frame = geometry.rect(Art.mug, on: "desk")
+        mugGone.backgroundColor = NSColor.black.cgColor  // the strip is see-through where nothing stands, so the bar shows
+        mugGone.contents = ArtFiles.image("mug-gone")
+        mugGone.magnificationFilter = .nearest
+        mugGone.isHidden = !routine.carryingMug
+        world.addSublayer(mugGone)
         monitors = Art.monitors.map { scrollingCode(in: geometry.rect($0, on: "desk"), fps: room.fps) }
         monitors.forEach(world.addSublayer)
         halloween.build(in: world, geometry: geometry, frameRange: frameRange)  // Halloween
@@ -427,7 +435,10 @@ final class PixView: NSView {
 
     private func run(_ step: Routine.Step) {
         self.step = step
-        withoutAnimation { lampGlow.isHidden = !routine.lampLit }
+        withoutAnimation {
+            lampGlow.isHidden = !routine.lampLit
+            mugGone.isHidden = !routine.carryingMug
+        }
         switch step {
         case .walk(let spot):
             walk(.spot(spot))
@@ -493,7 +504,9 @@ final class PixView: NSView {
         switch spot {
         case .desk:
             let mug = geometry.rect(Art.mug, on: "desk")
-            ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
+            if routine.mugSteams(at: Date()) {  // an empty or cold mug doesn't steam
+                ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
+            }
         case .call, .couch:
             break
         case .musicCorner:
@@ -723,7 +736,7 @@ final class PixView: NSView {
     /// The walk cycle with its bounce, eyes leading. Both loop forever.
     private func startWalking(speedUp: Double = 1) {
         look(1)
-        bounce(stepEvery: setBody("walk", speedUp: speedUp) / 2)
+        bounce(stepEvery: setBody(routine.carryingMug ? "walkmug" : "walk", speedUp: speedUp) / 2)
     }
 
     /// Up a point on every footstep while walking. The head never moves inside a frame, so the bob happens here:

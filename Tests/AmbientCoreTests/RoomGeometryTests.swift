@@ -39,6 +39,10 @@ let narrow = RoomGeometry(barWidth: 900)
     #expect(m1.standingPoint(for: .switchLamp) == ErrandStand(x: 654, facingLeft: false))  // 656 + 6 - 8
 }
 
+@Test func pixHoldsTheMugUnderTheCoffeeMachinesSpout() {
+    #expect(m1.standingPoint(for: .refillMug) == ErrandStand(x: 613, facingLeft: false))  // 618 - 5
+}
+
 @Test func pixStandsBesideAPlantFacingIt() {
     #expect(m1.standingPoint(for: .waterPlant(at: 404, fromRight: true)) == ErrandStand(x: 424, facingLeft: true))
     #expect(m1.standingPoint(for: .waterPlant(at: 404, fromRight: false)) == ErrandStand(x: 396, facingLeft: false))

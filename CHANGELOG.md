@@ -9,7 +9,11 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Halloween in the Room:** from October 24 through November 1, jack-o'-lanterns sit in the corner and on the windowsill, candles stand on the bookcase and the shelf, bunting hangs over the couch, a spider dangles from the shelf, a ghost hangs from the lamp, a broom leans by the records, cobwebs fill the window's corners and a haunted house takes the print's place. From dusk the faces and flames flicker, and at night an orange moon rises in the window as bats flap across it.
 
+- **Pix refills its mug:** Pix starts the day with an empty mug, takes its mug to the cabinet, pours a fresh one and brings it back, then sips it three times before it needs the next refill. An empty mug doesn't steam. Pix only drinks coffee from 06:00 to 17:00; in the evening it leaves the mug alone.
+
 ### Changed
+
+- **Pix no longer repeats itself:** it never plays the same idle Fidget twice in a row.
 
 - **A more detailed Room:** every Prop is drawn with more detail, down to the smallest ones. Spine bands, a leaning book and a bookend on the shelves; a night sky over the mountains in the print; tufted cushions and a throw pillow on the couch; drawers, a cable and a lit edge on the desk; casters on the chair; a camera, glare and power light on the monitors; keys on the keyboard; crema in the mug; a switch and weighted base on the lamp; record sleeves, knobs and a two-way speaker in the music corner; latches on the window; a flower on the cactus; and a bookmark in the books by the window. Every working Prop keeps its size, so the code, steam, light, record and sky still line up, and your own drawings in `Art/props` still replace them.
 

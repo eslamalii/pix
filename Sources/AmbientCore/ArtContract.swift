@@ -36,6 +36,8 @@ public enum Art {
     public static let lampSwitch = 6  // the switch is on the pole, this far into the shade
     public static let plant = CGSize(width: 12, height: 19)
     public static let wateringReach = 14  // Pix holds the can out front: it stands this far from a plant's middle
+    public static let coffeeMachine = CGRect(x: 618, y: 8, width: 14, height: 19)  // on the floor, spout on its left
+    public static let pourReach = 5  // Pix holds the mug out front: it stands this far left of the machine's edge
     public static let cabinet = CGRect(x: 810, y: 12, width: 40, height: 15)  // the record cabinet, on the floor
     public static let turntable = CGRect(x: 816, y: 15, width: 12, height: 1)  // the record's surface; it spins while music plays
 
@@ -65,6 +67,7 @@ public enum Art {
         Prop(name: "mug", strip: "desk", x: Int(mug.minX), y: Int(mug.minY)),
         Prop(name: "lamp", strip: "desk", x: Int(lamp.minX), y: Int(lamp.minY)),
         Prop(name: "plant", strip: "desk", x: 730, y: nil),
+        Prop(name: "coffeemachine", strip: "desk", x: Int(coffeeMachine.minX), y: nil),
         Prop(name: "cabinet", strip: "desk", x: Int(cabinet.minX), y: Int(cabinet.minY)),
         Prop(name: "couch", strip: "desk", x: Int(couch.minX), y: Int(couch.minY)),
         Prop(name: "window", strip: "window", x: Int(windowPane.minX) - 5, y: Int(windowPane.minY) - 2),
@@ -79,6 +82,7 @@ public enum Art {
         "desk": desk.size,
         "monitor": CGSize(width: monitors[0].width + 2, height: monitors[0].height + 2),  // the screen plus a 1-pixel bezel
         "mug": mug.size,
+        "coffeemachine": coffeeMachine.size,  // Pix holds the mug under the spout, coffee falls from its tip
         "lamp": CGSize(width: lamp.width, height: CGFloat(height - floor) - lamp.minY),  // shade to floor
         "window": CGSize(width: windowPane.width + 10, height: windowPane.height + 6),  // pane, frame and sill
         "couch": couch.size,      // Pix sits on the seat, couchSeat rows down
@@ -92,12 +96,12 @@ public enum Art {
     public static let frame = 24
     /// Every body and how fast it plays, in frames per second. The frame count is the image width ÷ frame.
     public static let bodies: [(name: String, fps: Double)] = [
-        ("idle", 4), ("walk", 10), ("type", 8), ("bob", 6), ("stretch", 6), ("coffee", 6),
+        ("idle", 4), ("walk", 10), ("walkmug", 10), ("type", 8), ("bob", 6), ("stretch", 6), ("coffee", 6),
         ("wave", 8), ("jump", 8), ("shh", 6), ("yawn", 5), ("huff", 6), ("dizzy", 10), ("pet", 8),
         // Fidgets
         ("sip", 6), ("lookaround", 4), ("gaze", 3), ("scratch", 8), ("spin", 10), ("nod", 4),
         // Using the Room
-        ("needle", 6), ("couch", 4), ("popcorn", 6), ("water", 6), ("switch", 6), ("call", 4),
+        ("needle", 6), ("couch", 4), ("popcorn", 6), ("water", 6), ("pour", 6), ("switch", 6), ("call", 4),
     ]
     public static func fps(of body: String) -> Double { bodies.first { $0.name == body }?.fps ?? 8 }
 
