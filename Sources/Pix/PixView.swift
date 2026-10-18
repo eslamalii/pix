@@ -96,6 +96,7 @@ final class PixView: NSView {
     private var world: CALayer?
     private let sky = CAGradientLayer(), skyBox = CALayer(), skyLife = CALayer()
     private let lampGlow = CALayer()
+    private let halloween = HalloweenLayers()  // Halloween
     // The status corner at the right end of the bar: the clock, and a caption beside it while a Moment plays.
     // It sits outside the world, so it stays put while Pix walks between Spots.
     private let hud = CALayer(), clock = pixelCrisp(nil), caption = CALayer(), captionIcon = pixelCrisp(nil), captionWord = pixelCrisp(nil)
@@ -191,6 +192,7 @@ final class PixView: NSView {
             sky.colors = [color(daylight.sky.bottom), color(daylight.sky.top)]
             lampGlow.isHidden = !routine.lampLit
         }
+        halloween.paint(daylight)  // Halloween
         if shown?.spot == .window && daylight != skyDaylight { fillSky(for: daylight) }
     }
 
@@ -308,6 +310,7 @@ final class PixView: NSView {
         }
         monitors = Art.monitors.map { scrollingCode(in: geometry.rect($0, on: "desk"), fps: room.fps) }
         monitors.forEach(world.addSublayer)
+        halloween.build(in: world, geometry: geometry, frameRange: frameRange)  // Halloween
 
         pix.anchorPoint = CGPoint(x: 0.5, y: 0)
         pix.bounds = CGRect(x: 0, y: 0, width: px(Art.frame), height: px(Art.frame))
@@ -916,6 +919,7 @@ final class PixView: NSView {
             break
         }
         if Occasion.snows(inMonth: Calendar.current.component(.month, from: Date())) { letItSnow(in: pane) }
+        halloween.fillSky(daylight, in: skyLife, frameRange: frameRange)  // Halloween
     }
 
     /// Flakes drifting down past the window: one per 24 points of it, or per 48 below full frame rate (on battery).
