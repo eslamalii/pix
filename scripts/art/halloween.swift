@@ -10,6 +10,7 @@ let halloweenColors: [Character: CGColor] = [
     "b": hex(0x2c3e5c), "d": hex(0xa8a8b4), "e": hex(0xff6b6b), "f": hex(0x101018), "i": hex(0x3a4f73), "j": hex(0x3e3060),
     "l": hex(0x3d6b4f), "n": hex(0x9a8450), "o": hex(0x7a4e38), "s": hex(0x6b5226), "t": hex(0x9a7a3a), "u": hex(0x5c4a8a),
     "w": hex(0x4a3024), "y": hex(0xe3b341), "z": hex(0xb8964c),
+    "P": hex(0xff7eb6), "V": hex(0x9e5cc9), "M": hex(0x5ee6ff), "Q": hex(0xffffff),
 ]
 
 let halloweenArt: [String: [String]] = [
@@ -193,6 +194,47 @@ let halloweenArt: [String: [String]] = [
         ".GGRGG.",
         "B..G..B",
         ".......",
+    ],
+    "candyBowl": [
+        ".aYaY.",
+        "QeePPM",
+        "DDDDDD",
+        ".DDDD.",
+    ],
+    "jackTiny": [
+        "..lL.",
+        ".3Aa.",
+        "3YYaA",
+        ".343.",
+    ],
+    "cobwebTiny": [
+        "GGGBGG",
+        "G.GB..",
+        "G..G..",
+        "B...G.",
+        ".B...B",
+    ],
+    "cauldron": [
+        "....V.....",
+        "...L......",
+        "..LL..V...",
+        ".KKKKKKKK.",
+        "KKLLLLLLKK",
+        "KKKKKKKKKK",
+        "KKKKKKKKKK",
+        ".KKKKKKKK.",
+        "..KKKKKK..",
+        "..S....S..",
+    ],
+    "blackCat": [
+        "X...X..",
+        "XXXXX..",
+        "XYXYX..",
+        "XXXXX..",
+        ".XXXXX.",
+        ".XXXXXX",
+        ".XXXXXX",
+        "..S.S.X",
     ],
 ]
 

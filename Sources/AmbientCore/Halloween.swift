@@ -21,10 +21,15 @@ public enum Halloween {
         Art.Prop(name: "jackSmall", strip: "desk", x: 66, y: nil),
         Art.Prop(name: "pumpkin", strip: "desk", x: 78, y: nil),
         Art.Prop(name: "candles", strip: "desk", x: 128, y: 0),  // on top of the bookcase
+        Art.Prop(name: "blackCat", strip: "desk", x: 139, y: 0),
         Art.Prop(name: "bunting", strip: "desk", x: 150, y: 0),
+        Art.Prop(name: "cauldron", strip: "desk", x: 236, y: nil),
         Art.Prop(name: "candle", strip: "desk", x: 276, y: 1),   // in the gap on the shelf
         Art.Prop(name: "spider", strip: "desk", x: 295, y: 11),  // hanging from the end of the shelf
         Art.Prop(name: "hauntedPrint", strip: "desk", x: 342, y: 5),
+        Art.Prop(name: "jackTiny", strip: "desk", x: 510, y: 1),
+        Art.Prop(name: "cobwebTiny", strip: "desk", x: 563, y: 4),
+        Art.Prop(name: "candyBowl", strip: "desk", x: 581, y: 15),
         Art.Prop(name: "ghost", strip: "desk", x: 664, y: 4),    // hanging from the lamp shade
         Art.Prop(name: "broom", strip: "desk", x: 880, y: nil),
         Art.Prop(name: "cobweb", strip: "window", x: Int(Art.windowPane.minX), y: Int(Art.windowPane.minY)),
@@ -38,6 +43,7 @@ public enum Halloween {
         ("desk", CGRect(x: 68, y: 21, width: 6, height: 4)),
         ("desk", CGRect(x: 129, y: 0, width: 8, height: 4)),
         ("desk", CGRect(x: 277, y: 1, width: 1, height: 2)),
+        ("desk", CGRect(x: 511, y: 3, width: 3, height: 1)),
         ("window", CGRect(x: 422, y: 17, width: 6, height: 4)),
     ]
 
