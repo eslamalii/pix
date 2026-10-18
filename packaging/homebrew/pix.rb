@@ -12,6 +12,7 @@ class Pix < Formula
   # Built from source on your Mac, so macOS doesn't quarantine it: no Gatekeeper prompt, on Intel or Apple Silicon.
   def install
     ENV["PIX_BUILD"] = "0" # placeholder: scripts/release.sh prints the build number
+    ENV["PIX_ARCHS"] = "--arch #{Hardware::CPU.arch}"
     system "./scripts/build-app.sh", "--bundle"
     prefix.install "build/Pix.app"
   end

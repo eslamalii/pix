@@ -1,10 +1,10 @@
 #!/bin/sh
-# Installs the latest Pix release into /Applications without macOS quarantine and launches it (Apple Silicon).
+# Installs the latest Pix release into /Applications without macOS quarantine and launches it (Apple Silicon & Intel).
 #   curl -fsSL https://raw.githubusercontent.com/eslamalii/pix/main/scripts/install.sh | sh
 set -e
 
-if [ "$(uname -m)" != "arm64" ]; then
-  echo "Prebuilt releases are for Apple Silicon. On an Intel Mac, run: brew install eslamalii/tap/pix" >&2
+if [ "$(uname -s)" != "Darwin" ]; then
+  echo "Pix requires macOS." >&2
   exit 1
 fi
 

@@ -11,11 +11,16 @@ BUILD="${PIX_BUILD:-$(git rev-list --count HEAD 2>/dev/null || echo 0)}"
 APP=build/Pix.app
 
 # Homebrew builds inside its own sandbox, where SwiftPM's sandbox can't nest.
+# Releases (--bundle) produce a universal binary for Apple Silicon and Intel unless overridden.
+ARCH_FLAGS="${PIX_ARCHS}"
+if [ -z "$ARCH_FLAGS" ] && [ "$1" = "--bundle" ]; then
+  ARCH_FLAGS="--arch arm64 --arch x86_64"
+fi
 [ "$1" = "--bundle" ] && SWIFT_FLAGS="--disable-sandbox"
-swift build -c release $SWIFT_FLAGS
+swift build -c release $ARCH_FLAGS $SWIFT_FLAGS
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$(swift build -c release $SWIFT_FLAGS --show-bin-path)/Pix" "$APP/Contents/MacOS/"
+cp "$(swift build -c release $ARCH_FLAGS $SWIFT_FLAGS --show-bin-path)/Pix" "$APP/Contents/MacOS/"
 cp -R Art "$APP/Contents/Resources/Art"  # the art contract: see README
 [ -f packaging/AppIcon.icns ] && cp packaging/AppIcon.icns "$APP/Contents/Resources/"
 cat > "$APP/Contents/Info.plist" <<PLIST
