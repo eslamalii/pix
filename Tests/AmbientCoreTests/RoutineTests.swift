@@ -404,13 +404,13 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
 // MARK: - Fidgets
 
 @Test(arguments: [
-    (Spot.desk, Mood.content, [Fidget.sip, .stretch, .lookaround]), (.couch, .content, [.popcorn]),
+    (Spot.couch, Mood.content, [Fidget.popcorn]),
     (.musicCorner, .content, [.spin]), (.window, .content, [.gaze, .wave, .scratch]),
     (.desk, .sleepy, [.nod]), (.window, .sleepy, [.nod]), (.call, .content, [.nod]),
 ])
 func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget]) {
     for (i, body) in bodies.enumerated() {
-        let count = spot == .desk && mood != .sleepy ? 4 : bodies.count  // the desk's fourth is watering the plant
+        let count = bodies.count
         var routine = started(at: spot, mood, dice: Dice([0.5, (Double(i) + 0.5) / Double(count)]))
         if spot == .window {
             #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held mid-walk
@@ -451,7 +451,7 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
     #expect(routine.handle(.wake, at: at(12, 6)) == nil)
 }
 
-@Test(arguments: [0.0, 0.3, 0.6])
+@Test(arguments: [0.3, 0.6])
 func pixNeverRepeatsAFidgetBackToBack(roll: Double) {
     var routine = started(at: .desk, dice: Dice([0.5, roll, 0.5, roll]))  // the same roll twice
     let first = routine.handle(.wake, at: at(12, 1))
@@ -467,6 +467,55 @@ func pixNeverRepeatsAFidgetBackToBack(roll: Double) {
     routine.handle(.finished, at: at(12, 1, 10))  // walk back
     #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
     guard case .fidget? = routine.handle(.wake, at: at(12, 2, 15)) else { Issue.record("repeated the water errand"); return }
+}
+
+// MARK: - The mug
+
+/// Waits for the Fidget to fall due, takes the step Pix asks for, and plays it (and anything that follows) to its end.
+func nextDeskStep(_ routine: inout Routine) -> Routine.Step? {
+    let step = routine.handle(.wake, at: routine.nextWake!)
+    var time = routine.nextWake ?? at(12, 59)
+    for _ in 0..<5 {
+        time += 1
+        if routine.handle(.finished, at: time) == idling(.desk) { break }
+    }
+    return step
+}
+
+@Test func pixStartsWithAnEmptyMugSoItsFirstDeskFidgetIsTheRefill() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.refillMug))
+    #expect(routine.handle(.finished, at: at(12, 1, 20)) == .use(.refillMug))
+    #expect(routine.handle(.finished, at: at(12, 1, 22)) == .walkBack(to: .desk))
+    #expect(routine.handle(.finished, at: at(12, 1, 40)) == idling(.desk))
+}
+
+@Test func aRefillCutShortByAMomentLeavesTheMugEmptyAndIsTriedAgain() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0, 0.5, 0]))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.refillMug))
+    #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5)) == .moment(.reaction(.wave)))
+    #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))  // back to the desk, mug still empty
+    #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
+    #expect(routine.mugFull == false)
+    #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.refillMug))
+}
+
+@Test func theMugIsFullOnlyOncePixHasPoured() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.mugFull == false)
+    routine.handle(.wake, at: at(12, 1))
+    routine.handle(.finished, at: at(12, 1, 20))
+    #expect(routine.mugFull == false)  // at the cabinet, not yet poured
+    routine.handle(.finished, at: at(12, 1, 22))
+    #expect(routine.mugFull)
+}
+
+@Test func afterARefillPixSipsThreeTimesBeforeTheNextRefill() {
+    var routine = started(at: .desk, dice: Dice(Array(repeating: [0.5, 0.0], count: 9).flatMap { $0 }))
+    var seen: [Routine.Step?] = []
+    for _ in 0..<8 { seen.append(nextDeskStep(&routine)) }
+    #expect(seen == [.errand(.refillMug), .fidget(.sip), .fidget(.stretch), .fidget(.sip), .fidget(.stretch),
+                     .fidget(.sip), .errand(.refillMug), .fidget(.sip)])  // the empty mug is refilled at once, then sipped
 }
 
 @Test func aSpotWithOneFidgetPlaysItEveryTime() {

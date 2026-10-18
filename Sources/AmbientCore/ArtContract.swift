@@ -97,7 +97,7 @@ public enum Art {
         // Fidgets
         ("sip", 6), ("lookaround", 4), ("gaze", 3), ("scratch", 8), ("spin", 10), ("nod", 4),
         // Using the Room
-        ("needle", 6), ("couch", 4), ("popcorn", 6), ("water", 6), ("switch", 6), ("call", 4),
+        ("needle", 6), ("couch", 4), ("popcorn", 6), ("water", 6), ("pour", 6), ("switch", 6), ("call", 4),
     ]
     public static func fps(of body: String) -> Double { bodies.first { $0.name == body }?.fps ?? 8 }
 

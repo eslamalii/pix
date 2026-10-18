@@ -490,7 +490,9 @@ final class PixView: NSView {
         switch spot {
         case .desk:
             let mug = geometry.rect(Art.mug, on: "desk")
-            ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
+            if routine.mugFull {  // an empty mug doesn't steam
+                ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
+            }
         case .call, .couch:
             break
         case .musicCorner:

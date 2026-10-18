@@ -6,20 +6,23 @@ public enum Errand: Equatable, Sendable {
     case switchLamp
     /// The desk-side plant whose left edge is `at`, approached from its right or its left.
     case waterPlant(at: Int, fromRight: Bool)
+    /// The coffee at the cabinet: Pix pours a fresh mug.
+    case refillMug
 
     /// The body Pix plays at the Prop.
     public var body: String {
         switch self {
         case .switchLamp: "switch"
         case .waterPlant: "water"
+        case .refillMug: "pour"
         }
     }
 }
 
 /// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for water, runs the
-/// plant Errand.
+/// plant Errand, or, for refill, the mug Errand.
 public enum Fidget: String, CaseIterable, Sendable {
-    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, water
+    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, water, refill
 }
 
 /// The two ends of the window that Pix strolls between.
@@ -111,6 +114,7 @@ public struct Routine {
         case onTheWay
     }
 
+    private static let mugSips = 3  // sips in a full mug
     private static let lampOnFrom = 19, lampOnUntil = 6  // hours, local time
 
     private var calendar: Calendar
@@ -130,6 +134,8 @@ public struct Routine {
     private var fidgetHeld = false
     /// When the next Fidget falls due: set by an idle or settling at the window, kept by the Stroll's steps, cleared by anything else.
     private var fidgetDue: Date?
+    /// Sips left in the mug: it starts empty at launch, so the first desk Fidget is the refill.
+    private var sipsLeft = 0
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
     /// When the current wait step (turn 0.5s or stand 2.5s) ends.
@@ -139,6 +145,8 @@ public struct Routine {
     public private(set) var lastSpot: Spot?
 
     public var lampLit: Bool { lamp == true }
+    /// The mug on the desk has coffee in it (and steams).
+    public var mugFull: Bool { sipsLeft > 0 }
 
     /// When the view should send `wake` (nil: no need).
     public var nextWake: Date? {
@@ -192,7 +200,7 @@ public struct Routine {
                 let moodChanged = new.mood != old?.mood
                 let hotChanged = new.hot != old?.hot
                 if moodChanged {
-                    fidgetDue = new.mood == .focused || Self.fidgets(for: new).isEmpty ? nil : time + 30 + random() * 60
+                    fidgetDue = new.mood == .focused || Self.fidgets(for: new, sipsLeft: sipsLeft).isEmpty ? nil : time + 30 + random() * 60
                 }
                 if isStrolling && (moodChanged || hotChanged) {
                     return .relook(restLook())
@@ -222,6 +230,7 @@ public struct Routine {
                 return start(.use(errand))
             case .use(let errand):
                 if errand == .switchLamp { lamp = lampWanted(at: time) }
+                if errand == .refillMug { sipsLeft = Self.mugSips }
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
                 reachedEnd = end
@@ -326,7 +335,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        fidgetDue = room.mood == .focused || Self.fidgets(for: room).isEmpty ? nil : time + 30 + random() * 60
+        fidgetDue = room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft).isEmpty ? nil : time + 30 + random() * 60
         if room.spot == .window {
             return nextStrollStep()
         }
@@ -347,13 +356,20 @@ public struct Routine {
     /// A Fidget that fits where Pix is and how it feels, if any.
     private mutating func fidget() -> Step? {
         guard let room, room.mood != .focused else { return nil }
-        let all = Self.fidgets(for: room)
+        let all = Self.fidgets(for: room, sipsLeft: sipsLeft)
         guard !all.isEmpty else { return nil }
         let fresh = all.filter { $0 != lastFidget }
         let choices = fresh.isEmpty ? all : fresh  // a Spot with one Fidget plays it every time
         let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
         lastFidget = choice
-        return choice == .water ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
+        switch choice {
+        case .water: return start(.errand(nearestPlant(to: room.spot)))
+        case .refill: return start(.errand(.refillMug))
+        case .sip:
+            sipsLeft -= 1
+            return start(.fidget(choice))
+        default: return start(.fidget(choice))
+        }
     }
 
     private mutating func start(_ step: Step) -> Step {
@@ -374,14 +390,16 @@ public struct Routine {
         case .walk, .errand, .walkBack: place = .onTheWay  // until it finishes
         default: break
         }
+        if case .moment = step { lastFidget = nil }  // a cut-short Errand may be tried again at once
+        if case .walk = step { lastFidget = nil }
         return step
     }
 
     /// The Fidgets that fit where Pix is and how it feels.
-    static func fidgets(for room: Room) -> [Fidget] {
+    static func fidgets(for room: Room, sipsLeft: Int) -> [Fidget] {
         if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : [.nod] }  // asleep on the couch, awake on a call: none
         return switch room.spot {
-        case .desk: [.sip, .stretch, .lookaround, .water]
+        case .desk: [sipsLeft > 0 ? .sip : .refill, .stretch, .lookaround, .water]
         case .call: [.nod]
         case .couch: [.popcorn]
         case .musicCorner: [.spin]

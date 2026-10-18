@@ -172,6 +172,13 @@ func drawPix(_ c: Canvas, at ox: Int, body: String, frame f: Int) {
         r(18, 14, 4, 3, can); r(19, 13, 2, 1, can)
         if f == 0 { r(22, 14, 1, 1, can) } else { r(22, 16, 1, 1, can) }
         if f >= 2 { c.dots((f == 2 ? [(23, 18), (22, 20)] : [(23, 19), (23, 21)]).map { (ox + $0.0, $0.1) }, glow) }
+    case "pour":  // a coffee pot held out front, tipping until a brown stream falls
+        arm(6, 14)
+        reach(16, 15, 2)
+        let pot = hex(0xb8b8c4)
+        r(18, 14, 4, 3, pot); r(19, 13, 2, 1, pot); r(17, 14, 1, 2, pot)
+        if f == 0 { r(22, 14, 1, 1, pot) } else { r(22, 16, 1, 1, pot) }
+        if f >= 2 { c.dots((f == 2 ? [(23, 18), (23, 20)] : [(23, 19), (23, 21)]).map { (ox + $0.0, $0.1) }, coffee) }
     case "call":  // on a call: hands resting, then one gestures while talking
         arm(6, 14)
         if f == 2 { reach(16, 15, 3) } else { arm(16, 14) }
