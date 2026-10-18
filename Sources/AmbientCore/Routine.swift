@@ -146,8 +146,8 @@ public struct Routine {
     public private(set) var lastSpot: Spot?
 
     public var lampLit: Bool { lamp == true }
-    /// The mug on the desk has coffee in it (and steams).
-    public var mugFull: Bool { sipsLeft > 0 }
+    /// The mug on the desk is hot: it has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
+    public func mugSteams(at time: Date) -> Bool { sipsLeft > 0 && coffeeHours(at: time) }
 
     /// When the view should send `wake` (nil: no need).
     public var nextWake: Date? {
@@ -201,7 +201,7 @@ public struct Routine {
                 let moodChanged = new.mood != old?.mood
                 let hotChanged = new.hot != old?.hot
                 if moodChanged {
-                    fidgetDue = new.mood == .focused || Self.fidgets(for: new, sipsLeft: sipsLeft, coffee: true).isEmpty ? nil : time + 30 + random() * 60
+                    fidgetDue = new.mood == .focused || Self.fidgets(for: new, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
                 }
                 if isStrolling && (moodChanged || hotChanged) {
                     return .relook(restLook())
@@ -336,7 +336,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        fidgetDue = room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: true).isEmpty ? nil : time + 30 + random() * 60
+        fidgetDue = room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
         if room.spot == .window {
             return nextStrollStep()
         }

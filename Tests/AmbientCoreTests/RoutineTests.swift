@@ -496,18 +496,27 @@ func nextDeskStep(_ routine: inout Routine) -> Routine.Step? {
     #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5)) == .moment(.reaction(.wave)))
     #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))  // back to the desk, mug still empty
     #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
-    #expect(routine.mugFull == false)
+    #expect(routine.mugSteams(at: at(12, 2)) == false)
     #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.refillMug))
 }
 
-@Test func theMugIsFullOnlyOncePixHasPoured() {
-    var routine = started(at: .desk, dice: Dice([0.5, 0]))
-    #expect(routine.mugFull == false)
+@Test(arguments: [(16, 59, true), (17, 0, false), (23, 0, false), (5, 59, false), (6, 0, true)])
+func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steams: Bool) {
+    var routine = started(at: .desk, time: at(12), dice: Dice([0.5, 0]))
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
-    #expect(routine.mugFull == false)  // at the cabinet, not yet poured
+    routine.handle(.finished, at: at(12, 1, 22))  // poured: the mug is full
+    #expect(routine.mugSteams(at: at(hour, minute)) == steams)
+}
+
+@Test func theMugSteamsOnlyOncePixHasPoured() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.mugSteams(at: at(12, 2)) == false)
+    routine.handle(.wake, at: at(12, 1))
+    routine.handle(.finished, at: at(12, 1, 20))
+    #expect(routine.mugSteams(at: at(12, 2)) == false)  // at the cabinet, not yet poured
     routine.handle(.finished, at: at(12, 1, 22))
-    #expect(routine.mugFull)
+    #expect(routine.mugSteams(at: at(12, 2)))
 }
 
 // Coffee hours: 06:00 to 17:00, so the first desk Fidget (roll 0) is the refill inside them and stretching outside.
