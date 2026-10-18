@@ -7,6 +7,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
+- **Halloween in the Room:** from October 24 through November 1, jack-o'-lanterns sit in the corner and on the windowsill, candles stand on the bookcase and the shelf, bunting hangs over the couch, a spider dangles from the shelf, a ghost hangs from the lamp, a broom leans by the records, cobwebs fill the window's corners and a haunted house takes the print's place. From dusk the faces and flames flicker, and at night an orange moon rises in the window as bats flap across it.
+
 - **Pix refills its mug:** Pix starts the day with an empty mug, takes its mug to the cabinet, pours a fresh one and brings it back, then sips it three times before it needs the next refill. An empty mug doesn't steam. Pix only drinks coffee from 06:00 to 17:00; in the evening it leaves the mug alone.
 
 ### Changed

@@ -514,3 +514,4 @@ let bare = strip("desk", with: drawings, without: "mug").image
 let patch = Canvas(Int(Art.mug.width), Int(Art.mug.height))
 patch.stamp(bare.cropping(to: CGRect(x: Int(Art.mug.minX), y: Int(Art.mug.minY), width: Int(Art.mug.width), height: Int(Art.mug.height)))!, x: 0, y: 0)
 patch.save("mug-gone")
+drawHalloween()
