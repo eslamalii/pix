@@ -509,6 +509,30 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     #expect(routine.mugSteams(at: at(hour, minute)) == steams)
 }
 
+@Test func pixCarriesTheMugFromSettingOffUntilItIsIdleAtTheDeskAgain() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.carryingMug == false)
+    routine.handle(.wake, at: at(12, 1))
+    #expect(routine.carryingMug)  // setting off with it
+    routine.handle(.finished, at: at(12, 1, 20))
+    #expect(routine.carryingMug)  // pouring into it
+    routine.handle(.finished, at: at(12, 1, 22))
+    #expect(routine.carryingMug)  // walking back with it
+    routine.handle(.finished, at: at(12, 1, 40))
+    #expect(routine.carryingMug == false)  // set down at the desk
+}
+
+@Test func aMomentMidErrandDoesNotPutTheMugDownButLeavingForAnotherSpotDoes() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0, 0.5, 0]))
+    routine.handle(.wake, at: at(12, 1))
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5))
+    #expect(routine.carryingMug)
+    #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))
+    #expect(routine.carryingMug)
+    routine.handle(.roomChanged(scene(.couch)), at: at(12, 1, 9))  // an app switch: Pix leaves for the couch
+    #expect(routine.carryingMug == false)
+}
+
 @Test func theMugSteamsOnlyOncePixHasPoured() {
     var routine = started(at: .desk, dice: Dice([0.5, 0]))
     #expect(routine.mugSteams(at: at(12, 2)) == false)

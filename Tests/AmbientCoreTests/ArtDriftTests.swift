@@ -51,7 +51,7 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 
 @Test func everySheetInTheArtContractIsDrawn() {
     let art = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Art").standardized
-    let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud"]
+    let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud", "mug-gone"]
     for sheet in sheets {
         #expect(FileManager.default.fileExists(atPath: art.appendingPathComponent(Art.file(sheet)).path), "missing Art/\(Art.file(sheet))")
     }

@@ -92,7 +92,7 @@ public enum Art {
     public static let frame = 24
     /// Every body and how fast it plays, in frames per second. The frame count is the image width ÷ frame.
     public static let bodies: [(name: String, fps: Double)] = [
-        ("idle", 4), ("walk", 10), ("type", 8), ("bob", 6), ("stretch", 6), ("coffee", 6),
+        ("idle", 4), ("walk", 10), ("walkmug", 10), ("type", 8), ("bob", 6), ("stretch", 6), ("coffee", 6),
         ("wave", 8), ("jump", 8), ("shh", 6), ("yawn", 5), ("huff", 6), ("dizzy", 10), ("pet", 8),
         // Fidgets
         ("sip", 6), ("lookaround", 4), ("gaze", 3), ("scratch", 8), ("spin", 10), ("nod", 4),

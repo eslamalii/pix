@@ -7,7 +7,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 ### Added
 
-- **Pix refills its mug:** Pix starts the day with an empty mug, walks to the cabinet and pours a fresh one, then sips it three times before it needs the next refill. An empty mug doesn't steam. Pix only drinks coffee from 06:00 to 17:00; in the evening it leaves the mug alone.
+- **Pix refills its mug:** Pix starts the day with an empty mug, takes its mug to the cabinet, pours a fresh one and brings it back, then sips it three times before it needs the next refill. An empty mug doesn't steam. Pix only drinks coffee from 06:00 to 17:00; in the evening it leaves the mug alone.
 
 ### Changed
 

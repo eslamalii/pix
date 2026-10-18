@@ -137,6 +137,8 @@ public struct Routine {
     private var fidgetDue: Date?
     /// Sips left in the mug: it starts empty at launch, so the first desk Fidget is the refill.
     private var sipsLeft = 0
+    /// Pix has the mug in hand: from setting off on the refill until it's idle again (or leaves for another Spot).
+    public private(set) var carryingMug = false
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
     /// When the current wait step (turn 0.5s or stand 2.5s) ends.
@@ -392,7 +394,9 @@ public struct Routine {
         default: break
         }
         if case .moment = step { lastFidget = nil }  // a cut-short Errand may be tried again at once
-        if case .walk = step { lastFidget = nil }
+        if case .walk = step { lastFidget = nil; carryingMug = false }
+        if case .idle = step { carryingMug = false }
+        if case .errand(.refillMug) = step { carryingMug = true }
         return step
     }
 
