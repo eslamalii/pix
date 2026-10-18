@@ -13,7 +13,7 @@ private func listed(_ moment: Moment, _ errand: Errand) -> Bool {
     switch moment {
     case .reaction, .pause, .greeting, .charging, .focusStarted, .focusDone, .agentAsks, .agentDone, .agentFailed, .newHat, .overheated: break
     }
-    switch errand { case .switchLamp, .waterPlant: return true }
+    switch errand { case .switchLamp, .waterPlant, .refillMug: return true }
 }
 
 let everyRoom: [Room] = Spot.allCases.flatMap { spot in
@@ -38,9 +38,9 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 }
 
 @Test func everyFidgetErrandAndStrollStopIsABody() {
-    for fidget in Fidget.allCases where fidget != .water { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // water is the plant Errand
-    #expect(Set(everyRoom.flatMap(Routine.fidgets(for:))) == Set(Fidget.allCases))
-    for errand in [Errand.switchLamp, .waterPlant(at: 0, fromRight: true)] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
+    for fidget in Fidget.allCases where fidget != .water && fidget != .refill { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // water and refill are Errands
+    #expect(Set(everyRoom.flatMap { room in [0, 1].flatMap { Routine.fidgets(for: room, sipsLeft: $0, coffee: true) } }) == Set(Fidget.allCases))
+    for errand in [Errand.switchLamp, .waterPlant(at: 0, fromRight: true), .refillMug] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
     for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }
 }
 
@@ -51,7 +51,7 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 
 @Test func everySheetInTheArtContractIsDrawn() {
     let art = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Art").standardized
-    let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud"]
+    let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud", "mug-gone"]
     for sheet in sheets {
         #expect(FileManager.default.fileExists(atPath: art.appendingPathComponent(Art.file(sheet)).path), "missing Art/\(Art.file(sheet))")
     }

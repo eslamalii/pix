@@ -6,20 +6,23 @@ public enum Errand: Equatable, Sendable {
     case switchLamp
     /// The desk-side plant whose left edge is `at`, approached from its right or its left.
     case waterPlant(at: Int, fromRight: Bool)
+    /// The coffee machine by the desk: Pix takes its mug there and fills it.
+    case refillMug
 
     /// The body Pix plays at the Prop.
     public var body: String {
         switch self {
         case .switchLamp: "switch"
         case .waterPlant: "water"
+        case .refillMug: "pour"
         }
     }
 }
 
 /// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for water, runs the
-/// plant Errand.
+/// plant Errand, or, for refill, the mug Errand.
 public enum Fidget: String, CaseIterable, Sendable {
-    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, water
+    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, water, refill
 }
 
 /// The two ends of the window that Pix strolls between.
@@ -111,6 +114,8 @@ public struct Routine {
         case onTheWay
     }
 
+    private static let mugSips = 3  // sips in a full mug
+    private static let coffeeFrom = 6, coffeeUntil = 17  // hours, local time
     private static let lampOnFrom = 19, lampOnUntil = 6  // hours, local time
 
     private var calendar: Calendar
@@ -130,6 +135,12 @@ public struct Routine {
     private var fidgetHeld = false
     /// When the next Fidget falls due: set by an idle or settling at the window, kept by the Stroll's steps, cleared by anything else.
     private var fidgetDue: Date?
+    /// Sips left in the mug: it starts empty at launch, so the first desk Fidget is the refill.
+    private var sipsLeft = 0
+    /// Pix has the mug in hand: from setting off on the refill until it's idle again (or leaves for another Spot).
+    public private(set) var carryingMug = false
+    /// The Fidget Pix played last, so it doesn't play it twice in a row.
+    private var lastFidget: Fidget?
     /// When the current wait step (turn 0.5s or stand 2.5s) ends.
     private var waitDeadline: Date?
 
@@ -137,6 +148,8 @@ public struct Routine {
     public private(set) var lastSpot: Spot?
 
     public var lampLit: Bool { lamp == true }
+    /// The mug on the desk is hot: it has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
+    public func mugSteams(at time: Date) -> Bool { sipsLeft > 0 && coffeeHours(at: time) }
 
     /// When the view should send `wake` (nil: no need).
     public var nextWake: Date? {
@@ -190,7 +203,7 @@ public struct Routine {
                 let moodChanged = new.mood != old?.mood
                 let hotChanged = new.hot != old?.hot
                 if moodChanged {
-                    fidgetDue = new.mood == .focused || Self.fidgets(for: new).isEmpty ? nil : time + 30 + random() * 60
+                    fidgetDue = new.mood == .focused || Self.fidgets(for: new, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
                 }
                 if isStrolling && (moodChanged || hotChanged) {
                     return .relook(restLook())
@@ -220,6 +233,7 @@ public struct Routine {
                 return start(.use(errand))
             case .use(let errand):
                 if errand == .switchLamp { lamp = lampWanted(at: time) }
+                if errand == .refillMug { sipsLeft = Self.mugSips }
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
                 reachedEnd = end
@@ -257,20 +271,20 @@ public struct Routine {
                 if fidgetTime { fidgetHeld = true }
                 guard let deadline = waitDeadline, time >= deadline else { return nil }
                 waitDeadline = nil
-                if fidgetHeld, let fidget = fidget() {
+                if fidgetHeld, let fidget = fidget(at: time) {
                     fidgetHeld = false
                     return fidget
                 }
                 return start(.lookAround(restLook()))
 
             case .lookAround:
-                if fidgetTime, let fidget = fidget() {
+                if fidgetTime, let fidget = fidget(at: time) {
                     return fidget
                 }
                 return nil
 
             case .stand:
-                if fidgetTime, let fidget = fidget() {
+                if fidgetTime, let fidget = fidget(at: time) {
                     waitDeadline = nil
                     return fidget
                 }
@@ -279,7 +293,7 @@ public struct Routine {
                 return nextStrollStep()
 
             case .idle:
-                if fidgetTime { return fidget() }
+                if fidgetTime { return fidget(at: time) }
                 return nil
 
             default:
@@ -324,7 +338,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        fidgetDue = room.mood == .focused || Self.fidgets(for: room).isEmpty ? nil : time + 30 + random() * 60
+        fidgetDue = room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
         if room.spot == .window {
             return nextStrollStep()
         }
@@ -343,12 +357,22 @@ public struct Routine {
     }
 
     /// A Fidget that fits where Pix is and how it feels, if any.
-    private mutating func fidget() -> Step? {
+    private mutating func fidget(at time: Date) -> Step? {
         guard let room, room.mood != .focused else { return nil }
-        let choices = Self.fidgets(for: room)
-        guard !choices.isEmpty else { return nil }
+        let all = Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time))
+        guard !all.isEmpty else { return nil }
+        let fresh = all.filter { $0 != lastFidget }
+        let choices = fresh.isEmpty ? all : fresh  // a Spot with one Fidget plays it every time
         let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
-        return choice == .water ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
+        lastFidget = choice
+        switch choice {
+        case .water: return start(.errand(nearestPlant(to: room.spot)))
+        case .refill: return start(.errand(.refillMug))
+        case .sip:
+            sipsLeft -= 1
+            return start(.fidget(choice))
+        default: return start(.fidget(choice))
+        }
     }
 
     private mutating func start(_ step: Step) -> Step {
@@ -369,14 +393,18 @@ public struct Routine {
         case .walk, .errand, .walkBack: place = .onTheWay  // until it finishes
         default: break
         }
+        if case .moment = step { lastFidget = nil }  // a cut-short Errand may be tried again at once
+        if case .walk = step { lastFidget = nil; carryingMug = false }
+        if case .idle = step { carryingMug = false }
+        if case .errand(.refillMug) = step { carryingMug = true }
         return step
     }
 
     /// The Fidgets that fit where Pix is and how it feels.
-    static func fidgets(for room: Room) -> [Fidget] {
+    static func fidgets(for room: Room, sipsLeft: Int, coffee: Bool) -> [Fidget] {
         if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : [.nod] }  // asleep on the couch, awake on a call: none
         return switch room.spot {
-        case .desk: [.sip, .stretch, .lookaround, .water]
+        case .desk: (coffee ? [sipsLeft > 0 ? .sip : .refill] : []) + [.stretch, .lookaround, .water]
         case .call: [.nod]
         case .couch: [.popcorn]
         case .musicCorner: [.spin]
@@ -390,6 +418,11 @@ public struct Routine {
         let plants = Art.props.filter { $0.name == "plant" && $0.strip == "desk" }.map(\.x)
         let plant = plants.min { abs($0 + half - here) < abs($1 + half - here) } ?? 0
         return .waterPlant(at: plant, fromRight: here > plant + half)
+    }
+
+    /// Pix drinks coffee from morning to late afternoon; in the evening the mug is left alone.
+    private func coffeeHours(at time: Date) -> Bool {
+        (Self.coffeeFrom..<Self.coffeeUntil).contains(calendar.component(.hour, from: time))
     }
 
     private func lampWanted(at time: Date) -> Bool {

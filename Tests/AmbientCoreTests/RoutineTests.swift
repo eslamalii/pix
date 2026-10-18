@@ -404,13 +404,13 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
 // MARK: - Fidgets
 
 @Test(arguments: [
-    (Spot.desk, Mood.content, [Fidget.sip, .stretch, .lookaround]), (.couch, .content, [.popcorn]),
+    (Spot.couch, Mood.content, [Fidget.popcorn]),
     (.musicCorner, .content, [.spin]), (.window, .content, [.gaze, .wave, .scratch]),
     (.desk, .sleepy, [.nod]), (.window, .sleepy, [.nod]), (.call, .content, [.nod]),
 ])
 func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget]) {
     for (i, body) in bodies.enumerated() {
-        let count = spot == .desk && mood != .sleepy ? 4 : bodies.count  // the desk's fourth is watering the plant
+        let count = bodies.count
         var routine = started(at: spot, mood, dice: Dice([0.5, (Double(i) + 0.5) / Double(count)]))
         if spot == .window {
             #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held mid-walk
@@ -449,6 +449,127 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
     #expect(routine.handle(.wake, at: at(12, 5)) == .fidget(.lookaround))
     #expect(routine.nextWake == nil)
     #expect(routine.handle(.wake, at: at(12, 6)) == nil)
+}
+
+@Test(arguments: [0.3, 0.6])
+func pixNeverRepeatsAFidgetBackToBack(roll: Double) {
+    var routine = started(at: .desk, dice: Dice([0.5, roll, 0.5, roll]))  // the same roll twice
+    let first = routine.handle(.wake, at: at(12, 1))
+    #expect(routine.handle(.finished, at: at(12, 1, 10)) == idling(.desk))
+    let second = routine.handle(.wake, at: at(12, 2, 10))
+    #expect(first != nil && second != nil && first != second)
+}
+
+@Test func wateringThePlantIsAFidgetSoItDoesNotRepeatEither() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0.99, 0.5, 0.99]))  // the desk's last choice: water
+    guard case .errand(.waterPlant)? = routine.handle(.wake, at: at(12, 1)) else { Issue.record("no water errand"); return }
+    routine.handle(.finished, at: at(12, 1, 5))  // use
+    routine.handle(.finished, at: at(12, 1, 10))  // walk back
+    #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
+    guard case .fidget? = routine.handle(.wake, at: at(12, 2, 15)) else { Issue.record("repeated the water errand"); return }
+}
+
+// MARK: - The mug
+
+/// Waits for the Fidget to fall due, takes the step Pix asks for, and plays it (and anything that follows) to its end.
+func nextDeskStep(_ routine: inout Routine) -> Routine.Step? {
+    let step = routine.handle(.wake, at: routine.nextWake!)
+    var time = routine.nextWake ?? at(12, 59)
+    for _ in 0..<5 {
+        time += 1
+        if routine.handle(.finished, at: time) == idling(.desk) { break }
+    }
+    return step
+}
+
+@Test func pixStartsWithAnEmptyMugSoItsFirstDeskFidgetIsTheRefill() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.refillMug))
+    #expect(routine.handle(.finished, at: at(12, 1, 20)) == .use(.refillMug))
+    #expect(routine.handle(.finished, at: at(12, 1, 22)) == .walkBack(to: .desk))
+    #expect(routine.handle(.finished, at: at(12, 1, 40)) == idling(.desk))
+}
+
+@Test func aRefillCutShortByAMomentLeavesTheMugEmptyAndIsTriedAgain() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0, 0.5, 0]))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.refillMug))
+    #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5)) == .moment(.reaction(.wave)))
+    #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))  // back to the desk, mug still empty
+    #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
+    #expect(routine.mugSteams(at: at(12, 2)) == false)
+    #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.refillMug))
+}
+
+@Test(arguments: [(16, 59, true), (17, 0, false), (23, 0, false), (5, 59, false), (6, 0, true)])
+func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steams: Bool) {
+    var routine = started(at: .desk, time: at(12), dice: Dice([0.5, 0]))
+    routine.handle(.wake, at: at(12, 1))
+    routine.handle(.finished, at: at(12, 1, 20))
+    routine.handle(.finished, at: at(12, 1, 22))  // poured: the mug is full
+    #expect(routine.mugSteams(at: at(hour, minute)) == steams)
+}
+
+@Test func pixCarriesTheMugFromSettingOffUntilItIsIdleAtTheDeskAgain() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.carryingMug == false)
+    routine.handle(.wake, at: at(12, 1))
+    #expect(routine.carryingMug)  // setting off with it
+    routine.handle(.finished, at: at(12, 1, 20))
+    #expect(routine.carryingMug)  // pouring into it
+    routine.handle(.finished, at: at(12, 1, 22))
+    #expect(routine.carryingMug)  // walking back with it
+    routine.handle(.finished, at: at(12, 1, 40))
+    #expect(routine.carryingMug == false)  // set down at the desk
+}
+
+@Test func aMomentMidErrandDoesNotPutTheMugDownButLeavingForAnotherSpotDoes() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0, 0.5, 0]))
+    routine.handle(.wake, at: at(12, 1))
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5))
+    #expect(routine.carryingMug)
+    #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))
+    #expect(routine.carryingMug)
+    routine.handle(.roomChanged(scene(.couch)), at: at(12, 1, 9))  // an app switch: Pix leaves for the couch
+    #expect(routine.carryingMug == false)
+}
+
+@Test func theMugSteamsOnlyOncePixHasPoured() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.mugSteams(at: at(12, 2)) == false)
+    routine.handle(.wake, at: at(12, 1))
+    routine.handle(.finished, at: at(12, 1, 20))
+    #expect(routine.mugSteams(at: at(12, 2)) == false)  // at the cabinet, not yet poured
+    routine.handle(.finished, at: at(12, 1, 22))
+    #expect(routine.mugSteams(at: at(12, 2)))
+}
+
+// Coffee hours: 06:00 to 17:00, so the first desk Fidget (roll 0) is the refill inside them and stretching outside.
+@Test(arguments: [(5, 59, 0, false), (6, 0, 0, true), (16, 59, 0, true), (17, 0, 0, false), (23, 0, 0, false)])
+func pixDrinksCoffeeOnlyFromSixToFiveInTheEvening(hour: Int, minute: Int, second: Int, coffee: Bool) {
+    let wake = at(hour, minute, second)
+    var routine = started(at: .desk, time: wake - 60, dice: Dice([0.5, 0]))
+    #expect(routine.handle(.wake, at: wake) == (coffee ? .errand(.refillMug) : .fidget(.stretch)))
+}
+
+@Test func coffeeHoursFollowTheNewTimeZone() {
+    var routine = started(at: .desk, time: at(9, 58, 30), dice: Dice([0.5, 0]))  // 09:58 in UTC: coffee hours
+    routine.handle(.timeZoneChanged(TimeZone(secondsFromGMT: 8 * 3600)!), at: at(9, 58, 31))  // 17:58 there
+    #expect(routine.handle(.wake, at: at(9, 59, 30)) == .fidget(.stretch))
+}
+
+@Test func afterARefillPixSipsThreeTimesBeforeTheNextRefill() {
+    var routine = started(at: .desk, dice: Dice(Array(repeating: [0.5, 0.0], count: 9).flatMap { $0 }))
+    var seen: [Routine.Step?] = []
+    for _ in 0..<8 { seen.append(nextDeskStep(&routine)) }
+    #expect(seen == [.errand(.refillMug), .fidget(.sip), .fidget(.stretch), .fidget(.sip), .fidget(.stretch),
+                     .fidget(.sip), .errand(.refillMug), .fidget(.sip)])  // the empty mug is refilled at once, then sipped
+}
+
+@Test func aSpotWithOneFidgetPlaysItEveryTime() {
+    var routine = started(at: .couch, dice: Dice([0.5, 0, 0.5, 0]))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.popcorn))
+    routine.handle(.finished, at: at(12, 1, 10))
+    #expect(routine.handle(.wake, at: at(12, 2, 10)) == .fidget(.popcorn))
 }
 
 @Test func aFidgetEndingRestartsTheClockFromTheNewIdle() {
