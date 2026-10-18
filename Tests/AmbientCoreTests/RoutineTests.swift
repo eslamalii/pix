@@ -510,6 +510,20 @@ func nextDeskStep(_ routine: inout Routine) -> Routine.Step? {
     #expect(routine.mugFull)
 }
 
+// Coffee hours: 06:00 to 17:00, so the first desk Fidget (roll 0) is the refill inside them and stretching outside.
+@Test(arguments: [(5, 59, 0, false), (6, 0, 0, true), (16, 59, 0, true), (17, 0, 0, false), (23, 0, 0, false)])
+func pixDrinksCoffeeOnlyFromSixToFiveInTheEvening(hour: Int, minute: Int, second: Int, coffee: Bool) {
+    let wake = at(hour, minute, second)
+    var routine = started(at: .desk, time: wake - 60, dice: Dice([0.5, 0]))
+    #expect(routine.handle(.wake, at: wake) == (coffee ? .errand(.refillMug) : .fidget(.stretch)))
+}
+
+@Test func coffeeHoursFollowTheNewTimeZone() {
+    var routine = started(at: .desk, time: at(9, 58, 30), dice: Dice([0.5, 0]))  // 09:58 in UTC: coffee hours
+    routine.handle(.timeZoneChanged(TimeZone(secondsFromGMT: 8 * 3600)!), at: at(9, 58, 31))  // 17:58 there
+    #expect(routine.handle(.wake, at: at(9, 59, 30)) == .fidget(.stretch))
+}
+
 @Test func afterARefillPixSipsThreeTimesBeforeTheNextRefill() {
     var routine = started(at: .desk, dice: Dice(Array(repeating: [0.5, 0.0], count: 9).flatMap { $0 }))
     var seen: [Routine.Step?] = []
