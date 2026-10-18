@@ -451,6 +451,31 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
     #expect(routine.handle(.wake, at: at(12, 6)) == nil)
 }
 
+@Test(arguments: [0.0, 0.3, 0.6])
+func pixNeverRepeatsAFidgetBackToBack(roll: Double) {
+    var routine = started(at: .desk, dice: Dice([0.5, roll, 0.5, roll]))  // the same roll twice
+    let first = routine.handle(.wake, at: at(12, 1))
+    #expect(routine.handle(.finished, at: at(12, 1, 10)) == idling(.desk))
+    let second = routine.handle(.wake, at: at(12, 2, 10))
+    #expect(first != nil && second != nil && first != second)
+}
+
+@Test func wateringThePlantIsAFidgetSoItDoesNotRepeatEither() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0.99, 0.5, 0.99]))  // the desk's last choice: water
+    guard case .errand(.waterPlant)? = routine.handle(.wake, at: at(12, 1)) else { Issue.record("no water errand"); return }
+    routine.handle(.finished, at: at(12, 1, 5))  // use
+    routine.handle(.finished, at: at(12, 1, 10))  // walk back
+    #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
+    guard case .fidget? = routine.handle(.wake, at: at(12, 2, 15)) else { Issue.record("repeated the water errand"); return }
+}
+
+@Test func aSpotWithOneFidgetPlaysItEveryTime() {
+    var routine = started(at: .couch, dice: Dice([0.5, 0, 0.5, 0]))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.popcorn))
+    routine.handle(.finished, at: at(12, 1, 10))
+    #expect(routine.handle(.wake, at: at(12, 2, 10)) == .fidget(.popcorn))
+}
+
 @Test func aFidgetEndingRestartsTheClockFromTheNewIdle() {
     var routine = started(at: .desk)
     routine.handle(.wake, at: at(12, 1))

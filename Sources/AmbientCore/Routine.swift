@@ -130,6 +130,8 @@ public struct Routine {
     private var fidgetHeld = false
     /// When the next Fidget falls due: set by an idle or settling at the window, kept by the Stroll's steps, cleared by anything else.
     private var fidgetDue: Date?
+    /// The Fidget Pix played last, so it doesn't play it twice in a row.
+    private var lastFidget: Fidget?
     /// When the current wait step (turn 0.5s or stand 2.5s) ends.
     private var waitDeadline: Date?
 
@@ -345,9 +347,12 @@ public struct Routine {
     /// A Fidget that fits where Pix is and how it feels, if any.
     private mutating func fidget() -> Step? {
         guard let room, room.mood != .focused else { return nil }
-        let choices = Self.fidgets(for: room)
-        guard !choices.isEmpty else { return nil }
+        let all = Self.fidgets(for: room)
+        guard !all.isEmpty else { return nil }
+        let fresh = all.filter { $0 != lastFidget }
+        let choices = fresh.isEmpty ? all : fresh  // a Spot with one Fidget plays it every time
         let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
+        lastFidget = choice
         return choice == .water ? start(.errand(nearestPlant(to: room.spot))) : start(.fidget(choice))
     }
 
