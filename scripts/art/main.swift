@@ -489,3 +489,4 @@ cloud.rect(3, 0, 6, 2, hex(0xffffff, 0.9)); cloud.rect(1, 2, 14, 3, hex(0xffffff
 cloud.save("cloud")
 let drawings = userProps(in: out.appendingPathComponent("props"))
 for name in Art.strips { strip(name, with: drawings).save("room-\(name)") }
+drawHalloween()

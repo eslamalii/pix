@@ -25,6 +25,10 @@ _Avoid_: station, area, zone, room (for one part)
 One thing that stands in the Room, such as a plant, the lamp, the bookcase or a couch. Some Props do something (code scrolls on the monitors, the lamp gives light once the Character switches it on, the record spins while music plays); most are just there.
 _Avoid_: object, item, decoration, furniture
 
+**Occasion Prop**:
+A Prop that stands in the Room only in an Occasion season, such as Halloween's jack-o'-lanterns, bunting and the ghost hanging from the lamp. Some glow from dusk; one can hang over a Prop and cover it for the season, as the haunted print covers the print.
+_Avoid_: decoration, seasonal item
+
 ### What the user is doing
 
 **Activity**:
@@ -102,6 +106,10 @@ _Avoid_: history, tracking, analytics, profile
 **Occasion**:
 A day of the year the Character celebrates in the day's first Greeting: Halloween, the holidays (December 24–26) and New Year's Day.
 _Avoid_: holiday (for all of them), event, season
+
+**Occasion season**:
+The days around an Occasion when its Occasion Props stand in the Room: for Halloween, October 24 through November 1, so a user who misses the day itself still finds the Room dressed. (An Occasion is the one day; its season is the stretch around it.)
+_Avoid_: holiday period, event window
 
 **Hat**:
 Something the Character wears on its head, earned by time spent with the user (days together, Pets, Focus sessions finished, Occasions shared), never bought or traded. The Character puts a new one on itself; after that, the user chooses which to wear. It takes the Hat off only when what it's doing can't be done in one (the headset for a call), and puts it back after.
