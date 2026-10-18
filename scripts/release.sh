@@ -1,5 +1,5 @@
 #!/bin/sh
-# Builds the release zip for GitHub Releases (Apple Silicon, ad hoc signed). Run it on a clean, tagged commit.
+# Builds the release zip for GitHub Releases (Universal: Apple Silicon and Intel, ad hoc signed). Run it on a clean, tagged commit.
 # .github/workflows/release.yml runs it on every v* tag, then publishes the release, the tap and the website.
 set -e
 cd "$(dirname "$0")/.."

@@ -11,6 +11,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Pix refills its mug:** Pix starts the day with an empty mug, takes its mug to the cabinet, pours a fresh one and brings it back, then sips it three times before it needs the next refill. An empty mug doesn't steam. Pix only drinks coffee from 06:00 to 17:00; in the evening it leaves the mug alone.
 
+- **Universal binary for Apple Silicon and Intel:** prebuilt releases and the one-liner installer run natively on both Apple Silicon and Intel MacBook Pros out of the box with a single universal binary.
+
 ### Changed
 
 - **Pix no longer repeats itself:** it never plays the same idle Fidget twice in a row.

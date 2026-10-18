@@ -35,7 +35,7 @@ brew install eslamalii/tap/pix
 open $(brew --prefix)/opt/pix/Pix.app
 ```
 
-**One-liner (Apple Silicon, no Homebrew required):**
+**One-liner (Apple Silicon & Intel, no Homebrew required):**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/eslamalii/pix/main/scripts/install.sh | sh
@@ -288,7 +288,7 @@ Sample skins (**Rose**, **Midnight**, and **Mint**) are included in `Skins/` (`.
 | ----------------------------------------------------- | --------------------------- |
 | **MacBook Pro 13" (M1, 2020)**                        | Tested & verified           |
 | **MacBook Pro 13" (M2, 2022)**                        | Supported                   |
-| **MacBook Pro 16" & 13" (2019, 2020 Intel)**          | Supported via Homebrew      |
+| **MacBook Pro 16" & 13" (2019, 2020 Intel)**          | Supported (Universal binary & Homebrew) |
 | **MacBook Pro 13" & 15" (2016–2019 with Esc on bar)** | Room centered automatically |
 
 ---
