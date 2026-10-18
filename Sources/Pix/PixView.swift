@@ -309,6 +309,7 @@ final class PixView: NSView {
             world.addSublayer(strip)
         }
         mugGone.frame = geometry.rect(Art.mug, on: "desk")
+        mugGone.backgroundColor = NSColor.black.cgColor  // the strip is see-through where nothing stands, so the bar shows
         mugGone.contents = ArtFiles.image("mug-gone")
         mugGone.magnificationFilter = .nearest
         mugGone.isHidden = !routine.carryingMug
