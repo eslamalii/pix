@@ -47,8 +47,8 @@ public struct RoomGeometry: Sendable {
         case .waterPlant(let at, let fromRight):  // beside the plant, the can held out toward it
             let middle = desk + CGFloat(at) + Art.plant.width / 2, reach = CGFloat(Art.wateringReach)
             return ErrandStand(x: fromRight ? middle + reach : middle - reach, facingLeft: fromRight)
-        case .refillMug:  // at the music corner's rest, the pot held out over the cabinet
-            return ErrandStand(x: rest(at: .musicCorner).x, facingLeft: false)
+        case .refillMug:  // left of the coffee machine, the mug held out under its spout
+            return ErrandStand(x: desk + Art.coffeeMachine.minX - CGFloat(Art.pourReach), facingLeft: false)
         }
     }
 

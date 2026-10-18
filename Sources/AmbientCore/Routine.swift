@@ -6,7 +6,7 @@ public enum Errand: Equatable, Sendable {
     case switchLamp
     /// The desk-side plant whose left edge is `at`, approached from its right or its left.
     case waterPlant(at: Int, fromRight: Bool)
-    /// The coffee at the cabinet: Pix pours a fresh mug.
+    /// The coffee machine by the desk: Pix takes its mug there and fills it.
     case refillMug
 
     /// The body Pix plays at the Prop.

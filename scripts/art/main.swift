@@ -175,13 +175,11 @@ func drawPix(_ c: Canvas, at ox: Int, body: String, frame f: Int) {
         r(18, 14, 4, 3, can); r(19, 13, 2, 1, can)
         if f == 0 { r(22, 14, 1, 1, can) } else { r(22, 16, 1, 1, can) }
         if f >= 2 { c.dots((f == 2 ? [(23, 18), (22, 20)] : [(23, 19), (23, 21)]).map { (ox + $0.0, $0.1) }, glow) }
-    case "pour":  // the mug held out under a spout, coffee streaming into it
+    case "pour":  // the mug held out under the coffee machine's spout, coffee streaming into it (the machine is in the Room)
         arm(6, 14)
         reach(16, 16, 2); mug(17, 13)
-        let spout = hex(0xb8b8c4)
-        r(18, 5, 4, 2, spout); r(19, 7, 2, 1, spout)
-        if f >= 1 { c.dots([(19, 8), (20, 9)].map { (ox + $0.0, $0.1) }, coffee) }
-        if f >= 2 { c.dots([(19, 10), (20, 11), (19, 12)].map { (ox + $0.0, $0.1) }, coffee) }
+        if f >= 1 { c.dots([(18, 10)].map { (ox + $0.0, $0.1) }, coffee) }
+        if f >= 2 { c.dots([(18, 11), (18, 12)].map { (ox + $0.0, $0.1) }, coffee) }
     case "call":  // on a call: hands resting, then one gestures while talking
         arm(6, 14)
         if f == 2 { reach(16, 15, 3) } else { arm(16, 14) }
@@ -343,6 +341,18 @@ let generatedProps: [String: () -> Canvas] = [
         let c = Canvas(Int(Art.mug.width), Int(Art.mug.height)), mugShade = hex(0xa8a8b4)
         c.rect(0, 0, 3, 4, mugColor); c.rect(0, 0, 3, 1, coffee); c.rect(3, 1, 1, 2, mugColor)
         c.dots([(1, 0)], hex(0x7a5238)); c.rect(2, 1, 1, 3, mugShade); c.dots([(3, 2)], mugShade)      // crema, shade
+        return c
+    },
+    "coffeemachine": {  // faces left: a spout over a drip tray, a lit button on the body
+        let c = Canvas(Int(Art.coffeeMachine.width), Int(Art.coffeeMachine.height)), steam = hex(0xd8d8e0)
+        c.rect(2, 0, 12, 12, silhouette); c.rect(2, 0, 12, 1, rim); c.rect(2, 1, 1, 11, rim); c.rect(3, 1, 10, 10, deep)  // body
+        c.rect(0, 1, 5, 3, silhouette); c.rect(0, 1, 5, 1, rim); c.rect(0, 1, 1, 3, rim)                                  // the head
+        c.rect(1, 4, 2, 1, steel)                                                                                         // spout tip
+        c.rect(7, 3, 4, 3, hex(0x06080e)); c.dots([(8, 4), (9, 4)], leaf)                                                // little display
+        c.dots([(8, 8)], bulb); c.dots([(10, 8)], steam)                                                                  // button, knob
+        c.rect(0, 12, 8, 1, silhouette); c.rect(0, 12, 8, 1, rim); c.rect(1, 13, 6, 1, deep)                              // drip tray
+        c.rect(2, 12, 12, 7, silhouette); c.rect(2, 12, 1, 7, rim); c.rect(3, 13, 10, 5, deep); c.rect(5, 15, 6, 3, hex(0x2c2c35))  // base, cup cabinet
+        c.dots([(3, 18), (12, 18)], steel)                                                                                // feet
         return c
     },
     "lamp": {

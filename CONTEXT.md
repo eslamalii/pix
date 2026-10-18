@@ -80,7 +80,7 @@ A small thing the Character does on its own while idling, now and then (looking 
 _Avoid_: idle animation, tic, flourish
 
 **Errand**:
-A Fidget that uses a Prop: the Character walks to the Prop, uses it (waters the plant, switches the lamp, refills the mug at the cabinet) and walks back to its Spot. A Moment or an app switch can cut it short.
+A Fidget that uses a Prop: the Character walks to the Prop, uses it (waters the plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. A Moment or an app switch can cut it short.
 _Avoid_: task, trip, chore
 
 **Stroll**:
