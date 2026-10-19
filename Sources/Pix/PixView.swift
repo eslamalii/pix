@@ -186,13 +186,12 @@ final class PixView: NSView {
         send(.minutePassed)
     }
 
-    /// The clock, sky, stars or clouds, and lamp. The Room itself stays black, like the bar around it, so there is no tint.
+    /// The clock, sky, and stars or clouds. The Room itself stays black, like the bar around it, so there is no tint.
     private func paintTime() {
         updateClock()
         let daylight = Daylight(hour: Calendar.current.component(.hour, from: Date()))
         withoutAnimation {
             sky.colors = [color(daylight.sky.bottom), color(daylight.sky.top)]
-            lampGlow.isHidden = !routine.lampLit
         }
         halloween.paint(daylight)  // Halloween
         if shown?.spot == .window && daylight != skyDaylight { fillSky(for: daylight) }
@@ -314,7 +313,6 @@ final class PixView: NSView {
         mugGone.backgroundColor = NSColor.black.cgColor  // the strip is see-through where nothing stands, so the bar shows
         mugGone.contents = ArtFiles.image("mug-gone")
         mugGone.magnificationFilter = .nearest
-        mugGone.isHidden = !routine.carryingMug
         world.addSublayer(mugGone)
         monitors = Art.monitors.map { scrollingCode(in: geometry.rect($0, on: "desk"), fps: room.fps) }
         monitors.forEach(world.addSublayer)
@@ -418,8 +416,20 @@ final class PixView: NSView {
 
     /// Tells the Routine what happened, and moves the wake timer to its new deadline.
     private func handle(_ event: Routine.Event) -> Routine.Step? {
-        defer { scheduleWake() }
+        defer {
+            scheduleWake()
+            paintProps()
+        }
         return routine.handle(event, at: Date())
+    }
+
+    /// The lamp's glow and the desk's bare patch follow what the Routine says the Props show.
+    private func paintProps() {
+        let props = routine.props(at: Date())
+        withoutAnimation {
+            lampGlow.isHidden = !props.lampLit
+            mugGone.isHidden = !props.mugAway
+        }
     }
 
     private func scheduleWake() {
@@ -435,10 +445,6 @@ final class PixView: NSView {
 
     private func run(_ step: Routine.Step) {
         self.step = step
-        withoutAnimation {
-            lampGlow.isHidden = !routine.lampLit
-            mugGone.isHidden = !routine.carryingMug
-        }
         switch step {
         case .walk(let spot):
             walk(.spot(spot))
@@ -504,7 +510,7 @@ final class PixView: NSView {
         switch spot {
         case .desk:
             let mug = geometry.rect(Art.mug, on: "desk")
-            if routine.mugSteams(at: Date()) {  // an empty or cold mug doesn't steam
+            if routine.props(at: Date()).mugSteams {  // an empty or cold mug doesn't steam
                 ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
             }
         case .call, .couch:
@@ -736,7 +742,7 @@ final class PixView: NSView {
     /// The walk cycle with its bounce, eyes leading. Both loop forever.
     private func startWalking(speedUp: Double = 1) {
         look(1)
-        bounce(stepEvery: setBody(routine.carryingMug ? "walkmug" : "walk", speedUp: speedUp) / 2)
+        bounce(stepEvery: setBody(routine.props(at: Date()).mugAway ? "walkmug" : "walk", speedUp: speedUp) / 2)
     }
 
     /// Up a point on every footstep while walking. The head never moves inside a frame, so the bob happens here:

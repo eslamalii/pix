@@ -496,7 +496,7 @@ func nextDeskStep(_ routine: inout Routine) -> Routine.Step? {
     #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5)) == .moment(.reaction(.wave)))
     #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))  // back to the desk, mug still empty
     #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
-    #expect(routine.mugSteams(at: at(12, 2)) == false)
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)
     #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.refillMug))
 }
 
@@ -506,41 +506,41 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
     routine.handle(.finished, at: at(12, 1, 22))  // poured: the mug is full
-    #expect(routine.mugSteams(at: at(hour, minute)) == steams)
+    #expect(routine.props(at: at(hour, minute)).mugSteams == steams)
 }
 
 @Test func pixCarriesTheMugFromSettingOffUntilItIsIdleAtTheDeskAgain() {
     var routine = started(at: .desk, dice: Dice([0.5, 0]))
-    #expect(routine.carryingMug == false)
+    #expect(routine.props(at: at(12)).mugAway == false)
     routine.handle(.wake, at: at(12, 1))
-    #expect(routine.carryingMug)  // setting off with it
+    #expect(routine.props(at: at(12)).mugAway)  // setting off with it
     routine.handle(.finished, at: at(12, 1, 20))
-    #expect(routine.carryingMug)  // pouring into it
+    #expect(routine.props(at: at(12)).mugAway)  // pouring into it
     routine.handle(.finished, at: at(12, 1, 22))
-    #expect(routine.carryingMug)  // walking back with it
+    #expect(routine.props(at: at(12)).mugAway)  // walking back with it
     routine.handle(.finished, at: at(12, 1, 40))
-    #expect(routine.carryingMug == false)  // set down at the desk
+    #expect(routine.props(at: at(12)).mugAway == false)  // set down at the desk
 }
 
 @Test func aMomentMidErrandDoesNotPutTheMugDownButLeavingForAnotherSpotDoes() {
     var routine = started(at: .desk, dice: Dice([0.5, 0, 0.5, 0]))
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 5))
-    #expect(routine.carryingMug)
+    #expect(routine.props(at: at(12)).mugAway)
     #expect(routine.handle(.finished, at: at(12, 1, 8)) == .walkBack(to: .desk))
-    #expect(routine.carryingMug)
+    #expect(routine.props(at: at(12)).mugAway)
     routine.handle(.roomChanged(scene(.couch)), at: at(12, 1, 9))  // an app switch: Pix leaves for the couch
-    #expect(routine.carryingMug == false)
+    #expect(routine.props(at: at(12)).mugAway == false)
 }
 
 @Test func theMugSteamsOnlyOncePixHasPoured() {
     var routine = started(at: .desk, dice: Dice([0.5, 0]))
-    #expect(routine.mugSteams(at: at(12, 2)) == false)
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
-    #expect(routine.mugSteams(at: at(12, 2)) == false)  // at the cabinet, not yet poured
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // at the cabinet, not yet poured
     routine.handle(.finished, at: at(12, 1, 22))
-    #expect(routine.mugSteams(at: at(12, 2)))
+    #expect(routine.props(at: at(12, 2)).mugSteams)
 }
 
 // Coffee hours: 06:00 to 17:00, so the first desk Fidget (roll 0) is the refill inside them and stretching outside.
@@ -639,17 +639,17 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
 // MARK: - The lamp
 
 @Test func theLampIsAsTheHourWantsItWhenTheSceneFirstStarts() {
-    #expect(started(at: .desk, time: at(21)).lampLit == true)
-    #expect(started(at: .desk, time: at(12)).lampLit == false)
+    #expect(started(at: .desk, time: at(21)).props(at: at(21)).lampLit == true)
+    #expect(started(at: .desk, time: at(12)).props(at: at(12)).lampLit == false)
 }
 
 @Test func at7pmPixWalksToTheLampAndSwitchesItOn() {
     var routine = started(at: .desk, time: at(18, 59))
     #expect(routine.handle(.minutePassed, at: at(19)) == .errand(.switchLamp))
     #expect(routine.handle(.finished, at: at(19)) == .use(.switchLamp))
-    #expect(routine.lampLit == false)
+    #expect(routine.props(at: at(12)).lampLit == false)
     #expect(routine.handle(.finished, at: at(19)) == .walkBack(to: .desk))
-    #expect(routine.lampLit == true)
+    #expect(routine.props(at: at(12)).lampLit == true)
     #expect(routine.handle(.finished, at: at(19)) == idling(.desk))
 }
 
@@ -658,7 +658,7 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     #expect(routine.handle(.minutePassed, at: at(6)) == .errand(.switchLamp))
     routine.handle(.finished, at: at(6))
     routine.handle(.finished, at: at(6))
-    #expect(routine.lampLit == false)
+    #expect(routine.props(at: at(12)).lampLit == false)
     #expect(routine.handle(.finished, at: at(6)) == idling(.couch))
 }
 
@@ -689,7 +689,7 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     for _ in 0..<3 { routine.handle(.finished, at: at(19)) }
     routine.handle(.sceneStopped, at: at(19, 1))
     #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(19, 2)) == idling(.desk))
-    #expect(routine.lampLit == true)
+    #expect(routine.props(at: at(12)).lampLit == true)
 }
 
 @Test func aMomentDuringTheLampSwitchLeavesItForTheNextIdle() {
@@ -697,6 +697,6 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     routine.handle(.minutePassed, at: at(19))
     routine.handle(.finished, at: at(19))  // at the lamp, reaching up
     routine.handle(.momentArrived(.reaction(.wave)), at: at(19))
-    #expect(routine.lampLit == false)
+    #expect(routine.props(at: at(12)).lampLit == false)
     #expect(routine.handle(.finished, at: at(19)) == .errand(.switchLamp))
 }
