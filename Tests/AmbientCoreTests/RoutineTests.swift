@@ -522,6 +522,17 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     #expect(routine.props(at: at(12)).mugAway == false)  // set down at the desk
 }
 
+@Test func pixWalksWithTheMugInHandOnlyWhileItCarriesIt() {
+    var routine = started(at: .desk, dice: Dice([0.5, 0]))
+    #expect(routine.props(at: at(12)).walkBody == "walk")
+    routine.handle(.wake, at: at(12, 1))
+    #expect(routine.props(at: at(12)).walkBody == "walkmug")
+    routine.handle(.finished, at: at(12, 1, 20))
+    routine.handle(.finished, at: at(12, 1, 22))
+    routine.handle(.finished, at: at(12, 1, 40))
+    #expect(routine.props(at: at(12)).walkBody == "walk")
+}
+
 @Test func aMomentMidErrandDoesNotPutTheMugDownButLeavingForAnotherSpotDoes() {
     var routine = started(at: .desk, dice: Dice([0.5, 0, 0.5, 0]))
     routine.handle(.wake, at: at(12, 1))

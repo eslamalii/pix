@@ -42,6 +42,9 @@ public struct Props: Equatable, Sendable {
     public var mugAway: Bool
     /// The mug on the desk has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
     public var mugSteams: Bool
+
+    /// The body Pix walks in: with the mug held out in front while it carries it.
+    public var walkBody: String { mugAway ? "walkmug" : "walk" }
 }
 
 /// What Pix does next with its body in the Room. The view tells it what happened and performs the step it asks for;

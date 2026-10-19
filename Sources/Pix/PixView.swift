@@ -742,7 +742,7 @@ final class PixView: NSView {
     /// The walk cycle with its bounce, eyes leading. Both loop forever.
     private func startWalking(speedUp: Double = 1) {
         look(1)
-        bounce(stepEvery: setBody(routine.props(at: Date()).mugAway ? "walkmug" : "walk", speedUp: speedUp) / 2)
+        bounce(stepEvery: setBody(routine.props(at: Date()).walkBody, speedUp: speedUp) / 2)
     }
 
     /// Up a point on every footstep while walking. The head never moves inside a frame, so the bob happens here:
