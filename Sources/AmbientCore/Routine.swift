@@ -84,14 +84,9 @@ public struct Routine {
         case dropNeedle
         /// The Stroll: walk to an end of the window.
         case stroll(to: WindowEnd, RestLook)
-        /// The Stroll: pause for a beat before turning toward the other end (0.5 s wait on wake).
-        case turn(to: WindowEnd, RestLook)
-        /// The Stroll: look around at an end of the window (1.5 s animation on finished).
-        case lookAround(RestLook)
-        /// The Stroll: stand a while at the left end of the window (2.5 s wait on wake).
-        case stand(RestLook)
-        /// The Stroll: stretch at the right end of the window (animation on finished).
-        case stretch(RestLook)
+        /// The Stroll: stop at an end of the window: a beat, a look around, then the end's body (a stretch), or, with
+        /// none, standing a while. Finished when the view is done.
+        case stop(at: WindowEnd, body: String?, RestLook)
         /// Mid-Stroll Look update: face and particles change without interrupting motion.
         case relook(RestLook)
 
@@ -101,17 +96,8 @@ public struct Routine {
         public static func stroll(to end: WindowEnd, _ mood: Mood = .content) -> Step {
             .stroll(to: end, RestLook(spot: .window, mood: mood))
         }
-        public static func turn(to end: WindowEnd, _ mood: Mood = .content) -> Step {
-            .turn(to: end, RestLook(spot: .window, mood: mood))
-        }
-        public static func lookAround(_ mood: Mood = .content) -> Step {
-            .lookAround(RestLook(spot: .window, mood: mood))
-        }
-        public static func stand(_ mood: Mood = .content) -> Step {
-            .stand(RestLook(spot: .window, mood: mood))
-        }
-        public static func stretch(_ mood: Mood = .content) -> Step {
-            .stretch(RestLook(spot: .window, mood: mood))
+        public static func stop(at end: WindowEnd, body: String?, _ mood: Mood = .content) -> Step {
+            .stop(at: end, body: body, RestLook(spot: .window, mood: mood))
         }
         public static func relook(_ mood: Mood) -> Step {
             .relook(RestLook(spot: .window, mood: mood))
@@ -141,9 +127,7 @@ public struct Routine {
     private var lamp: Bool?  // nil until the scene first starts, when it takes the hour's state
     /// The end of the window the Stroll heads for next.
     private var heading = WindowEnd.left
-    /// Which end Pix reached on its stroll walk.
-    private var reachedEnd: WindowEnd?
-    /// A Fidget fell due mid-walk or during turn: it plays when Pix reaches the end.
+    /// A Fidget fell due mid-walk: it plays when Pix reaches the end.
     private var fidgetHeld = false
     /// When the next Fidget falls due: set by an idle or settling at the window, kept by the Stroll's steps, cleared by anything else.
     private var fidgetDue: Date?
@@ -153,8 +137,6 @@ public struct Routine {
     private var carryingMug = false
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
-    /// When the current wait step (turn 0.5s or stand 2.5s) ends.
-    private var waitDeadline: Date?
 
     /// Where Pix was last seen: the scene starts with Pix there, and it walks into view if the Spot changed.
     public private(set) var lastSpot: Spot?
@@ -165,14 +147,7 @@ public struct Routine {
     }
 
     /// When the view should send `wake` (nil: no need).
-    public var nextWake: Date? {
-        switch (waitDeadline, fidgetDue) {
-        case let (w?, f?): min(w, f)
-        case let (w?, nil): w
-        case let (nil, f?): f
-        case (nil, nil): nil
-        }
-    }
+    public var nextWake: Date? { fidgetDue }
 
     /// `random` returns a number in 0..<1; tests pass fixed ones.
     public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
@@ -190,12 +165,12 @@ public struct Routine {
             if lamp == nil { lamp = lampWanted(at: time) }
             let from = lastSpot ?? room.spot
             (place, lastSpot) = (.spot(from), room.spot)
-            (heading, reachedEnd, waitDeadline) = (.left, nil, nil)
+            heading = .left
             return from == room.spot ? settle(at: time) : walk(to: room.spot)
 
         case .sceneStopped:
             (running, current, waiting) = (false, nil, nil)
-            (heading, reachedEnd, fidgetHeld, fidgetDue, waitDeadline) = (.left, nil, false, nil, nil)
+            (heading, fidgetHeld, fidgetDue) = (.left, false, nil)
             return nil
 
         case .roomChanged(let new):
@@ -216,7 +191,7 @@ public struct Routine {
                 let moodChanged = new.mood != old?.mood
                 let hotChanged = new.hot != old?.hot
                 if moodChanged {
-                    fidgetDue = new.mood == .focused || Self.fidgets(for: new, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
+                    fidgetDue = nextFidgetDue(for: new, at: time)
                 }
                 if isStrolling && (moodChanged || hotChanged) {
                     return .relook(restLook())
@@ -233,7 +208,6 @@ public struct Routine {
         case .momentArrived(let moment):
             if !running { waiting = moment; return nil }
             if case .walk = current { waiting = moment; return nil }  // it plays on arrival
-            waitDeadline = nil
             return start(.moment(moment))
 
         case .finished:
@@ -249,22 +223,14 @@ public struct Routine {
                 if errand == .refillMug { sipsLeft = Self.mugSips }
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
-                reachedEnd = end
                 heading = end.other
-                waitDeadline = time + 0.5
-                return start(.turn(to: end.other, restLook()))
-            case .lookAround:
-                if reachedEnd == .right {
-                    return start(.stretch(restLook()))
-                } else {
-                    waitDeadline = time + 2.5
-                    return start(.stand(restLook()))
-                }
-            case .stretch:
+                let held = fidgetHeld
+                fidgetHeld = false  // played now or never: it must not wait for a later walk
+                if held, let fidget = fidget(at: time) { return fidget }  // in place of the stop
+                return start(.stop(at: end, body: end.stopBody, restLook()))
+            case .stop:
                 return nextStrollStep()
-            case .idle, .moment, .fidget, .dropNeedle:
-                break
-            case .turn, .stand, .relook:
+            case .idle, .moment, .fidget, .dropNeedle, .relook:
                 break
             }
             return settle(at: time)
@@ -280,30 +246,9 @@ public struct Routine {
                 if fidgetTime { fidgetHeld = true }
                 return nil
 
-            case .turn:
-                if fidgetTime { fidgetHeld = true }
-                guard let deadline = waitDeadline, time >= deadline else { return nil }
-                waitDeadline = nil
-                if fidgetHeld, let fidget = fidget(at: time) {
-                    fidgetHeld = false
-                    return fidget
-                }
-                return start(.lookAround(restLook()))
-
-            case .lookAround:
-                if fidgetTime, let fidget = fidget(at: time) {
-                    return fidget
-                }
+            case .stop:
+                if fidgetTime, let fidget = fidget(at: time) { return fidget }
                 return nil
-
-            case .stand:
-                if fidgetTime, let fidget = fidget(at: time) {
-                    waitDeadline = nil
-                    return fidget
-                }
-                guard let deadline = waitDeadline, time >= deadline else { return nil }
-                waitDeadline = nil
-                return nextStrollStep()
 
             case .idle:
                 if fidgetTime { return fidget(at: time) }
@@ -327,7 +272,7 @@ public struct Routine {
 
     private var isStrolling: Bool {
         switch current {
-        case .stroll, .turn, .lookAround, .stand, .stretch: true
+        case .stroll, .stop: true
         default: false
         }
     }
@@ -351,7 +296,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        fidgetDue = room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
+        fidgetDue = nextFidgetDue(for: room, at: time)
         if room.spot == .window {
             return nextStrollStep()
         }
@@ -359,14 +304,16 @@ public struct Routine {
     }
 
     private mutating func walk(to spot: Spot) -> Step {
-        (needleDown, heading, reachedEnd, waitDeadline) = (false, .left, nil, nil)  // arriving at the window, the Stroll starts left
+        (needleDown, heading) = (false, .left)  // arriving at the window, the Stroll starts left
         return start(.walk(to: spot))
     }
 
     /// The Stroll's next walk.
-    private mutating func nextStrollStep() -> Step {
-        reachedEnd = nil
-        return start(.stroll(to: heading, restLook()))
+    private mutating func nextStrollStep() -> Step { start(.stroll(to: heading, restLook())) }
+
+    /// When the next Fidget falls due 30 to 90 seconds on; none while focused, or when none fit where Pix is.
+    private func nextFidgetDue(for room: Room, at time: Date) -> Date? {
+        room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
     }
 
     /// A Fidget that fits where Pix is and how it feels, if any.
@@ -391,14 +338,12 @@ public struct Routine {
     private mutating func start(_ step: Step) -> Step {
         current = step
         switch step {
-        case .stroll, .turn, .lookAround, .stand, .stretch:
+        case .stroll, .stop:
             // The Fidget deadline carries on
             break
         case .idle:
-            waitDeadline = nil
             fidgetHeld = false
         default:
-            waitDeadline = nil
             fidgetHeld = false
             fidgetDue = nil
         }

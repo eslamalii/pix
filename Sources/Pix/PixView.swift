@@ -473,27 +473,9 @@ final class PixView: NSView {
             log.info("stroll: \(String(describing: end), privacy: .public)")
             apply(restLook, at: .window)
             walk(.stroll(to: geometry.strollEnd(end)))
-        case .turn(let end, let restLook):
-            log.info("turn: \(String(describing: end), privacy: .public)")
-            _ = takeOver()
-            apply(restLook, at: .window)
-            setBody("idle")
-            breathe(true)
-            look(-1)
-        case .lookAround(let restLook):
-            log.info("lookaround")
-            lookAround(restLook: restLook)
-        case .stand(let restLook):
-            log.info("stand")
-            _ = takeOver()
-            apply(restLook, at: .window)
-            look(0)
-            setBody("idle")
-            breathe(true)
-        case .stretch(let restLook):
-            log.info("stretch")
-            apply(restLook, at: .window)
-            perform("stretch", loops: 1)
+        case .stop(let end, let body, let restLook):
+            log.info("stop: \(String(describing: end), privacy: .public)")
+            stop(body: body, restLook: restLook)
         case .relook(let restLook):
             log.info("relook")
             apply(restLook, at: .window)
@@ -567,24 +549,43 @@ final class PixView: NSView {
         CATransaction.commit()
     }
 
-    /// Pix looks around: one way, the other, then back at the user.
-    private func lookAround(restLook: RestLook) {
+    /// The Stroll's stop at an end: a beat looking back, a look around (one way, the other, then back at the user), then
+    /// the end's body, or standing a while. One token covers all of it, so a Moment or a Fidget that takes over drops
+    /// the rest; when it ends, the step is finished.
+    private func stop(body: String?, restLook: RestLook) {
         let mine = takeOver()
         apply(restLook, at: .window)
-        let facing = pix.position.x < (geometry.stripX("window") + CGFloat(Art.stripWidth) / 2) ? CATransform3DIdentity : facingLeft
-        withoutAnimation { pix.transform = facing }
-        look(0)
         setBody("idle")
         breathe(true)
-        CATransaction.begin()
-        CATransaction.setCompletionBlock { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, mine == self.token else { return }
-                self.send(.finished)
+        look(-1)
+        after(0.5, token: mine) { [weak self] in
+            guard let self else { return }
+            let facing = pix.position.x < (geometry.stripX("window") + CGFloat(Art.stripWidth) / 2) ? CATransform3DIdentity : facingLeft
+            withoutAnimation { pix.transform = facing }
+            look(0)
+            CATransaction.begin()
+            CATransaction.setCompletionBlock { [weak self] in
+                MainActor.assumeIsolated {
+                    guard let self, mine == self.token else { return }
+                    if let body {
+                        self.perform(body, loops: 1)
+                    } else {
+                        self.after(2.5, token: mine) { [weak self] in self?.send(.finished) }
+                    }
+                }
             }
+            glance()
+            CATransaction.commit()
         }
-        glance()
-        CATransaction.commit()
+    }
+
+    /// Runs `work` after `seconds`, unless a newer step has taken over by then.
+    private func after(_ seconds: Double, token mine: Int, _ work: @escaping @MainActor () -> Void) {
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(seconds))
+            guard !Task.isCancelled, self?.token == mine else { return }
+            work()
+        }
     }
 
     private enum WalkKind {

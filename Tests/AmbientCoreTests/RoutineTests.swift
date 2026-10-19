@@ -203,92 +203,58 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
     #expect(arriving.handle(.finished, at: at(12, 1)) == .stroll(to: .left))
 }
 
-@Test func theStrollStopsAtEachEndTurnLookAroundStandOrStretchThenWalksBack() {
+@Test func theStrollStopsAtEachEndThenWalksToTheOther() {
     var routine = started(at: .window)  // strolling left
-    // Reaching the left end:
-    #expect(routine.handle(.finished, at: at(12, 0, 10)) == .turn(to: .right))
-    #expect(routine.nextWake == at(12, 0, 10) + 0.5)  // 0.5s wait
-    #expect(routine.handle(.wake, at: at(12, 0, 10) + 0.5) == .lookAround())
-    #expect(routine.handle(.finished, at: at(12, 0, 12)) == .stand())
-    #expect(routine.nextWake == at(12, 0, 12) + 2.5)  // 2.5s wait
-    #expect(routine.handle(.wake, at: at(12, 0, 12) + 2.5) == .stroll(to: .right))
+    #expect(routine.handle(.finished, at: at(12, 0, 10)) == .stop(at: .left, body: nil))  // stands
+    #expect(routine.nextWake == at(12, 1))  // the Fidget clock alone: the stop is timed by the view
+    #expect(routine.handle(.finished, at: at(12, 0, 17)) == .stroll(to: .right))
 
-    // Reaching the right end:
-    #expect(routine.handle(.finished, at: at(12, 0, 30)) == .turn(to: .left))
-    #expect(routine.nextWake == at(12, 0, 30) + 0.5)  // 0.5s wait
-    #expect(routine.handle(.wake, at: at(12, 0, 30) + 0.5) == .lookAround())
-    #expect(routine.handle(.finished, at: at(12, 0, 32)) == .stretch())
+    #expect(routine.handle(.finished, at: at(12, 0, 30)) == .stop(at: .right, body: "stretch"))
     #expect(routine.handle(.finished, at: at(12, 0, 33)) == .stroll(to: .left))
 }
 
-@Test func anEarlyOrStaleWakeDuringTurnOrStandDoesNothing() {
+@Test func aWakeBeforeAFidgetIsDueChangesNothingDuringAStop() {
     var routine = started(at: .window)
-    routine.handle(.finished, at: at(12, 0, 30))  // turn(to: .right), deadline at(12, 0, 30) + 0.5
-    #expect(routine.handle(.wake, at: at(12, 0, 30) + 0.2) == nil)
-    #expect(routine.nextWake == at(12, 0, 30) + 0.5)
+    routine.handle(.finished, at: at(12, 0, 30))  // stop at the left
+    #expect(routine.handle(.wake, at: at(12, 0, 31)) == nil)
+    #expect(routine.nextWake == at(12, 1))
 }
 
 @Test func aFidgetDueMidWalkWaitsForTheEndOfTheWindowThenReplacesStop() {
     var routine = started(at: .window, dice: Dice([0.5, 0]))  // the window's first Fidget: gaze
     #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held mid-walk
-    #expect(routine.handle(.finished, at: at(12, 1)) == .turn(to: .right))  // turn wait
-    #expect(routine.handle(.wake, at: at(12, 1) + 0.5) == .fidget(.gaze))   // held fidget plays in place of stop
+    #expect(routine.handle(.finished, at: at(12, 1)) == .fidget(.gaze))  // plays on arrival, in place of the stop
     #expect(routine.handle(.finished, at: at(12, 1, 1)) == .stroll(to: .right))  // heads to other end
 }
 
-@Test func aFidgetDueDuringTurnWaitIsHeldAndPlaysAfterTurn() {
+@Test func aFidgetDueDuringAStopPlaysAtOnceAndPixWalksToTheOtherEnd() {
     var routine = started(at: .window, dice: Dice([0.5, 0]))  // gaze due at 12:01:00
-    // Walk left ends at 12:00:59.8, so turn wait is until 12:01:00.3:
-    let walkEnd = at(12, 0, 59) + 0.8
-    #expect(routine.handle(.finished, at: walkEnd) == .turn(to: .right))
-    // Fidget falls due at 12:01:00 during the turn wait:
-    #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held!
-    // Turn wait ends at 12:01:00.3:
-    #expect(routine.handle(.wake, at: walkEnd + 0.5) == .fidget(.gaze))  // plays in place of stop!
-    #expect(routine.handle(.finished, at: at(12, 1, 2)) == .stroll(to: .right))  // heads to other end
-}
-
-@Test func aFidgetDueWhileLookingAroundOrStandingPlaysAtOnce() {
-    var routine = started(at: .window, dice: Dice([0.5, 0]))
-    routine.handle(.finished, at: at(12, 0, 30))  // turn
-    routine.handle(.wake, at: at(12, 0, 30) + 0.5)  // lookAround
-    // Fidget due during lookAround:
+    #expect(routine.handle(.finished, at: at(12, 0, 59) + 0.8) == .stop(at: .left, body: nil))  // 0.2 s before it
     #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.gaze))
     #expect(routine.handle(.finished, at: at(12, 1, 2)) == .stroll(to: .right))
 
-    // Now check during stand:
-    var routine2 = started(at: .window, dice: Dice([0.5, 0]))
-    routine2.handle(.finished, at: at(12, 0, 30))  // turn
-    routine2.handle(.wake, at: at(12, 0, 30) + 0.5)  // lookAround
-    routine2.handle(.finished, at: at(12, 0, 32))  // stand
-    #expect(routine2.handle(.wake, at: at(12, 1)) == .fidget(.gaze))
-    #expect(routine2.handle(.finished, at: at(12, 1, 2)) == .stroll(to: .right))
+    var atTheRight = strollingRight(dice: Dice([0.5, 0.9]))  // the window's third Fidget: scratch
+    #expect(atTheRight.handle(.finished, at: at(12, 0, 50)) == .stop(at: .right, body: "stretch"))
+    #expect(atTheRight.handle(.wake, at: at(12, 1)) == .fidget(.scratch))
+    #expect(atTheRight.handle(.finished, at: at(12, 1, 2)) == .stroll(to: .left))
 }
 
 /// Strolling right, after the first walk left and the stop at the left end. A Fidget is due at 12:01.
 func strollingRight(dice: Dice = Dice([])) -> Routine {
     var routine = started(at: .window, dice: dice)
-    routine.handle(.finished, at: at(12))          // left walk finishes -> turn
-    routine.handle(.wake, at: at(12, 0, 1))        // turn finishes -> lookAround
-    routine.handle(.finished, at: at(12, 0, 2))    // lookAround finishes -> stand
-    routine.handle(.wake, at: at(12, 0, 5))        // stand finishes -> stroll right
+    routine.handle(.finished, at: at(12))          // left walk finishes -> stop at the left
+    routine.handle(.finished, at: at(12, 0, 5))    // stop finishes -> stroll right
     return routine
 }
 
 @Test func theStrollsWalksAndStopsKeepTheFidgetDeadline() {
     var routine = started(at: .window)
-    let due = routine.nextWake
-    #expect(due == at(12, 1))
-    #expect(routine.handle(.finished, at: at(12, 0, 30)) == .turn(to: .right))
-    // nextWake is min(turnWaitDeadline, fidgetDue) = at(12, 0, 30.5)
-    #expect(routine.nextWake == at(12, 0, 30) + 0.5)
-    #expect(routine.handle(.wake, at: at(12, 0, 30) + 0.5) == .lookAround())
-    // during lookAround, nextWake is fidgetDue
+    let due = at(12, 1)
     #expect(routine.nextWake == due)
-    #expect(routine.handle(.finished, at: at(12, 0, 32)) == .stand())
-    #expect(routine.nextWake == at(12, 0, 32) + 2.5)
-    #expect(routine.handle(.wake, at: at(12, 0, 32) + 2.5) == .stroll(to: .right))
-    #expect(routine.nextWake == due)
+    routine.handle(.finished, at: at(12, 0, 30))
+    #expect(routine.nextWake == due)  // during the stop
+    routine.handle(.finished, at: at(12, 0, 35))
+    #expect(routine.nextWake == due)  // and the walk after it
 }
 
 @Test func aNewMoodMidWalkRestartsTheFidgetDeadline() {
@@ -300,9 +266,18 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
 @Test func aFidgetHeldMidWalkPlaysInPlaceOfTheStopAtTheEndPixReaches() {
     var routine = strollingRight(dice: Dice([0.5, 0.9]))  // the window's third Fidget: scratch
     #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // never mid-walk
-    #expect(routine.handle(.finished, at: at(12, 2)) == .turn(to: .left))  // walk right ends -> turn to left
-    #expect(routine.handle(.wake, at: at(12, 2) + 0.5) == .fidget(.scratch))  // no lookaround or stretch at right end
+    #expect(routine.handle(.finished, at: at(12, 2)) == .fidget(.scratch))  // no stretch at the right end
     #expect(routine.handle(.finished, at: at(12, 2, 2)) == .stroll(to: .left))
+}
+
+@Test func aHeldFidgetPixCannotPlayOnArrivalIsForgottenNotKeptForALaterWalk() {
+    var routine = started(at: .window, dice: Dice([0.5, 0, 0]))  // a Fidget is due at 12:01
+    #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held mid-walk
+    routine.handle(.roomChanged(scene(.window, .focused)), at: at(12, 1, 10))  // a Focus session: no Fidgets
+    #expect(routine.handle(.finished, at: at(12, 1, 20)) == .stop(at: .left, body: nil, .focused))  // nothing to play
+    #expect(routine.handle(.finished, at: at(12, 1, 25)) == .stroll(to: .right, .focused))
+    routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 2))  // the next Fidget is due at 12:02:30
+    #expect(routine.handle(.finished, at: at(12, 2, 10)) == .stop(at: .right, body: "stretch"))  // not due yet
 }
 
 @Test func afterAMomentMidWalkPixKeepsHeadingForTheSameEnd() {
@@ -311,34 +286,23 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
     #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))
 }
 
-@Test func aMomentInterruptsTurnLookAroundOrStandAndStrollResumesAfterIt() {
-    // Interrupting turn:
-    var r1 = started(at: .window)
-    r1.handle(.finished, at: at(12, 0, 30))  // in turn(to: .right)
-    #expect(r1.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 30)) == .moment(.reaction(.wave)))
-    #expect(r1.handle(.finished, at: at(12, 0, 31)) == .stroll(to: .right))
+@Test func aMomentInterruptsAStopAndPixWalksToTheOtherEnd() {
+    var atTheLeft = started(at: .window)
+    atTheLeft.handle(.finished, at: at(12, 0, 30))  // stop at the left
+    #expect(atTheLeft.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 31)) == .moment(.reaction(.wave)))
+    #expect(atTheLeft.handle(.finished, at: at(12, 0, 32)) == .stroll(to: .right))
 
-    // Interrupting lookAround:
-    var r2 = started(at: .window)
-    r2.handle(.finished, at: at(12, 0, 30))
-    r2.handle(.wake, at: at(12, 0, 30) + 0.5)  // in lookAround
-    #expect(r2.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 31)) == .moment(.reaction(.wave)))
-    #expect(r2.handle(.finished, at: at(12, 0, 32)) == .stroll(to: .right))
-
-    // Interrupting stand:
-    var r3 = started(at: .window)
-    r3.handle(.finished, at: at(12, 0, 30))
-    r3.handle(.wake, at: at(12, 0, 30) + 0.5)
-    r3.handle(.finished, at: at(12, 0, 32))  // in stand
-    #expect(r3.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 33)) == .moment(.reaction(.wave)))
-    #expect(r3.handle(.finished, at: at(12, 0, 34)) == .stroll(to: .right))
+    var atTheRight = strollingRight()
+    atTheRight.handle(.finished, at: at(12, 0, 50))  // stop at the right
+    #expect(atTheRight.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 51)) == .moment(.reaction(.wave)))
+    #expect(atTheRight.handle(.finished, at: at(12, 0, 52)) == .stroll(to: .left))
 }
 
 @Test func aMoodOrHotChangeMidStrollReturnsRelookAndWalkCarriesOn() {
     var routine = started(at: .window, .focused)
     #expect(routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 1)) == .relook(.content))
     // Walk to left end carries on:
-    #expect(routine.handle(.finished, at: at(12, 1, 30)) == .turn(to: .right))
+    #expect(routine.handle(.finished, at: at(12, 1, 30)) == .stop(at: .left, body: nil))
 
     // Hot change:
     var hotRoom = scene(.window, .content)
@@ -370,7 +334,7 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
 @Test func switchingBetweenTwoAppsThatKeepPixAtTheWindowLeavesTheWalkAlone() {
     var routine = strollingRight()
     #expect(routine.handle(.roomChanged(scene(.window, activity: .other, fps: 10)), at: at(12, 1)) == nil)
-    #expect(routine.handle(.finished, at: at(12, 1)) == .turn(to: .left))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .stop(at: .right, body: "stretch"))
 }
 
 @Test func restingStepsCarryRestLookMatchingSpotMoodAndHotState() {
@@ -414,8 +378,7 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
         var routine = started(at: spot, mood, dice: Dice([0.5, (Double(i) + 0.5) / Double(count)]))
         if spot == .window {
             #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held mid-walk
-            #expect(routine.handle(.finished, at: at(12, 1)) == .turn(to: .right, mood))
-            #expect(routine.handle(.wake, at: at(12, 1) + 0.5) == .fidget(body))
+            #expect(routine.handle(.finished, at: at(12, 1)) == .fidget(body))  // held mid-walk, plays on arrival
             #expect(routine.handle(.finished, at: at(12, 1, 1)) == .stroll(to: .right, mood))
         } else {
             #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(body))
