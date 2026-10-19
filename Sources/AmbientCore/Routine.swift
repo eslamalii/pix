@@ -224,10 +224,9 @@ public struct Routine {
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
                 heading = end.other
-                if fidgetHeld, let fidget = fidget(at: time) {  // in place of the stop
-                    fidgetHeld = false
-                    return fidget
-                }
+                let held = fidgetHeld
+                fidgetHeld = false  // played now or never: it must not wait for a later walk
+                if held, let fidget = fidget(at: time) { return fidget }  // in place of the stop
                 return start(.stop(at: end, body: end.stopBody, restLook()))
             case .stop:
                 return nextStrollStep()

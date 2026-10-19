@@ -270,6 +270,16 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
     #expect(routine.handle(.finished, at: at(12, 2, 2)) == .stroll(to: .left))
 }
 
+@Test func aHeldFidgetPixCannotPlayOnArrivalIsForgottenNotKeptForALaterWalk() {
+    var routine = started(at: .window, dice: Dice([0.5, 0, 0]))  // a Fidget is due at 12:01
+    #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // held mid-walk
+    routine.handle(.roomChanged(scene(.window, .focused)), at: at(12, 1, 10))  // a Focus session: no Fidgets
+    #expect(routine.handle(.finished, at: at(12, 1, 20)) == .stop(at: .left, body: nil, .focused))  // nothing to play
+    #expect(routine.handle(.finished, at: at(12, 1, 25)) == .stroll(to: .right, .focused))
+    routine.handle(.roomChanged(scene(.window, .content)), at: at(12, 2))  // the next Fidget is due at 12:02:30
+    #expect(routine.handle(.finished, at: at(12, 2, 10)) == .stop(at: .right, body: "stretch"))  // not due yet
+}
+
 @Test func afterAMomentMidWalkPixKeepsHeadingForTheSameEnd() {
     var routine = strollingRight()
     #expect(routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1)) == .moment(.reaction(.wave)))
