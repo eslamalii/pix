@@ -883,7 +883,8 @@ final class PixView: NSView {
     }
 
     private func setDeskSteam(_ on: Bool, in world: CALayer) {
-        guard on != !deskSteam.isEmpty else { return }
+        let steaming = !deskSteam.isEmpty
+        guard on != steaming else { return }
         if on {
             let mug = geometry.rect(Art.mug, on: "desk")
             deskSteam = particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
