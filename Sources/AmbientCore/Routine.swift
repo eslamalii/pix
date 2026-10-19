@@ -191,7 +191,7 @@ public struct Routine {
                 let moodChanged = new.mood != old?.mood
                 let hotChanged = new.hot != old?.hot
                 if moodChanged {
-                    fidgetDue = new.mood == .focused || Self.fidgets(for: new, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
+                    fidgetDue = nextFidgetDue(for: new, at: time)
                 }
                 if isStrolling && (moodChanged || hotChanged) {
                     return .relook(restLook())
@@ -297,7 +297,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        fidgetDue = room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
+        fidgetDue = nextFidgetDue(for: room, at: time)
         if room.spot == .window {
             return nextStrollStep()
         }
@@ -311,6 +311,11 @@ public struct Routine {
 
     /// The Stroll's next walk.
     private mutating func nextStrollStep() -> Step { start(.stroll(to: heading, restLook())) }
+
+    /// When the next Fidget falls due 30 to 90 seconds on; none while focused, or when none fit where Pix is.
+    private func nextFidgetDue(for room: Room, at time: Date) -> Date? {
+        room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
+    }
 
     /// A Fidget that fits where Pix is and how it feels, if any.
     private mutating func fidget(at time: Date) -> Step? {
