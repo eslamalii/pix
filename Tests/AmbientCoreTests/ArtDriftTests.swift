@@ -44,6 +44,13 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
     for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }
 }
 
+@Test func bothWalkBodiesAreInTheArtContract() {
+    for mugAway in [false, true] {
+        let body = Props(lampLit: false, mugAway: mugAway, mugSteams: false).walkBody
+        #expect(bodies.contains(body), "walk body \(body)")
+    }
+}
+
 @Test func everyMoodHasAFaceAndEveryHatACell() {
     for mood in Mood.allCases { #expect(Art.faces.contains(mood.rawValue), "face \(mood.rawValue)") }
     #expect(Set(Hat.allCases.map(\.rawValue)) == Set(Art.hats))

@@ -35,6 +35,18 @@ public enum WindowEnd: Sendable {
     var stopBody: String? { self == .right ? "stretch" : nil }
 }
 
+/// What the Room's Props show right now: what the Routine decides about the lamp and the mug, as the view paints it.
+public struct Props: Equatable, Sendable {
+    public var lampLit: Bool
+    /// Pix has the mug in hand, so the desk shows no mug.
+    public var mugAway: Bool
+    /// The mug on the desk has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
+    public var mugSteams: Bool
+
+    /// The body Pix walks in: with the mug held out in front while it carries it.
+    public var walkBody: String { mugAway ? "walkmug" : "walk" }
+}
+
 /// What Pix does next with its body in the Room. The view tells it what happened and performs the step it asks for;
 /// it decides in Spots and Props, never in screen points.
 public struct Routine {
@@ -138,7 +150,7 @@ public struct Routine {
     /// Sips left in the mug: it starts empty at launch, so the first desk Fidget is the refill.
     private var sipsLeft = 0
     /// Pix has the mug in hand: from setting off on the refill until it's idle again (or leaves for another Spot).
-    public private(set) var carryingMug = false
+    private var carryingMug = false
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
     /// When the current wait step (turn 0.5s or stand 2.5s) ends.
@@ -147,9 +159,10 @@ public struct Routine {
     /// Where Pix was last seen: the scene starts with Pix there, and it walks into view if the Spot changed.
     public private(set) var lastSpot: Spot?
 
-    public var lampLit: Bool { lamp == true }
-    /// The mug on the desk is hot: it has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
-    public func mugSteams(at time: Date) -> Bool { sipsLeft > 0 && coffeeHours(at: time) }
+    /// What the Props show at `time`: steam follows the hour, so ask again when it changes.
+    public func props(at time: Date) -> Props {
+        Props(lampLit: lamp == true, mugAway: carryingMug, mugSteams: sipsLeft > 0 && coffeeHours(at: time))
+    }
 
     /// When the view should send `wake` (nil: no need).
     public var nextWake: Date? {
