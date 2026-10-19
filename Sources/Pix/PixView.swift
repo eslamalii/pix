@@ -109,6 +109,7 @@ final class PixView: NSView {
     private var builtSize: CGSize = .zero
     private var monitors: [CALayer] = []       // the code scrolling on them
     private var ambient: [CALayer] = []        // particles that belong to the current idle (notes, Zs, desk steam)
+    private var deskSteam: [CALayer] = []      // the mug's steam, which is also in `ambient`
     private var momentParticles: [CALayer] = [] // particles that belong to the Moment playing (hearts, Zs, coffee steam)
     private var faceHome: CGPoint = .zero  // where the face sits when Pix looks straight at the user
 
@@ -411,7 +412,7 @@ final class PixView: NSView {
 
     /// Tells the Routine what happened, and performs the step it asks for, if any.
     private func send(_ event: Routine.Event) {
-        if let next = handle(event) { run(next) }
+        if let next = handle(event) { run(next) } else { paintDeskSteam() }
     }
 
     /// Tells the Routine what happened, and moves the wake timer to its new deadline.
@@ -509,10 +510,7 @@ final class PixView: NSView {
         breathe(true)
         switch spot {
         case .desk:
-            let mug = geometry.rect(Art.mug, on: "desk")
-            if routine.props(at: Date()).mugSteams {  // an empty or cold mug doesn't steam
-                ambient += particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
-            }
+            setDeskSteam(routine.props(at: Date()).mugSteams, in: world)
         case .call, .couch:
             break
         case .musicCorner:
@@ -874,7 +872,27 @@ final class PixView: NSView {
 
     private func clearAmbient() {
         ambient.forEach { $0.removeFromSuperlayer() }
-        ambient = []
+        (ambient, deskSteam) = ([], [])
+    }
+
+    /// An empty or cold mug doesn't steam. The hour can change that while Pix idles at the desk, so it starts or stops
+    /// in place, without restarting the idle.
+    private func paintDeskSteam() {
+        guard let world, case .idle(.desk, _)? = step else { return }
+        setDeskSteam(routine.props(at: Date()).mugSteams, in: world)
+    }
+
+    private func setDeskSteam(_ on: Bool, in world: CALayer) {
+        guard on != !deskSteam.isEmpty else { return }
+        if on {
+            let mug = geometry.rect(Art.mug, on: "desk")
+            deskSteam = particles("steam", count: 1, every: 12, from: CGPoint(x: mug.midX, y: mug.maxY), in: world, rise: 7)
+            ambient += deskSteam
+        } else {
+            deskSteam.forEach { $0.removeFromSuperlayer() }
+            ambient.removeAll { layer in deskSteam.contains { $0 === layer } }
+            deskSteam = []
+        }
     }
 
     // MARK: - The Room
