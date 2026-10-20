@@ -84,6 +84,8 @@ public struct Routine {
         case walkBack(to: Spot)
         /// Arriving in the music corner: drop the needle on the record.
         case dropNeedle
+        /// Back from being Away: the scene opens with Pix at the Pastime's place, doing it for a beat before the Greeting.
+        case pastime(Pastime)
         /// The Stroll: walk to an end of the window.
         case stroll(to: WindowEnd, RestLook)
         /// The Stroll: stop at an end of the window: a beat, a look around, then the end's body (a stretch), or, with
@@ -125,6 +127,8 @@ public struct Routine {
     private var current: Step?
     private var place: Place?
     private var waiting: Moment?
+    /// Moments that arrived while Pix was found at a Pastime: they play after the Greeting, in order.
+    private var afterGreeting: [Moment] = []
     private var needleDown = false
     private var lamp: Bool?  // nil until the scene first starts, when it takes the hour's state
     /// The end of the window the Stroll heads for next.
@@ -178,10 +182,11 @@ public struct Routine {
             let from = lastSpot ?? room.spot
             (place, lastSpot) = (.spot(from), room.spot)
             heading = .left
+            if case .greeting(_, let pastime?)? = waiting { return start(.pastime(pastime)) }  // the Greeting follows it
             return from == room.spot ? settle(at: time) : walk(to: room.spot)
 
         case .sceneStopped:
-            (running, current, waiting) = (false, nil, nil)
+            (running, current, waiting, afterGreeting) = (false, nil, nil, [])
             (heading, fidgetHeld, fidgetDue) = (.left, false, nil)
             return nil
 
@@ -220,6 +225,7 @@ public struct Routine {
         case .momentArrived(let moment):
             if !running { waiting = moment; return nil }
             if case .walk = current { waiting = moment; return nil }  // it plays on arrival
+            if case .pastime = current { afterGreeting.append(moment); return nil }  // the Greeting comes first
             return start(.moment(moment))
 
         case .finished:
@@ -244,6 +250,10 @@ public struct Routine {
                 return start(.stop(at: end, body: end.stopBody, restLook()))
             case .stop:
                 return nextStrollStep()
+            case .pastime(let pastime):
+                let carried = room?.spot == .desk  // the filled mug goes along only to the desk; elsewhere it is set down there
+                place = pastime == .coffee && carried ? .prop : .spot(pastime.spot)
+                if pastime == .coffee { (sipsLeft, carryingMug) = (Self.mugSips, carried) }
             case .idle, .moment, .fidget, .dropNeedle, .relook:
                 break
             }
@@ -296,14 +306,18 @@ public struct Routine {
         return RestLook(spot: room.spot, mood: room.mood, agentWorking: room.agentWorking, hot: room.hot)
     }
 
-    /// What Pix does when nothing else is going on: a waiting Moment, the lamp, the way home, the needle, or rest.
+    /// What Pix does when nothing else is going on: a waiting Moment, the lamp, the walk from a Pastime, the way home,
+    /// the needle, or rest.
     private mutating func settle(at time: Date) -> Step? {
         guard let room else { return nil }
         if let moment = waiting {
             waiting = nil
             return start(.moment(moment))
         }
+        if !afterGreeting.isEmpty { return start(.moment(afterGreeting.removeFirst())) }
         if lampNeedsSwitching(at: time) { return start(.errand(.switchLamp)) }
+        // Back from a Pastime at another Spot: the walk between Spots, which scrolls the Room to another strip.
+        if case .spot(let from)? = place, Art.spot(from) != Art.spot(room.spot) { return walk(to: room.spot) }
         // A Moment cut an Errand short: walk back first. At the window, anywhere is part of the stroll.
         if room.spot != .window && place != .spot(room.spot) { return start(.walkBack(to: room.spot)) }
         if room.spot == .musicCorner && !needleDown {  // part of arriving, not a Moment
@@ -362,13 +376,14 @@ public struct Routine {
             fidgetDue = nil
         }
         switch step {
-        case .walk, .errand, .walkBack: place = .onTheWay  // until it finishes
+        case .walk, .errand, .walkBack, .pastime: place = .onTheWay  // until it finishes
         default: break
         }
         if case .moment = step { lastFidget = nil }  // a cut-short Errand may be tried again at once
         if case .walk = step { lastFidget = nil; carryingMug = false }
         if case .idle = step { carryingMug = false }
         if case .errand(.refillMug) = step { carryingMug = true }
+        if case .pastime(.coffee) = step { carryingMug = true }
         return step
     }
 

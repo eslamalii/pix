@@ -108,3 +108,9 @@ let narrow = RoomGeometry(barWidth: 900)
     #expect(Art.skinFits("hats", width: 80, height: 6, bundled: (80, 6)))
     #expect(!Art.skinFits("room-desk", width: 1000, height: 30, bundled: (1004, 30)))
 }
+
+@Test func pixIsFoundWhereItsPastimeIs() {
+    #expect(m1.place(of: .doze) == m1.rest(at: .couch))  // sitting on the couch
+    #expect(m1.place(of: .gaze) == m1.rest(at: .window))
+    #expect(m1.place(of: .coffee) == CGPoint(x: 613, y: 3))  // beside the coffee machine: 618 - 5, on the floor
+}

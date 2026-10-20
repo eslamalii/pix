@@ -16,15 +16,16 @@ enum ClockStyle: String, CaseIterable {
 
 /// What the user chose in the menu, kept in the app's user defaults.
 enum Settings {
-    /// What the Controller owns that Pix keeps between launches (Hide Pix, "Treat … as", the Memory and the hat), each in
-    /// its own key as since 1.0. Unknown overrides are dropped, and a Memory that can't be read starts over.
+    /// What the Controller owns that Pix keeps between launches (Hide Pix, "Treat … as", the Memory, the hat and when the
+    /// user was last here), each in its own key as since 1.0. Unknown overrides are dropped, and a Memory that can't be read starts over.
     static var saved: Saved {
         get {
             let defaults = UserDefaults.standard
             return Saved(hidden: defaults.bool(forKey: "hidden"),
                          overrides: (defaults.dictionary(forKey: "overrides") as? [String: String] ?? [:]).compactMapValues(Override.init(stored:)),
                          memory: defaults.data(forKey: "memory").flatMap { try? JSONDecoder().decode(Memory.self, from: $0) } ?? Memory(),
-                         hat: defaults.string(forKey: "hat").flatMap(Hat.init(rawValue:)))
+                         hat: defaults.string(forKey: "hat").flatMap(Hat.init(rawValue:)),
+                         lastSeen: defaults.object(forKey: "lastSeen") as? Date)
         }
         set {
             let defaults = UserDefaults.standard
@@ -32,6 +33,7 @@ enum Settings {
             defaults.set(newValue.overrides.mapValues(\.stored), forKey: "overrides")
             defaults.set(try? JSONEncoder().encode(newValue.memory), forKey: "memory")
             defaults.set(newValue.hat?.rawValue, forKey: "hat")
+            defaults.set(newValue.lastSeen, forKey: "lastSeen")
         }
     }
 

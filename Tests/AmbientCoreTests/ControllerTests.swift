@@ -430,7 +430,7 @@ func pixGreetsYouWhenTheAppStartsInItsMood(time: Date, greeting: Greeting) {
 @Test func pixGreetsYouAfterFiveMinutesAsleepButNotSooner() {
     var long = launched(in: "com.apple.finder", at: at(12, 0))
     long.handle(.screenSlept, at: at(12, 1))
-    #expect(long.handle(.screenWoke, at: at(12, 6)) == .greeting(.hello))
+    #expect(long.handle(.screenWoke, at: at(12, 6)) == .greeting(.hello, after: .gaze))
 
     var short = launched(in: "com.apple.finder", at: at(12, 0))
     short.handle(.screenSlept, at: at(12, 1))
@@ -440,7 +440,7 @@ func pixGreetsYouWhenTheAppStartsInItsMood(time: Date, greeting: Greeting) {
 @Test func pixGreetsYouAfterALongLock() {
     var c = launched(in: "com.apple.finder", at: at(12, 0))
     c.handle(.locked, at: at(12, 1))
-    #expect(c.handle(.unlocked, at: at(12, 6)) == .greeting(.hello))
+    #expect(c.handle(.unlocked, at: at(12, 6)) == .greeting(.hello, after: .gaze))
 }
 
 @Test func sleepThenLockCountsAsOneAbsenceThatEndsOnUnlock() {
@@ -448,7 +448,7 @@ func pixGreetsYouWhenTheAppStartsInItsMood(time: Date, greeting: Greeting) {
     c.handle(.screenSlept, at: at(12, 1))
     c.handle(.locked, at: at(12, 2))
     #expect(c.handle(.screenWoke, at: at(12, 6)) == nil)              // still at the lock screen
-    #expect(c.handle(.unlocked, at: at(12, 7)) == .greeting(.hello))  // away since 12:01
+    #expect(c.handle(.unlocked, at: at(12, 7)) == .greeting(.hello, after: .gaze))  // away since 12:01
 }
 
 @Test func noGreetingIfYouHadHandedBackTheBar() {
@@ -463,7 +463,7 @@ func pixGreetsYouWhenTheAppStartsInItsMood(time: Date, greeting: Greeting) {
 @Test func comingBackLateAtNightGetsASleepyGreeting() {
     var c = launched(in: "com.apple.finder", at: at(0, 30))
     c.handle(.locked, at: at(0, 31))
-    #expect(c.handle(.unlocked, at: at(1, 0)) == .greeting(.sleepy))
+    #expect(c.handle(.unlocked, at: at(1, 0)) == .greeting(.sleepy, after: .doze))
 }
 
 @Test func settlingIntoPingPongAfterScatteredSwitchingLetsPixCalmDown() {
@@ -772,7 +772,7 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: at(12)) == .greeting(.missedYou))
     c.handle(.screenSlept, at: at(12, 10))
-    #expect(c.handle(.screenWoke, at: at(13)) == .greeting(.hello))
+    #expect(c.handle(.screenWoke, at: at(13)) == .greeting(.hello, after: .gaze))
 }
 
 @Test func aDayOfPetsMakesTomorrowsFirstGreetingCheerfulUnlessPixIsSleepy() {
@@ -781,8 +781,8 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
     for i in 1...5 { c.handle(.pixPetted, at: at(12, i)) }
     c.handle(.screenSlept, at: at(13))
     var late = c
-    #expect(c.handle(.screenWoke, at: at(11) + 86_400) == .greeting(.cheerful))
-    #expect(late.handle(.screenWoke, at: at(23, 30) + 86_400) == .greeting(.sleepy))
+    #expect(c.handle(.screenWoke, at: at(11) + 86_400) == .greeting(.cheerful, after: .doze))
+    #expect(late.handle(.screenWoke, at: at(23, 30) + 86_400) == .greeting(.sleepy, after: .doze))
 }
 
 @Test func onTheDefaultBarThereIsNoGreetingButTheArrivalIsRemembered() {
@@ -827,7 +827,7 @@ func occasionsFallOnTheirDays(month: Int, day: Int, occasion: Occasion) {
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: halloween) == .greeting(.halloween))
     c.handle(.screenSlept, at: halloween + 600)
-    #expect(c.handle(.screenWoke, at: halloween + 3600) == .greeting(.hello))
+    #expect(c.handle(.screenWoke, at: halloween + 3600) == .greeting(.hello, after: .gaze))
 }
 
 @Test(arguments: [
@@ -992,7 +992,7 @@ func anyOtherLinkIsIgnored(link: String) {
     c.handle(.hidePix, at: at(12, 1))
     #expect(c.saved.hidden && c.saved.hat == .cap && c.saved.memory.days.count == 3)
     c.handle(.forgetMemory, at: at(12, 2))
-    #expect(c.saved == Saved(hidden: true))
+    #expect(c.saved == Saved(hidden: true, lastSeen: at(12, 2)))  // forgetting the Memory doesn't forget when you were last here
 }
 
 @Test func theThirdDayTogetherEarnsACapAndItsNewHatFollowsTheGreeting() {
@@ -1164,7 +1164,8 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
     let halloweenEve = at(23, 30) + 18 * 86_400  // Friday 2026-10-30, 23:30 UTC
     var c = launched(in: "com.apple.Safari", at: halloweenEve)
     c.handle(.timeZoneChanged(TimeZone(identifier: "Africa/Lagos")!), at: halloweenEve)  // already Halloween there
-    #expect(c.handle(.appStarted, at: halloweenEve + 60) == .greeting(.halloween))
+    guard case .greeting(let greeting, _)? = c.handle(.appStarted, at: halloweenEve + 60) else { Issue.record("no Greeting"); return }
+    #expect(greeting == .halloween)
 }
 
 // MARK: - A hot Mac
@@ -1184,4 +1185,43 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
     #expect(c.handle(.thermalChanged(hot: true), at: at(12, 1)) == nil)
     c.handle(.frontAppChanged("com.apple.finder"), at: at(12, 2))
     #expect(c.bar == .room(Room(spot: .window, activity: .other, mood: .grumpy, fps: 6, hot: true)))
+}
+
+// MARK: - Pastime
+
+@Test func comingBackAfterALongAbsenceAtNightFindsPixDozing() {
+    var c = launched(in: "com.apple.finder", at: at(20, 0))
+    c.handle(.locked, at: at(20, 1))
+    #expect(c.handle(.unlocked, at: at(23, 30)) == .greeting(.sleepy, after: .doze))
+}
+
+@Test func comingBackInTheMorningAfterAWeekendFindsPixMakingCoffee() {
+    var c = launched(in: "com.apple.finder", at: at(17, 0))
+    c.handle(.locked, at: at(17, 1))
+    #expect(c.handle(.unlocked, at: at(8, 0) + 3 * 86_400) == .greeting(.cheerful, after: .coffee))
+}
+
+@Test func lastSeenFollowsYouWhileYouAreHereAndStopsWhenYouGoAway() {
+    var c = launched(in: "com.apple.finder", at: at(12, 0))
+    c.handle(.clockTick, at: at(12, 5))
+    #expect(c.saved.lastSeen == at(12, 5))
+    c.handle(.locked, at: at(12, 6))
+    c.handle(.clockTick, at: at(12, 7))
+    c.handle(.clockTick, at: at(18, 0))  // Pix keeps running at the lock screen, but you aren't there
+    #expect(c.saved.lastSeen == at(12, 6))
+}
+
+@Test func relaunchingMeasuresTheAbsenceFromWhenYouWereLastHere() {
+    var before = launched(in: "com.apple.finder", at: at(9, 30))
+    before.handle(.locked, at: at(10, 0))
+    before.handle(.clockTick, at: at(12, 30))  // Pix keeps running at the lock screen; then it is quit and started again
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.finder", power: charger, at: at(12, 35), timeZone: utc, saved: before.saved)
+    #expect(c.handle(.appStarted, at: at(12, 35)) == .greeting(.hello, after: .doze))  // away since 10:00, not 12:30
+}
+
+@Test func aQuickRelaunchFindsPixGazingAndTheVeryFirstLaunchFindsNothing() {
+    var first = launched(in: "com.apple.finder", at: at(12, 0))
+    #expect(first.handle(.appStarted, at: at(12, 0)) == .greeting(.hello))  // nothing saved yet: no Pastime
+    var c = Controller(selfBundleID: selfID, frontApp: "com.apple.finder", power: charger, at: at(12, 2), timeZone: utc, saved: first.saved)
+    #expect(c.handle(.appStarted, at: at(12, 2)) == .greeting(.hello, after: .gaze))
 }

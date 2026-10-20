@@ -6,7 +6,7 @@ import Testing
 // Every art name AmbientCore hands the view must be in the art contract, and every sheet in the contract must be drawn:
 // an unknown name doesn't fail on the Touch Bar, it just plays at the wrong speed or shows the wrong Emote.
 
-let everyMoment: [Moment] = [Reaction.allCases.map(Moment.reaction), Break.allCases.map(Moment.pause), Greeting.allCases.map(Moment.greeting),
+let everyMoment: [Moment] = [Reaction.allCases.map(Moment.reaction), Break.allCases.map(Moment.pause), Greeting.allCases.map { Moment.greeting($0) },
                              [.charging, .focusStarted, .focusDone, .agentAsks, .agentDone, .agentFailed, .newHat, .overheated]].flatMap { $0 }
 
 /// Adding a Moment or an Errand stops this compiling until it's in the lists above and below.
@@ -73,4 +73,8 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
     #expect(Art.plantProps.map(\.x) == [404, 730, 678])  // desk, desk, window: the order of the cells
     #expect(image.width == Art.plantProps.count * Int(Art.plant.width))
     #expect(image.height == Int(Art.plant.height))
+}
+
+@Test func everyPastimeIsDrawnFromTheArtContract() {
+    for pastime in Pastime.allCases { #expect(bodies.contains(pastime.body), "pastime \(pastime) body \(pastime.body)") }
 }

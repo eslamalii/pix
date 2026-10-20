@@ -43,6 +43,10 @@ _Avoid_: system bar, normal bar, native bar
 How long the user has been continuously in one Activity. Short trips to another Activity don't break it; staying away for a while ends it.
 _Avoid_: streak, run, uptime
 
+**Away**:
+The user is away while the screen is asleep or locked, or while Pix isn't running. Showing the Default bar or hiding Pix isn't being away: the user is still there, the Character is just out of sight. The Character goes on with its own life while the user is away, and is found in the middle of it when they come back.
+_Avoid_: idle, absent, gone
+
 ### The Character's inner life
 
 **Mood**:
@@ -76,12 +80,16 @@ How the Character appears: for a Moment (its body, Emote, Caption and what plays
 _Avoid_: animation, sprite (those are the art)
 
 **Greeting**:
-The Moment when the Character notices the user arriving: when it starts up, or when the user is back after being away for a while.
+The Moment when the Character notices the user arriving: when it starts up, or when the user is back after being Away for a while. When the user was Away, it comes after a Pastime.
 _Avoid_: welcome, hello, wake-up
 
 **Fidget**:
 A small thing the Character does on its own while idling, now and then (looking around, refilling the mug) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
 _Avoid_: idle animation, tic, flourish
+
+**Pastime**:
+What the Character was doing on its own while the user was Away, caught for a moment when they come back, just before the Greeting: dozing on the couch, making coffee, or gazing out of the window. What it was doing follows from how long the user was away and the time of day they come back. Unlike a Fidget, the user never sees it start; unlike a Moment, it answers nothing.
+_Avoid_: hobby, idle, activity (that's the user's)
 
 **Errand**:
 A trip to a Prop: the Character walks to the Prop, uses it (waters a plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. It happens as a Fidget, as Care, or at a time of day (the lamp at dusk). A Moment or an app switch can cut it short.

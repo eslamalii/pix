@@ -52,6 +52,14 @@ public struct RoomGeometry: Sendable {
         }
     }
 
+    /// Where Pix is found at a Pastime: on the couch, beside the coffee machine with the mug held out, or at the window.
+    public func place(of pastime: Pastime) -> CGPoint {
+        switch pastime {
+        case .doze, .gaze: rest(at: pastime.spot)
+        case .coffee: CGPoint(x: standingPoint(for: .refillMug).x, y: CGFloat(Art.floor))
+        }
+    }
+
     /// A walk to a Spot: crossing to another strip scrolls the Room in 1.6 s; within a strip, longer walks take longer.
     public func walkDuration(from: CGFloat, to: CGFloat) -> Double {
         Int(from / stripPitch) == Int(to / stripPitch) ? max(1.6, Double(abs(to - from) / 150)) : 1.6

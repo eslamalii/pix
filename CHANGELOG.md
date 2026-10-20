@@ -9,6 +9,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Pix takes care of the plants:** each of the Room's three plants gets thirsty on its own, three to six hours after it was last watered, and droops until Pix waters it. Pix only tends the plants on the part of the Room it is in: the two at the desk from the desk, the one by the window while strolling. It goes at the next idle moment, nearest plant first, never while focused or sleepy, and never from the call, the couch or the music corner. The plants keep their thirst between launches, so after a weekend away you find them drooping and watch Pix go round and water them. A skin that draws its own Room can add its own `plant-thirsty.png`.
 
+- **Pix has a life while you're away:** when you come back after being away (the screen asleep or locked, or Pix not running) and Pix says hello, you first catch it for a couple of seconds doing what it was up to: dozing on the couch if you were gone for a couple of hours or it is night, making the morning's coffee between 06:00 and 10:00, or gazing out of the window otherwise. After the coffee the mug is full and steaming, and Pix carries it to the desk. Pix remembers when you were last there, so quitting it on Friday evening and starting it on Monday morning counts as a long absence too. Nothing new is drawn for this: it uses Pix's existing couch, pour and gaze animations.
+
 ### Changed
 
 - **Watering is no longer a random idle Fidget:** Pix used to water the one plant nearest the desk now and then, whether it needed it or not, and never touched the other two. It now waters a plant only when it is thirsty.

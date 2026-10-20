@@ -499,6 +499,9 @@ final class PixView: NSView {
         case .relook(let restLook):
             log.info("relook")
             apply(restLook, at: .window)
+        case .pastime(let pastime):
+            log.info("pastime: \(pastime.rawValue, privacy: .public)")
+            found(at: pastime)
         }
     }
 
@@ -522,6 +525,23 @@ final class PixView: NSView {
         case .window:
             break
         }
+    }
+
+    /// The scene opens with Pix at the Pastime's place, doing it for two seconds; then the step is finished.
+    private func found(at pastime: Pastime) {
+        guard let world else { return }
+        let mine = takeOver()
+        withoutAnimation { world.position.x = geometry.scroll(for: pastime.spot) }
+        place(at: geometry.place(of: pastime), facing: CATransform3DIdentity)
+        if pastime == .doze {
+            apply(RestLook(spot: .couch, mood: .sleepy), at: .couch)  // the TV's glow and the 💤
+        } else {
+            resetRestingEffects()
+            showSkyLife(pastime == .gaze)
+        }
+        setBody(pastime.body)
+        breathe(true)
+        after(2, token: mine) { [weak self] in self?.send(.finished) }
     }
 
     /// Applies the at-rest Look carried by the Step: face, glow, sky life, particles and body.
