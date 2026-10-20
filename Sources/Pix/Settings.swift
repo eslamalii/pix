@@ -14,6 +14,10 @@ enum ClockStyle: String, CaseIterable {
     }
 }
 
+/// The app's bundle ID: its defaults' domain and its log subsystem. Here rather than in main.swift, whose globals
+/// only get their values when the app runs, not under test.
+let appID = Bundle.main.bundleIdentifier ?? "io.github.eslamalii.Pix"
+
 /// What the user chose in the menu, kept in the app's user defaults.
 enum Settings {
     /// What the Controller owns that Pix keeps between launches (Hide Pix, "Treat … as", the Memory, the hat and when the

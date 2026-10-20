@@ -4,7 +4,6 @@ import IOKit.ps
 import ServiceManagement
 import os
 
-let appID = Bundle.main.bundleIdentifier ?? "io.github.eslamalii.Pix"
 private let log = Logger(subsystem: appID, category: "app")
 
 func currentPower() -> Power {
