@@ -90,7 +90,9 @@ final class PixView: NSView {
 
     private var room: Room?        // what the Controller wants shown
     private var shown: Room?       // what the layers currently show
-    private var routine = Routine(timeZone: .current)
+    private var routine = Routine(timeZone: .current, garden: Settings.garden)
+    /// The Garden as last saved, so it's only written when it changes.
+    private var savedGarden = Settings.garden
     private var step: Routine.Step?  // the one playing
 
     private var world: CALayer?
@@ -98,6 +100,8 @@ final class PixView: NSView {
     private let lampGlow = CALayer()
     /// The desk where the mug stands, over the mug while Pix carries it off.
     private let mugGone = CALayer()
+    /// Each plant drooping over the upright one, in the order of `Art.plantProps`, while it is thirsty.
+    private var droopingPlants: [CALayer] = []
     private let halloween = HalloweenLayers()  // Halloween
     // The status corner at the right end of the bar: the clock, and a caption beside it while a Moment plays.
     // It sits outside the world, so it stays put while Pix walks between Spots.
@@ -315,6 +319,18 @@ final class PixView: NSView {
         mugGone.contents = ArtFiles.image("mug-gone")
         mugGone.magnificationFilter = .nearest
         world.addSublayer(mugGone)
+        droopingPlants = Art.plantProps.enumerated().map { i, plant in
+            let layer = CALayer()
+            let top = plant.y ?? Art.height - Art.floor - Int(Art.plant.height)
+            layer.frame = geometry.rect(CGRect(x: CGFloat(plant.x), y: CGFloat(top), width: Art.plant.width, height: Art.plant.height), on: plant.strip)
+            layer.backgroundColor = NSColor.black.cgColor  // see-through where nothing stands, like the desk under the mug
+            layer.contents = ArtFiles.image("plant-thirsty")
+            layer.contentsRect = slot(i, of: Art.plantProps.count)
+            layer.magnificationFilter = .nearest
+            layer.isHidden = true
+            world.addSublayer(layer)
+            return layer
+        }
         monitors = Art.monitors.map { scrollingCode(in: geometry.rect($0, on: "desk"), fps: room.fps) }
         monitors.forEach(world.addSublayer)
         halloween.build(in: world, geometry: geometry, frameRange: frameRange)  // Halloween
@@ -420,16 +436,20 @@ final class PixView: NSView {
         defer {
             scheduleWake()
             paintProps()
+            if routine.garden != savedGarden { (Settings.garden, savedGarden) = (routine.garden, routine.garden) }
         }
         return routine.handle(event, at: Date())
     }
 
-    /// The lamp's glow and the desk's bare patch follow what the Routine says the Props show.
+    /// The lamp's glow, the desk's bare patch and the drooping plants follow what the Routine says the Props show.
     private func paintProps() {
         let props = routine.props(at: Date())
         withoutAnimation {
             lampGlow.isHidden = !props.lampLit
             mugGone.isHidden = !props.mugAway
+            for (layer, plant) in zip(droopingPlants, Art.plantProps) {
+                layer.isHidden = !props.thirstyPlants.contains(Plant(plant))
+            }
         }
     }
 

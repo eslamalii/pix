@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **Pix takes care of the plants:** each of the Room's three plants gets thirsty on its own, three to six hours after it was last watered, and droops until Pix waters it. Pix only tends the plants on the part of the Room it is in: the two at the desk from the desk, the one by the window while strolling. It goes at the next idle moment, nearest plant first, never while focused or sleepy, and never from the call, the couch or the music corner. The plants keep their thirst between launches, so after a weekend away you find them drooping and watch Pix go round and water them. A skin that draws its own Room can add its own `plant-thirsty.png`.
+
+### Changed
+
+- **Watering is no longer a random idle Fidget:** Pix used to water the one plant nearest the desk now and then, whether it needed it or not, and never touched the other two. It now waters a plant only when it is thirsty.
+
 ## [1.2.0] - 2026-10-18
 
 ### Added

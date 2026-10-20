@@ -44,13 +44,18 @@ let narrow = RoomGeometry(barWidth: 900)
 }
 
 @Test func pixStandsBesideAPlantFacingIt() {
-    #expect(m1.standingPoint(for: .waterPlant(at: 404, fromRight: true)) == ErrandStand(x: 424, facingLeft: true))
-    #expect(m1.standingPoint(for: .waterPlant(at: 404, fromRight: false)) == ErrandStand(x: 396, facingLeft: false))
+    #expect(m1.standingPoint(for: .waterPlant(deskPlant, fromRight: true)) == ErrandStand(x: 424, facingLeft: true))
+    #expect(m1.standingPoint(for: .waterPlant(deskPlant, fromRight: false)) == ErrandStand(x: 396, facingLeft: false))
+}
+
+@Test func pixStandsBesideTheWindowPlantOnTheWindowsStrip() {
+    #expect(m1.standingPoint(for: .waterPlant(windowPlant, fromRight: true)) == ErrandStand(x: 1702, facingLeft: true))  // 1004 + 678 + 6 + 14
+    #expect(m1.standingPoint(for: .waterPlant(windowPlant, fromRight: false)) == ErrandStand(x: 1674, facingLeft: false))  // 1004 + 678 + 6 - 14
 }
 
 @Test func errandsStandInTheSamePlaceOnAWiderBarBecauseTheDeskStripComesFirst() {
     #expect(wide.standingPoint(for: .switchLamp) == ErrandStand(x: 654, facingLeft: false))
-    #expect(narrow.standingPoint(for: .waterPlant(at: 730, fromRight: false)) == ErrandStand(x: 722, facingLeft: false))  // 730 + 6 - 14
+    #expect(narrow.standingPoint(for: .waterPlant(otherDeskPlant, fromRight: false)) == ErrandStand(x: 722, facingLeft: false))  // 730 + 6 - 14
 }
 
 @Test func theStrollAtTheWindowGoesBetweenItsEnds() {

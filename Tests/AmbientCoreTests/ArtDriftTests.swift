@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 import Testing
 @testable import AmbientCore
 
@@ -38,9 +39,9 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 }
 
 @Test func everyFidgetErrandAndStrollStopIsABody() {
-    for fidget in Fidget.allCases where fidget != .water && fidget != .refill { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // water and refill are Errands
+    for fidget in Fidget.allCases where fidget != .refill { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // refill is an Errand
     #expect(Set(everyRoom.flatMap { room in [0, 1].flatMap { Routine.fidgets(for: room, sipsLeft: $0, coffee: true) } }) == Set(Fidget.allCases))
-    for errand in [Errand.switchLamp, .waterPlant(at: 0, fromRight: true), .refillMug] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
+    for errand in [Errand.switchLamp, .waterPlant(deskPlant, fromRight: true), .refillMug] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
     for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }
 }
 
@@ -58,8 +59,18 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 
 @Test func everySheetInTheArtContractIsDrawn() {
     let art = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Art").standardized
-    let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud", "mug-gone"]
+    let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud", "mug-gone", "plant-thirsty"]
     for sheet in sheets {
         #expect(FileManager.default.fileExists(atPath: art.appendingPathComponent(Art.file(sheet)).path), "missing Art/\(Art.file(sheet))")
     }
+}
+
+@Test func thePlantThirstySheetHasOneCellPerPlantInTheRoom() throws {
+    let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Art").standardized
+        .appendingPathComponent(Art.file("plant-thirsty"))
+    let source = try #require(CGImageSourceCreateWithURL(file as CFURL, nil))
+    let image = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+    #expect(Art.plantProps.map(\.x) == [404, 730, 678])  // desk, desk, window: the order of the cells
+    #expect(image.width == Art.plantProps.count * Int(Art.plant.width))
+    #expect(image.height == Int(Art.plant.height))
 }

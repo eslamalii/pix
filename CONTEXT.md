@@ -80,12 +80,20 @@ The Moment when the Character notices the user arriving: when it starts up, or w
 _Avoid_: welcome, hello, wake-up
 
 **Fidget**:
-A small thing the Character does on its own while idling, now and then (looking around, watering the plant) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
+A small thing the Character does on its own while idling, now and then (looking around, refilling the mug) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
 _Avoid_: idle animation, tic, flourish
 
 **Errand**:
-A Fidget that uses a Prop: the Character walks to the Prop, uses it (waters the plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. A Moment or an app switch can cut it short.
+A trip to a Prop: the Character walks to the Prop, uses it (waters a plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. It happens as a Fidget, as Care, or at a time of day (the lamp at dusk). A Moment or an app switch can cut it short.
 _Avoid_: task, trip, chore
+
+**Need**:
+Something a Prop lacks that comes on with time until the Character sees to it, such as a plant going thirsty. A Need shows in the Room (a thirsty plant droops), keeps while the Character is away, and never grows worse or does harm: it only waits for the Character. Only the Character answers it; the user never owes the Room anything.
+_Avoid_: want, decay, neglect; and need for the Character's own wants, which will get their own word
+
+**Care**:
+The Errand that answers a Need: the Character notices a thirsty plant and waters it. It happens when a Fidget would, from a Spot where the Character is free to leave.
+_Avoid_: chore, upkeep, maintenance
 
 **Stroll**:
 How the Character idles at the window: it walks from one end of the window to the other, stops at each end to look around, and stretches at the right end before walking back. A Fidget or a Moment can interrupt it; a Fidget waits for the current walk to finish.

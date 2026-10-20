@@ -76,6 +76,9 @@ public enum Art {
         Prop(name: "plant", strip: "window", x: 678, y: nil),
         Prop(name: "books", strip: "window", x: 840, y: nil),
     ]
+    /// Every plant in the Room, in the order of the cells in plant-thirsty.png: that sheet has one plant-sized cell for
+    /// each, the bare Room behind it with the plant drooping, shown over the plant while it is thirsty.
+    public static var plantProps: [Prop] { props.filter { $0.name == "plant" } }
     /// Props that do something. A drawing of one must keep this size (width × height), or the code, steam,
     /// light or sky that goes with it lands in the wrong place.
     public static let workingProps: [String: CGSize] = [

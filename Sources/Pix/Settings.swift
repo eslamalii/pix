@@ -35,6 +35,12 @@ enum Settings {
         }
     }
 
+    /// Which plants are thirsty, kept so the Room carries on where it was; one that can't be read starts over.
+    static var garden: Garden {
+        get { UserDefaults.standard.data(forKey: "garden").flatMap { try? JSONDecoder().decode(Garden.self, from: $0) } ?? Garden() }
+        set { UserDefaults.standard.set(try? JSONEncoder().encode(newValue), forKey: "garden") }
+    }
+
     /// Where the copy of Pix that owns the login item lives (nil before the first launch). A Homebrew upgrade puts the
     /// new version somewhere else.
     static var loginItemPath: String? {

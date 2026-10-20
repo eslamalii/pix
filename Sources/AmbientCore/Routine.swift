@@ -1,11 +1,11 @@
 import Foundation
 
 
-/// A Fidget that uses a Prop: Pix walks to it, uses it, and walks back to its Spot.
+/// A trip to a Prop, as a Fidget, as Care, or at a time of day: Pix walks to it, uses it, and walks back to its Spot.
 public enum Errand: Equatable, Sendable {
     case switchLamp
-    /// The desk-side plant whose left edge is `at`, approached from its right or its left.
-    case waterPlant(at: Int, fromRight: Bool)
+    /// A thirsty plant, approached from its right or its left.
+    case waterPlant(Plant, fromRight: Bool)
     /// The coffee machine by the desk: Pix takes its mug there and fills it.
     case refillMug
 
@@ -19,10 +19,10 @@ public enum Errand: Equatable, Sendable {
     }
 }
 
-/// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for water, runs the
-/// plant Errand, or, for refill, the mug Errand.
+/// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for refill, runs the
+/// mug Errand.
 public enum Fidget: String, CaseIterable, Sendable {
-    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, water, refill
+    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, refill
 }
 
 /// The two ends of the window that Pix strolls between.
@@ -42,6 +42,8 @@ public struct Props: Equatable, Sendable {
     public var mugAway: Bool
     /// The mug on the desk has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
     public var mugSteams: Bool
+    /// The plants that droop: thirsty, and not yet seen to.
+    public var thirstyPlants: Set<Plant> = []
 
     /// The body Pix walks in: with the mug held out in front while it carries it.
     public var walkBody: String { mugAway ? "walkmug" : "walk" }
@@ -137,23 +139,32 @@ public struct Routine {
     private var carryingMug = false
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
+    /// Which plants are thirsty: Pix's Care answers it.
+    public private(set) var garden: Garden
+    /// Dice for how long a watered plant stays watered, apart from `random` so Fidgets don't depend on them.
+    private let thirstRandom: () -> Double
 
     /// Where Pix was last seen: the scene starts with Pix there, and it walks into view if the Spot changed.
     public private(set) var lastSpot: Spot?
 
     /// What the Props show at `time`: steam follows the hour, so ask again when it changes.
     public func props(at time: Date) -> Props {
-        Props(lampLit: lamp == true, mugAway: carryingMug, mugSteams: sipsLeft > 0 && coffeeHours(at: time))
+        Props(lampLit: lamp == true, mugAway: carryingMug, mugSteams: sipsLeft > 0 && coffeeHours(at: time),
+              thirstyPlants: Set(garden.thirsty(at: time)))
     }
 
     /// When the view should send `wake` (nil: no need).
     public var nextWake: Date? { fidgetDue }
 
-    /// `random` returns a number in 0..<1; tests pass fixed ones.
-    public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }) {
+    /// `random` and `thirstRandom` return a number in 0..<1; tests pass fixed ones. `garden` is what Pix kept of the
+    /// plants' thirst from the last launch.
+    public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }, garden: Garden = Garden(),
+                thirstRandom: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         self.random = random
+        self.garden = garden
+        self.thirstRandom = thirstRandom
     }
 
     @discardableResult
@@ -163,6 +174,7 @@ public struct Routine {
             self.room = room
             running = true
             if lamp == nil { lamp = lampWanted(at: time) }
+            garden.adopt(Self.plants, at: time, random: thirstRandom)
             let from = lastSpot ?? room.spot
             (place, lastSpot) = (.spot(from), room.spot)
             heading = .left
@@ -221,6 +233,8 @@ public struct Routine {
             case .use(let errand):
                 if errand == .switchLamp { lamp = lampWanted(at: time) }
                 if errand == .refillMug { sipsLeft = Self.mugSips }
+                if case .waterPlant(let plant, _) = errand { garden.watered(plant, at: time, random: thirstRandom) }
+                if room?.spot == .window { return nextStrollStep() }  // at the window, on from the Prop is part of the Stroll
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
                 heading = end.other
@@ -319,6 +333,7 @@ public struct Routine {
     /// A Fidget that fits where Pix is and how it feels, if any.
     private mutating func fidget(at time: Date) -> Step? {
         guard let room, room.mood != .focused else { return nil }
+        if let care = plantToWater(at: time) { return start(.errand(care)) }
         let all = Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time))
         guard !all.isEmpty else { return nil }
         let fresh = all.filter { $0 != lastFidget }
@@ -326,7 +341,6 @@ public struct Routine {
         let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
         lastFidget = choice
         switch choice {
-        case .water: return start(.errand(nearestPlant(to: room.spot)))
         case .refill: return start(.errand(.refillMug))
         case .sip:
             sipsLeft -= 1
@@ -362,7 +376,7 @@ public struct Routine {
     static func fidgets(for room: Room, sipsLeft: Int, coffee: Bool) -> [Fidget] {
         if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : [.nod] }  // asleep on the couch, awake on a call: none
         return switch room.spot {
-        case .desk: (coffee ? [sipsLeft > 0 ? .sip : .refill] : []) + [.stretch, .lookaround, .water]
+        case .desk: (coffee ? [sipsLeft > 0 ? .sip : .refill] : []) + [.stretch, .lookaround]
         case .call: [.nod]
         case .couch: [.popcorn]
         case .musicCorner: [.spin]
@@ -370,12 +384,24 @@ public struct Routine {
         }
     }
 
-    /// The desk-side plant nearest the Spot, approached from Pix's side.
-    private func nearestPlant(to spot: Spot) -> Errand {
-        let here = Art.spot(spot).x, half = Int(Art.plant.width) / 2
-        let plants = Art.props.filter { $0.name == "plant" && $0.strip == "desk" }.map(\.x)
-        let plant = plants.min { abs($0 + half - here) < abs($1 + half - here) } ?? 0
-        return .waterPlant(at: plant, fromRight: here > plant + half)
+    private static let plants = Art.plantProps.map(Plant.init)
+
+    /// Where Pix stands now, along its strip: at an end of the window mid-Stroll, otherwise at its Spot.
+    private var restX: Int {
+        switch current {
+        case .stroll(let end, _)?, .stop(let end, _, _)?: end == .left ? Art.wanderFrom : Art.wanderTo
+        default: room.map { Art.spot($0.spot).x } ?? 0
+        }
+    }
+
+    /// Care: the thirsty plant Pix sees to next, if it is free to leave. Only plants on its own strip, nearest first,
+    /// and only from the desk or the window, not while sleepy.
+    private func plantToWater(at time: Date) -> Errand? {
+        guard let room, room.mood != .sleepy, room.spot == .desk || room.spot == .window else { return nil }
+        let strip = Art.spot(room.spot).strip, here = restX
+        func distance(_ plant: Plant) -> Int { abs(plant.middle - here) }
+        let plant = garden.thirsty(at: time).filter { $0.strip == strip }.min { distance($0) < distance($1) }
+        return plant.map { .waterPlant($0, fromRight: here > $0.middle) }
     }
 
     /// Pix drinks coffee from morning to late afternoon; in the evening the mug is left alone.
