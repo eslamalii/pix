@@ -169,11 +169,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func send(_ event: Event) {
-        switch event {
-        case .clockTick: break  // the tick would drown the rest
-        case .agent(let state, let agent): log.info("event: agent \(state.rawValue, privacy: .public) · \(agent ?? "-", privacy: .public)")
-        default: log.info("event: \(String(describing: event), privacy: .public)")
-        }
         let before = controller.bar
         let moment = controller.handle(event, at: Date())
         save()
@@ -245,13 +240,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.view.timeZoneChanged(.current)
             }
         }
-        // Charger plugged/unplugged. Fires about once a minute on battery as macOS refreshes its estimates; only a change is sent.
+        // Charger plugged/unplugged. Fires on every battery % change too; send() ignores no-op changes.
         let context = Unmanaged.passUnretained(self).toOpaque()
         if let source = IOPSNotificationCreateRunLoopSource({ context in
             MainActor.assumeIsolated {
-                let delegate = Unmanaged<AppDelegate>.fromOpaque(context!).takeUnretainedValue()
-                let power = currentPower()
-                if power != delegate.controller.power { delegate.send(.powerChanged(power)) }
+                Unmanaged<AppDelegate>.fromOpaque(context!).takeUnretainedValue().send(.powerChanged(currentPower()))
             }
         }, context)?.takeRetainedValue() {
             CFRunLoopAddSource(CFRunLoopGetMain(), source, .defaultMode)

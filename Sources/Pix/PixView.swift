@@ -448,7 +448,6 @@ final class PixView: NSView {
         self.step = step
         switch step {
         case .walk(let spot):
-            log.info("walk: \(spot.rawValue, privacy: .public)")
             walk(.spot(spot))
         case .idle(let spot, let look):
             idle(at: spot, look: look)
@@ -462,14 +461,11 @@ final class PixView: NSView {
             log.info("errand: \(errand.body, privacy: .public)")
             walk(.errand(to: geometry.standingPoint(for: errand).x))
         case .use(let errand):
-            log.info("use: \(errand.body, privacy: .public)")
             withoutAnimation { pix.transform = geometry.standingPoint(for: errand).facingLeft ? facingLeft : CATransform3DIdentity }
             perform(errand.body, loops: 1)
         case .walkBack(let spot):
-            log.info("walk back: \(spot.rawValue, privacy: .public)")
             walk(.errand(to: geometry.rest(at: spot).x))
         case .dropNeedle:
-            log.info("drop needle")
             withoutAnimation { faceGlow.isHidden = true }
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
             perform("needle", loops: 1)
