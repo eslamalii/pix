@@ -296,6 +296,7 @@ final class PixView: NSView {
     private func build(_ room: Room) {
         let world = CALayer()
         world.anchorPoint = .zero
+        world.actions = ["sublayers": NSNull()]  // like Pix's below: the Room's particles come and go mid-scroll
         world.bounds = CGRect(x: 0, y: 0, width: geometry.stripPitch * CGFloat(Art.strips.count), height: px(Art.height))
         layer?.addSublayer(world)
         self.world = world
@@ -336,6 +337,8 @@ final class PixView: NSView {
         halloween.build(in: world, geometry: geometry, frameRange: frameRange)  // Halloween
 
         pix.anchorPoint = CGPoint(x: 0.5, y: 0)
+        // Particles come and go mid-walk. By default that cross-fades Pix from a snapshot taken at the walk's end.
+        pix.actions = ["sublayers": NSNull()]
         pix.bounds = CGRect(x: 0, y: 0, width: px(Art.frame), height: px(Art.frame))
         body.frame = pix.bounds
         let screen = Art.faceScreen

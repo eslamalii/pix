@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Watering is no longer a random idle Fidget:** Pix used to water the one plant nearest the desk now and then, whether it needed it or not, and never touched the other two. It now waters a plant only when it is thirsty.
 
+### Fixed
+
+- **No more ghost Pix mid-walk:** tapping Pix while it strolled at the window, or switching apps while it walked between Spots, flashed a fading copy of Pix for a quarter of a second at the spot it was walking to. It happened whenever Zs, hearts or steam appeared or vanished during a walk.
+
 ## [1.2.0] - 2026-10-18
 
 ### Added
