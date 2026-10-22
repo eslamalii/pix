@@ -1,8 +1,8 @@
 import Foundation
 import AmbientCore
 
-/// Time and side effects used by RoutineRunner.
-/// Scheduling returns cancellation; the runner also rejects callbacks from superseded deadlines.
+/// Time and side effects used by RoomComposition.
+/// Scheduling returns cancellation; the composition also rejects callbacks from superseded deadlines.
 @MainActor
 struct RoutineEffects {
     var now: () -> Date = { Date() }

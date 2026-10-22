@@ -40,6 +40,9 @@ private final class RoomExecution {
     var transactions: [@MainActor () -> Void] = []
     var beats: [@MainActor () -> Void] = []
     var wakes: [@MainActor () -> Void] = []
+    var deadlines: [Date] = []
+    var cancellations = 0
+    var garden = Garden()
     var captions: [Caption] = []
     var observations: [(Date, TimeZone)] = []
     var saves: [Garden] = []
@@ -47,10 +50,11 @@ private final class RoomExecution {
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     lazy var composition: RoomComposition = {
         let composition = RoomComposition(
-            routine: Routine(timeZone: zone, random: { 0 }, thirstRandom: { 0 }),
-            effects: RoutineEffects(now: { self.reads += 1; return self.time }, wake: { _, work in
+            routine: Routine(timeZone: zone, random: { 0 }, garden: garden, thirstRandom: { 0 }),
+            effects: RoutineEffects(now: { self.reads += 1; return self.time }, wake: { deadline, work in
                 self.wakes.append(work)
-                return {}
+                self.deadlines.append(deadline)
+                return { self.cancellations += 1 }
             }, saveGarden: { self.saves.append($0) }),
             timing: PlaybackTiming(transaction: { animations, completion in
                 animations()
@@ -226,4 +230,71 @@ private final class RoomExecution {
     #expect(composition.step == .idle(.desk, .content))
     #expect(composition.pix.position.x == geometry.rest(at: .desk).x)
     composition.stop()
+}
+
+@MainActor
+@Test func composedWakeIsReplacedByEachEventAndCannotReachTheRoutineOnceSupersededOrStopped() throws {
+    let execution = RoomExecution()
+    execution.build(at: .window)
+    let first = try #require(execution.wakes.first)
+    #expect(execution.deadlines.first == execution.time + 30)
+    let cancellations = execution.cancellations
+    execution.composition.refreshTime()
+    #expect(execution.cancellations == cancellations + 1)
+    execution.time = try #require(execution.deadlines.first)
+    let reads = execution.reads
+    first() // Deliberately deliver despite cancellation.
+    #expect(execution.reads == reads)
+    let current = try #require(execution.wakes.last)
+    current()
+    #expect(execution.reads == reads + 1)
+    // A due wake during a Stroll is held for arrival, without another step.
+    try execution.finish()
+    #expect(execution.composition.step == .fidget(.gaze))
+    try execution.finish()
+    let beforeStop = try #require(execution.wakes.last)
+    execution.composition.stop()
+    let afterStop = execution.reads
+    beforeStop()
+    #expect(execution.reads == afterStop)
+}
+
+@MainActor
+@Test func composedMinuteRefreshesPropsWithOneTimeObservationAndKeepsAnUnchangedGarden() {
+    let execution = RoomExecution()
+    execution.build()
+    defer { execution.composition.stop() }
+    #expect(execution.saves.count == 1) // Newly adopted plants are kept.
+    let step = execution.composition.step
+    let reads = execution.reads
+    execution.time += 3 * 3600
+    execution.composition.refreshTime()
+    #expect(execution.composition.step == step)
+    #expect(execution.reads == reads + 1)
+    #expect(execution.composition.props.thirstyPlants == Set(Art.plantProps.map(Plant.init)))
+    #expect(execution.saves.count == 1)
+}
+
+@MainActor
+@Test func composedCareSavesTheGardenOnceAndANewCompositionRestoresIt() throws {
+    let execution = RoomExecution()
+    execution.garden.adopt(Art.plantProps.map(Plant.init), at: execution.time - 4 * 3600, random: { 0 })
+    execution.build()
+    defer { execution.composition.stop() }
+    #expect(execution.saves.isEmpty)
+    execution.time += 30
+    let wake = try #require(execution.wakes.last)
+    wake()
+    let plant = Plant(strip: "desk", x: 404)
+    #expect(execution.composition.step == .errand(.waterPlant(plant, fromRight: true)))
+    try execution.finish() // Arrive at the plant.
+    #expect(execution.saves.isEmpty)
+    try execution.finish() // Water it.
+    #expect(execution.saves.count == 1)
+    #expect(!execution.composition.props.thirstyPlants.contains(plant))
+    try execution.finish() // Return home.
+    #expect(execution.saves.count == 1)
+    let restored = RoomExecution()
+    restored.garden = execution.saves[0]
+    #expect(!restored.composition.props.thirstyPlants.contains(plant))
 }

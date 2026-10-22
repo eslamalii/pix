@@ -1,12 +1,18 @@
 import AppKit
 import AmbientCore
 
-/// Owns Routine execution and Room drawings; Routine decisions stay in AmbientCore.
+/// Owns Routine execution and Room drawings; Routine decisions stay in AmbientCore. Each event is sent with one time
+/// observation, and the Routine's wake and the Garden's saving live here with it.
 @MainActor
 final class RoomComposition {
     private let playback: Playback
     private let propDrawing = RoomProps()
-    private let runner: RoutineRunner
+    private var routine: Routine
+    private let effects: RoutineEffects
+    private var savedGarden: Garden
+    private var cancelWake: (() -> Void)?
+    /// Bumped with each wake asked for, so a superseded one that fires anyway can't reach the Routine.
+    private var wakeGeneration = 0
     private var calendar: Calendar
     private var room: Room?
     private let halloween = HalloweenLayers()
@@ -18,7 +24,7 @@ final class RoomComposition {
     var onCaption: (Caption) -> Void = { _ in }
     var pix: CALayer { playback.pix }
     var step: Routine.Step? { playback.step }
-    var props: Props { runner.props }
+    private(set) var props: Props
     var hat: Hat? {
         get { playback.hat }
         set { playback.hat = newValue }
@@ -26,11 +32,13 @@ final class RoomComposition {
 
     init(routine: Routine = Routine(timeZone: .current), effects: RoutineEffects = RoutineEffects(),
          timing: PlaybackTiming = .live, timeZone: TimeZone = .current) {
-        runner = RoutineRunner(routine: routine, effects: effects)
+        self.routine = routine
+        self.effects = effects
+        savedGarden = routine.garden
+        props = routine.props(at: effects.now())
         playback = Playback(timing: timing)
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
-        runner.onWake = { [weak self] in self?.send(.wake) }
         playback.onFinished = { [weak self] in self?.send(.finished) }
         playback.showSkyLife = { [weak self] in self?.sky.show($0) }
         playback.showCaption = { [weak self] in self?.onCaption($0) }
@@ -39,7 +47,7 @@ final class RoomComposition {
     func build(in host: CALayer, geometry: RoomGeometry, room: Room) {
         if world != nil { stop() }
         self.room = room
-        let start = runner.lastSpot ?? room.spot
+        let start = routine.lastSpot ?? room.spot
         let world = CALayer()
         world.name = "world"
         world.anchorPoint = .zero
@@ -74,7 +82,7 @@ final class RoomComposition {
         if fpsChanged { setFrameRate(room.fps) }
         let next = send(.roomChanged(room))
         if next == nil, fpsChanged, let step, case .idle = step {
-            playback.run(step, walkBody: runner.props.walkBody) // Busy steps take the new cap when they end.
+            playback.run(step, walkBody: props.walkBody) // Busy steps take the new cap when they end.
         }
     }
 
@@ -90,22 +98,38 @@ final class RoomComposition {
     @discardableResult
     private func send(_ event: Routine.Event) -> Routine.Step? {
         if case .timeZoneChanged(let zone) = event { calendar.timeZone = zone }
-        let update = runner.handle(event)
+        let time = effects.now()
+        let step = routine.handle(event, at: time)
+        props = routine.props(at: time)
+        askForWake()
+        if routine.garden != savedGarden {
+            effects.saveGarden(routine.garden)
+            savedGarden = routine.garden
+        }
         if world != nil {
             switch event {
             case .sceneStarted, .roomChanged, .minutePassed, .timeZoneChanged:
-                sky.refresh(at: update.time, calendar: calendar, fps: room?.fps ?? 12)
-                onTime(update.time, calendar.timeZone)
+                sky.refresh(at: time, calendar: calendar, fps: room?.fps ?? 12)
+                onTime(time, calendar.timeZone)
             default: break
             }
         }
-        paintProps()
-        if let next = update.step { playback.run(next, walkBody: update.props.walkBody) }
-        return update.step
+        propDrawing.update(props, fps: room?.fps ?? 12)
+        if let step { playback.run(step, walkBody: props.walkBody) }
+        return step
     }
 
-    private func paintProps() {
-        propDrawing.update(runner.props, fps: room?.fps ?? 12)
+    /// Asks for `wake` at the Routine's next deadline, in place of any earlier ask.
+    private func askForWake() {
+        cancelWake?()
+        cancelWake = nil
+        wakeGeneration += 1
+        let mine = wakeGeneration
+        guard let deadline = routine.nextWake else { return }
+        cancelWake = effects.wake(deadline) { [weak self] in
+            guard let self, wakeGeneration == mine else { return }
+            send(.wake)
+        }
     }
 
     private func setFrameRate(_ fps: Int) {
