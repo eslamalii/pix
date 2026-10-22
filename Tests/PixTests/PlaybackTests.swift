@@ -104,38 +104,16 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
 }
 
 @MainActor
-@Test func stoppingDeskSteamPreservesRestingRecordAndMomentEffects() {
+@Test func aMomentAtTheMusicCornerKeepsTheSpinningRecordAndClearsOnStop() {
     let waits = PlaybackWaits()
     let (playback, world) = playing(waits, at: .desk)
-    let drawings = RoomProps()
-    drawings.build(in: world, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)))
-    var routine = Routine(timeZone: TimeZone(secondsFromGMT: 0)!, random: { 0 })
-    let noon = Date(timeIntervalSince1970: 12 * 3600)
-    let room = Room(spot: .desk, activity: .coding, mood: .content, fps: 12)
-    routine.handle(.sceneStarted(room), at: noon)
-    // First desk Fidget refills the mug: arrive, pour, then return.
-    routine.handle(.wake, at: noon + 30)
-    routine.handle(.finished, at: noon + 30)
-    routine.handle(.finished, at: noon + 30)
-    routine.handle(.finished, at: noon + 30)
-    var routineProps = routine.props(at: noon + 30)
-    playback.onStepChanged = { [weak playback] in drawings.update(routineProps, step: playback?.step, fps: 12) }
-    playback.update(routineProps)
-    playback.run(.idle(.desk, .content))
-    #expect(world.sublayers?.filter { $0.animation(forKey: "flight") != nil }.count == 1)
-    routineProps = routine.props(at: noon + 6 * 3600)
-    drawings.update(routineProps, step: playback.step, fps: 12)
-    #expect(world.sublayers?.contains { $0.animation(forKey: "flight") != nil } == false)
     playback.run(.idle(.musicCorner, .content))
     let glints = world.sublayers?.filter { $0.animation(forKey: "turn") != nil } ?? []
     #expect(glints.count == 2)
     playback.run(.moment(.reaction(.pet)))
-    routineProps = routine.props(at: noon + 6 * 3600)
-    drawings.update(routineProps, step: playback.step, fps: 12)
     #expect(glints.allSatisfy { $0.superlayer === world })
     #expect(playback.pix.sublayers?.filter { $0.animation(forKey: "flight") != nil }.count == 3)
     playback.stop()
-    drawings.stop()
     #expect(world.sublayers?.isEmpty != false)
 }
 

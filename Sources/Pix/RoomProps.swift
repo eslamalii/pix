@@ -1,7 +1,7 @@
 import AppKit
 import AmbientCore
 
-/// Owns stationary Prop drawings, including steam that is visible only while Pix rests at the desk.
+/// Owns stationary Prop drawings, as the Routine's Props say they show.
 @MainActor
 final class RoomProps {
     let patches = CALayer(), lampGlow = CALayer()
@@ -49,7 +49,7 @@ final class RoomProps {
         world.addSublayer(lampGlow)
     }
 
-    func update(_ props: Props, step: Routine.Step?, fps: Int) {
+    func update(_ props: Props, fps: Int) {
         withoutAnimation {
             lampGlow.isHidden = !props.lampLit
             mugGone.isHidden = !props.mugAway
@@ -57,9 +57,7 @@ final class RoomProps {
                 layer.isHidden = !props.thirstyPlants.contains(Plant(plant))
             }
         }
-        let resting: Bool
-        if case .idle(.desk, _)? = step { resting = true } else { resting = false }
-        guard resting && props.mugSteams, let world else {
+        guard props.mugSteams, let world else {
             steam?.removeFromSuperlayer()
             steam = nil
             steamFPS = nil

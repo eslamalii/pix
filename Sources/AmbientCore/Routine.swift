@@ -40,7 +40,8 @@ public struct Props: Equatable, Sendable {
     public var lampLit: Bool
     /// Pix has the mug in hand, so the desk shows no mug.
     public var mugAway: Bool
-    /// The mug on the desk has coffee in it and it's coffee hours (a mug left over in the evening goes cold).
+    /// Steam rises from the mug on the desk: it has coffee in it, it's coffee hours (a mug left over in the evening goes
+    /// cold), and Pix rests beside it.
     public var mugSteams: Bool
     /// The plants that droop: thirsty, and not yet seen to.
     public var thirstyPlants: Set<Plant> = []
@@ -150,8 +151,10 @@ public struct Routine {
 
     /// What the Props show at `time`: steam follows the hour, so ask again when it changes.
     public func props(at time: Date) -> Props {
-        Props(lampLit: lamp == true, mugAway: carryingMug, mugSteams: sipsLeft > 0 && coffeeHours(at: time),
-              thirstyPlants: Set(garden.thirsty(at: time)))
+        let resting: Bool
+        if case .idle(.desk, _)? = current { resting = true } else { resting = false }
+        return Props(lampLit: lamp == true, mugAway: carryingMug, mugSteams: resting && sipsLeft > 0 && coffeeHours(at: time),
+                     thirstyPlants: Set(garden.thirsty(at: time)))
     }
 
     /// When the view should send `wake` (nil: no need).

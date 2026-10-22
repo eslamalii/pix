@@ -81,8 +81,12 @@ func fromAnotherStripPixWalksToTheWindowBeforeItStrolls(pastime: Pastime) {
     var (routine, _) = returning(to: .window, after: .coffee, time: morning)
     routine.handle(.finished, at: morning)
     #expect(routine.props(at: morning).mugAway == false)
-    #expect(routine.props(at: morning).mugSteams)
+    #expect(routine.props(at: morning).mugSteams == false)  // left on the desk, with nobody beside it
     #expect(routine.handle(.finished, at: morning) == .walk(to: .window))
+    routine.handle(.finished, at: morning)  // the Stroll starts
+    #expect(routine.handle(.roomChanged(scene(.desk)), at: morning) == .walk(to: .desk))
+    routine.handle(.finished, at: morning)
+    #expect(routine.props(at: morning).mugSteams)  // back at the desk, the mug is full
 }
 
 @Test func theCoffeePastimeLeadsToTheCouchAsAWalkBetweenSpotsWithoutTheMug() {
@@ -110,5 +114,8 @@ func fromAnotherStripPixWalksToTheWindowBeforeItStrolls(pastime: Pastime) {
     var (routine, _) = returning(to: .desk, after: .coffee, time: at(8))
     routine.handle(.momentArrived(.newHat), at: at(8))
     routine.handle(.finished, at: at(8))  // the Pastime
+    routine.handle(.finished, at: at(8))  // the Greeting
+    routine.handle(.finished, at: at(8))  // NEW HAT
+    #expect(routine.handle(.finished, at: at(8)) == idling(.desk))  // carried back and set down
     #expect(routine.props(at: at(8)).mugSteams)
 }

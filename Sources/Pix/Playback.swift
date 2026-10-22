@@ -22,11 +22,11 @@ final class Playback {
     private var delayed: [() -> Void] = []
     private let timing: PlaybackTiming
     private let art: ArtFiles
-    private var props: Props?
+    /// The body Pix walks in during this step: with the mug held out in front while it carries it.
+    private var walkBody = "walk"
     private(set) var step: Routine.Step?
     var fps = 12
     var hat: Hat? { didSet { showHat() } }
-    var onStepChanged: () -> Void = {}
     var onFinished: () -> Void = {}
     var showSkyLife: (Bool) -> Void = { _ in }
     var showCaption: (Caption) -> Void = { _ in }
@@ -67,10 +67,6 @@ final class Playback {
         blink(in: mood)
     }
 
-    func update(_ props: Props) {
-        self.props = props
-    }
-
     func stop() {
         _ = takeOver()
         clearAmbient()
@@ -78,7 +74,6 @@ final class Playback {
         pix.removeFromSuperlayer()
         world = nil
         step = nil
-        onStepChanged()
     }
 
     private func finish() {
@@ -121,14 +116,14 @@ final class Playback {
         return token
     }
 
-    func run(_ step: Routine.Step) {
+    func run(_ step: Routine.Step, walkBody: String = "walk") {
         guard world != nil else { return }
+        self.walkBody = walkBody
         // Relook changes the active step's appearance; it does not replace its lifetime.
         switch step {
         case .relook: break
         default: self.step = step
         }
-        onStepChanged()
         switch step {
         case .walk(let spot):
             walk(.spot(spot))
@@ -427,7 +422,7 @@ final class Playback {
     /// The walk cycle with its bounce, eyes leading. Both loop forever.
     private func startWalking(speedUp: Double = 1) {
         look(1)
-        bounce(stepEvery: setBody(props?.walkBody ?? "walk", speedUp: speedUp) / 2)
+        bounce(stepEvery: setBody(walkBody, speedUp: speedUp) / 2)
     }
 
     /// Up a point on every footstep while walking. The head never moves inside a frame, so the bob happens here:

@@ -31,7 +31,6 @@ final class RoomComposition {
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         runner.onWake = { [weak self] in self?.send(.wake) }
-        playback.onStepChanged = { [weak self] in self?.paintProps() }
         playback.onFinished = { [weak self] in self?.send(.finished) }
         playback.showSkyLife = { [weak self] in self?.sky.show($0) }
         playback.showCaption = { [weak self] in self?.onCaption($0) }
@@ -75,7 +74,7 @@ final class RoomComposition {
         if fpsChanged { setFrameRate(room.fps) }
         let next = send(.roomChanged(room))
         if next == nil, fpsChanged, let step, case .idle = step {
-            playback.run(step) // Busy steps take the new cap when they end.
+            playback.run(step, walkBody: runner.props.walkBody) // Busy steps take the new cap when they end.
         }
     }
 
@@ -100,14 +99,13 @@ final class RoomComposition {
             default: break
             }
         }
-        playback.update(update.props)
         paintProps()
-        if let next = update.step { playback.run(next) }
+        if let next = update.step { playback.run(next, walkBody: update.props.walkBody) }
         return update.step
     }
 
     private func paintProps() {
-        propDrawing.update(runner.props, step: playback.step, fps: room?.fps ?? 12)
+        propDrawing.update(runner.props, fps: room?.fps ?? 12)
     }
 
     private func setFrameRate(_ fps: Int) {

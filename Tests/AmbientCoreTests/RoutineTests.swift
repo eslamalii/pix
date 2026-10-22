@@ -460,6 +460,7 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
     routine.handle(.finished, at: at(12, 1, 22))  // poured: the mug is full
+    routine.handle(.finished, at: at(12, 1, 40))  // set down on the desk, Pix beside it
     #expect(routine.props(at: at(hour, minute)).mugSteams == steams)
 }
 
@@ -498,14 +499,22 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     #expect(routine.props(at: at(12)).mugAway == false)
 }
 
-@Test func theMugSteamsOnlyOncePixHasPoured() {
+@Test func theMugSteamsOnlyOncePixHasPouredAndRestsBesideIt() {
     var routine = started(at: .desk, dice: Dice([0.5, 0]))
     #expect(routine.props(at: at(12, 2)).mugSteams == false)
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
     #expect(routine.props(at: at(12, 2)).mugSteams == false)  // at the cabinet, not yet poured
     routine.handle(.finished, at: at(12, 1, 22))
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // poured, but in hand on the way back
+    routine.handle(.finished, at: at(12, 1, 40))
     #expect(routine.props(at: at(12, 2)).mugSteams)
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 45))
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // a Moment hides it
+    routine.handle(.finished, at: at(12, 1, 50))
+    #expect(routine.props(at: at(12, 2)).mugSteams)
+    routine.handle(.sceneStopped, at: at(12, 1, 55))
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // off the Touch Bar
 }
 
 // Coffee hours: 06:00 to 17:00, so the first desk Fidget (roll 0) is the refill inside them and stretching outside.
