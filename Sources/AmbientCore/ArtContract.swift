@@ -128,8 +128,8 @@ public enum Art {
 
     /// Where a hat sits within a body frame: over the head, rising into the 3 free rows above the frame.
     public static let hat = CGRect(x: 4, y: -3, width: 16, height: 6)
-    /// In a fixed order: a skin's hats.png may stop early and still keep its hats, so new hats only go at the end.
-    public static let hats = ["cap", "beanie", "party", "flower", "crown", "headband", "witch", "santa", "topHat"]
+    /// In Hat's order: a skin's hats.png may stop early and still keep its hats, so new hats only go at the end.
+    public static let hats = Hat.allCases.map(\.rawValue)
     /// Bodies that can't be done in a hat (the call's headset): Pix takes it off for them, and puts it back after.
     static let hatless: Set<String> = ["call"]
     public static func wearsHat(_ body: String) -> Bool { !hatless.contains(body) }

@@ -295,18 +295,15 @@ public struct Controller {
     private var lastSeen: Date?
     /// When the Focus session ends, while there is one.
     private var focusUntil: Date?
-    /// A hat was earned alongside a Greeting, or on the Default bar, and its NEW HAT is still to play.
-    private var newHatOwed = false
     /// When each working Agent last said so, by its ID (nil: the nameless Agent). In memory only, never in the Memory.
     private var workingAgents: [String?: Date] = [:]
     /// The Mac is running hot.
     private var hot = false
     /// What Pix remembers of the user's days.
     public private(set) var memory: Memory
+    private var wardrobe: Wardrobe
     /// The hat Pix wears.
-    public private(set) var hat: Hat?
-    /// Every hat counts as earned (the developer's allHats setting).
-    private let allHats: Bool
+    public var hat: Hat? { wardrobe.worn }
     private var calendar: Calendar
 
     /// How long a Focus session lasts.
@@ -356,7 +353,6 @@ public struct Controller {
         overrides = saved.overrides
         memory = saved.memory
         lastSeen = saved.lastSeen
-        self.allHats = allHats
         now = time
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
@@ -365,11 +361,11 @@ public struct Controller {
         activity = Self.activity(for: frontApp, overrides: overrides)
         self.power = power
         sessions[activity] = Session(startingAt: time)
-        hat = saved.hat.flatMap { wearableHats.contains($0) ? $0 : nil }
+        wardrobe = Wardrobe(wearing: saved.hat, memory: saved.memory, allHats: allHats)
     }
 
     /// The hats Pix may wear: those it has earned, or all of them with allHats.
-    public var wearableHats: [Hat] { allHats ? Hat.allCases : Hat.earned(by: memory) }
+    public var wearableHats: [Hat] { wardrobe.wearable(by: memory) }
 
     /// Pix's hello: on the day's first arrival maybe a special one from its Memory, otherwise in its Mood.
     /// The arrival is remembered either way. When the user was Away for `away` seconds, Pix is found at a Pastime first;
@@ -393,24 +389,11 @@ public struct Controller {
 
     @discardableResult
     public mutating func handle(_ event: Event, at time: Date) -> Moment? {
-        let hatsBefore = Hat.earned(by: memory)
-        var moment = react(to: event, at: time)
+        let before = memory
+        let moment = react(to: event, at: time)
         lastSeen = isAway ? (awaySince ?? lastSeen) : time
-        if case .defaultBar = bar { moment = nil }  // nobody sees a Moment on the Default bar
-        let newHats = Hat.earned(by: memory).filter { !hatsBefore.contains($0) }
-        if let newest = newHats.last { hat = newest }  // a hat just earned goes straight on
-        if let worn = hat, !wearableHats.contains(worn) { hat = nil }  // given back with the Memory
-        let earned = !newHats.isEmpty
-        if earned { newHatOwed = true }
-        guard newHatOwed, case .room = bar else { return moment }  // nobody sees it on the Default bar: it waits
-        switch moment {
-        case .greeting?: return moment  // the Greeting first; NEW HAT follows on the next quiet event
-        case .some where !earned: return moment  // a NEW HAT owed from before waits for an event with no Moment of its own
-        default:
-            // A hat is rare: earning one is the Moment, whatever else was about to play.
-            newHatOwed = false
-            return .newHat
-        }
+        let onRoom = bar != .defaultBar  // nobody sees a Moment on the Default bar
+        return wardrobe.moment(onRoom ? moment : nil, from: before, to: memory, onRoom: onRoom)
     }
 
     private mutating func react(to event: Event, at time: Date) -> Moment? {
@@ -515,7 +498,6 @@ public struct Controller {
             focusUntil = nil
         case .forgetMemory:
             memory = Memory()
-            newHatOwed = false
         case .thermalChanged(let nowHot):
             let heated = nowHot && !hot
             hot = nowHot
@@ -523,7 +505,7 @@ public struct Controller {
         case .timeZoneChanged(let zone):
             calendar.timeZone = zone
         case .chooseHat(let chosen):
-            if chosen.map(wearableHats.contains) ?? true { hat = chosen }
+            wardrobe.choose(chosen, memory: memory)
         case .agent(let state, let agent):
             workingAgents[agent] = state == .working ? time : nil
             switch state {

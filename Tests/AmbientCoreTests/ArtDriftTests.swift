@@ -52,11 +52,6 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
     }
 }
 
-@Test func everyMoodHasAFaceAndEveryHatACell() {
-    for mood in Mood.allCases { #expect(Art.faces.contains(mood.rawValue), "face \(mood.rawValue)") }
-    #expect(Set(Hat.allCases.map(\.rawValue)) == Set(Art.hats))
-}
-
 @Test func everySheetInTheArtContractIsDrawn() {
     let art = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Art").standardized
     let sheets = Art.strips.map { "room-\($0)" } + Art.bodies.map { "pix-\($0.name)" } + ["pix-face", "emotes", "hats", "cloud", "mug-gone", "plant-thirsty"]

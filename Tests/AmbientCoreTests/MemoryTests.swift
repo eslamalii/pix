@@ -138,10 +138,6 @@ func firstGreeting(_ memory: Memory, at time: Date) -> Greeting? {
     #expect(Hat.earned(by: memory) == [.cap])
 }
 
-@Test func everyHatHasItsCellInTheArt() {
-    #expect(Art.hats == Hat.allCases.map(\.rawValue))
-}
-
 @Test func aMemorySavedBeforeFocusSessionsAndOccasionsStillReads() throws {
     let saved = #"{"days":["2026-10-12"],"arrivals":{},"pets":{},"totalDays":12,"totalPets":40}"#
     let memory = try JSONDecoder().decode(Memory.self, from: Data(saved.utf8))

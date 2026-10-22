@@ -131,6 +131,10 @@ _Avoid_: holiday period, event window
 Something the Character wears on its head, earned by time spent with the user (days together, Pets, Focus sessions finished, Occasions shared), never bought or traded. The Character puts a new one on itself; after that, the user chooses which to wear. It takes the Hat off only when what it's doing can't be done in one (the headset for a call), and puts it back after.
 _Avoid_: cosmetic, item, reward, unlock
 
+**Wardrobe**:
+The Hats the Character has earned and the one it wears. A Hat just earned goes straight on, and its NEW HAT waits for a quiet moment on the Room; a Hat given back with forgotten Memory comes off.
+_Avoid_: inventory, collection, closet
+
 **Agent**:
 One conversation with the user's AI coding agent: two Claude Code windows are two Agents, and the tool itself (Claude Code, Cursor, Codex) is only the Agent's tool. Through hooks the user sets up, an Agent tells the Character that it's working, waiting for the user, done, or failed, known only by an anonymous ID it sends along; messages without an ID all count as one nameless Agent. The Character types along while any Agent works and tells the user when one needs them, has finished, or has failed; it never watches the Agents itself, and forgets an Agent once it's done, failed, or quiet for 10 minutes.
 _Avoid_: session (that's the Session), assistant (the Character is never one), bot, AI
