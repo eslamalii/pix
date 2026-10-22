@@ -218,6 +218,10 @@ public struct Routine {
             switch current {
             case .idle?:
                 if new.mood != old?.mood || new.hot != old?.hot { return settle(at: time) }
+                // Only the Look changes when an Agent starts or stops: keep the Fidget's existing deadline.
+                if new.spot == .desk && new.agentWorking != old?.agentWorking {
+                    return start(.idle(new.spot, restLook()))
+                }
             default: break
             }
             return nil  // the Activity or frame rate alone changes nothing Pix does

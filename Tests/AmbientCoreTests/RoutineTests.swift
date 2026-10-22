@@ -665,3 +665,34 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     #expect(routine.props(at: at(12)).lampLit == false)
     #expect(routine.handle(.finished, at: at(19)) == .errand(.switchLamp))
 }
+
+@Test func anAgentStartingAndStoppingAtTheDeskRefreshesTheLookWithoutMovingItsFidget() {
+    var routine = started(at: .desk)
+    let due = routine.nextWake
+    var room = scene(.desk)
+    room.agentWorking = true
+    let working = RestLook(spot: .desk, mood: room.mood, agentWorking: true)
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 10)) == .idle(.desk, working))
+    #expect(routine.nextWake == due)
+    room.agentWorking = false
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 20)) == .idle(.desk, room.mood))
+    #expect(routine.nextWake == due)
+}
+
+@Test func anAgentChangeDuringAMomentWaitsForItsCompletionThenUsesTheFreshLook() {
+    var routine = started(at: .desk)
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 5))
+    var room = scene(.desk)
+    room.agentWorking = true
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 10)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 0, 15)) == .idle(.desk, RestLook(spot: .desk, mood: room.mood, agentWorking: true)))
+}
+
+@Test func anAgentChangeDuringAWalkWaitsForArrival() {
+    var routine = started(at: .window)
+    var room = scene(.desk)
+    #expect(routine.handle(.roomChanged(room), at: at(12)) == .walk(to: .desk))
+    room.agentWorking = true
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 1)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 0, 5)) == .idle(.desk, RestLook(spot: .desk, mood: room.mood, agentWorking: true)))
+}
