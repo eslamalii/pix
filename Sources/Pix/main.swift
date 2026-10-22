@@ -6,33 +6,6 @@ import os
 
 private let log = Logger(subsystem: appID, category: "app")
 
-func currentPower() -> Power {
-    // These calls return NULL on error; treat that as "not on battery", at an unknown level.
-    let info = IOPSCopyPowerSourcesInfo()?.takeRetainedValue()
-    let source = info.flatMap { IOPSGetProvidingPowerSourceType($0)?.takeUnretainedValue() } as String?
-    return Power(onBattery: source == kIOPMBatteryPowerKey, lowPowerMode: ProcessInfo.processInfo.isLowPowerModeEnabled,
-                 level: info.flatMap(batteryLevel))
-}
-
-/// macOS's own verdict on the Mac's temperature: serious or critical counts as hot.
-func macIsHot() -> Bool {
-    let state = ProcessInfo.processInfo.thermalState
-    return state == .serious || state == .critical
-}
-
-/// The internal battery's charge in percent, from the power sources list.
-private func batteryLevel(_ info: CFTypeRef) -> Int? {
-    guard let sources = IOPSCopyPowerSourcesList(info)?.takeRetainedValue() as? [CFTypeRef] else { return nil }
-    for source in sources {
-        guard let description = IOPSGetPowerSourceDescription(info, source)?.takeUnretainedValue() as? [String: Any],
-              description[kIOPSTypeKey] as? String == kIOPSInternalBatteryType,
-              let current = description[kIOPSCurrentCapacityKey] as? Int, let max = description[kIOPSMaxCapacityKey] as? Int, max > 0
-        else { continue }
-        return current * 100 / max
-    }
-    return nil
-}
-
 /// Wires macOS events into the Controller and applies its decision to the Touch Bar.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -43,11 +16,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = UsageMonitor()
     private lazy var menu = StatusMenu()
     private var presenter: TouchBarPresenter!
-    private var controller: Controller!
-    /// What Pix keeps, as last saved, so it's only written when it changes.
-    private var lastSaved = Saved()
-    /// pix://agent links that arrived before launch finished (one can launch Pix).
-    private var earlyAgentEvents: [Event] = []
+    private var execution: AppExecution!
+    private var controller: Controller { execution.controller }
+    private lazy var agentDelivery = AgentDelivery(forward: { [weak self] urls in
+        self?.forwardToOther(urls) ?? false
+    })
     private var forwardingToOther = false
 
     func applicationDidFinishLaunching(_ note: Notification) {
@@ -78,11 +51,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.templateItems = [item]
         bar.defaultItemIdentifiers = [barID]
 
-        lastSaved = Settings.saved
-        controller = Controller(selfBundleID: appID, frontApp: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, power: currentPower(),
-                                at: Date(), timeZone: .current, saved: lastSaved, allHats: Settings.allHats)
-        (view.hat, menu.hidden) = (controller.hat, controller.hidden)
-        save()  // a saved hat no longer earned comes off
+        let saved = Settings.saved
+        execution = AppExecution(controller: Controller(selfBundleID: appID, frontApp: NSWorkspace.shared.frontmostApplication?.bundleIdentifier, power: currentPower(),
+                                at: Date(), timeZone: .current, saved: saved, allHats: Settings.allHats), saved: saved,
+                                 effects: AppExecution.Effects(save: { Settings.saved = $0 }, choices: { [weak self] saved in
+                                     self?.view.hat = saved.hat
+                                     self?.menu.hidden = saved.hidden
+                                 }, render: { [weak self] in self?.render($0) }, play: { [weak self] in self?.view.play($0) }))
         menu.state = { [weak self] in self?.menuState() ?? StatusMenu.State() }
         menu.onHidden = { [weak self] hide in self?.send(hide ? .hidePix : .showPix) }
         menu.onStartAtLogin = { [weak self] on in self?.startAtLogin(on) }
@@ -114,34 +89,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         RunLoop.main.add(tick, forMode: .common)
-        render()
+        render(controller.bar)
         send(.appStarted)  // Pix says hi
         if macIsHot() { send(.thermalChanged(hot: true)) }
-        earlyAgentEvents.forEach(send)
-        earlyAgentEvents = []
+        agentDelivery.start { [weak self] in self?.send($0) }
         checkForTouchBar()
     }
 
     @objc private func sparklesTapped() { send(.sparklesTapped) }
 
     /// pix://agent/working, …/waiting, …/done or …/failed, from an Agent's hooks. Anything else is ignored.
-    func application(_ application: NSApplication, open urls: [URL]) {
-        // If a hook launched a second copy of Pix while one is already running, hand the links to the running copy.
-        if let other = NSRunningApplication.runningApplications(withBundleIdentifier: appID).first(where: { $0 != .current }),
-           let appURL = other.bundleURL {
-            forwardingToOther = true
-            let config = NSWorkspace.OpenConfiguration()
-            config.activates = false
-            config.createsNewApplicationInstance = false
-            NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: config) { _, _ in
-                DispatchQueue.main.async { NSApp.terminate(nil) }
-            }
-            return
+    func application(_ application: NSApplication, open urls: [URL]) { agentDelivery.receive(urls) }
+
+    private func forwardToOther(_ urls: [URL]) -> Bool {
+        // Hand links to the running copy, including a hook that launched this second instance.
+        guard let other = NSRunningApplication.runningApplications(withBundleIdentifier: appID).first(where: { $0 != .current }),
+              let appURL = other.bundleURL else { return false }
+        forwardingToOther = true
+        let config = NSWorkspace.OpenConfiguration()
+        config.activates = false
+        config.createsNewApplicationInstance = false
+        NSWorkspace.shared.open(urls, withApplicationAt: appURL, configuration: config) { _, _ in
+            DispatchQueue.main.async { NSApp.terminate(nil) }
         }
-        for report in urls.compactMap(AgentReport.init(url:)) {
-            let event = Event.agent(report.state, agent: report.agent)
-            if controller == nil { earlyAgentEvents.append(event) } else { send(event) }
-        }
+        return true
     }
 
     /// Forget Pix's Memory, once the user confirms it.
@@ -162,34 +133,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let name = NSRunningApplication.runningApplications(withBundleIdentifier: id).first?.localizedName ?? id
             return (id, name, controller.saved.overrides[id])
         }
-        return StatusMenu.State(hidden: controller.hidden, frontApp: front, focusLeft: controller.focusMinutesLeft(at: Date()),
+        return StatusMenu.State(startAtLogin: SMAppService.mainApp.status == .enabled, hidden: controller.hidden, frontApp: front, focusLeft: controller.focusMinutesLeft(at: Date()),
                                 hat: controller.hat, wearableHats: controller.wearableHats, clock: Settings.clock,
                                 skin: Settings.skin, skins: Settings.skins)
     }
 
-    private func send(_ event: Event) {
-        let before = controller.bar
-        let moment = controller.handle(event, at: Date())
-        save()
-        defer { if let moment { view.play(moment) } }
-        switch event {
-        // Re-present on these even if nothing changed: the system's ✕ may have closed the bar behind our back.
-        case .frontAppChanged, .sparklesTapped, .showPix: render()
-        default: if controller.bar != before { render() }
-        }
-    }
+    private func send(_ event: Event) { execution.send(event, at: Date()) }
 
-    /// Saves what Pix keeps when it changed (Hide Pix sticks across launches), and shows the hat and Hide Pix.
-    private func save() {
-        let saved = controller.saved
-        guard saved != lastSaved else { return }
-        (Settings.saved, lastSaved) = (saved, saved)
-        (view.hat, menu.hidden) = (saved.hat, saved.hidden)
-    }
-
-    private func render() {
+    private func render(_ decision: Bar) {
         log.info("bar → \(self.describe(), privacy: .public)")
-        switch controller.bar {
+        switch decision {
         case .room(let room):
             view.show(room)
             presenter.show(bar, tray: trayID)
@@ -279,28 +232,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Start at login lives in macOS (System Settings → General → Login Items), so a choice made there sticks.
     /// Pix only asks for it on its very first launch, and moves it to itself when it opens from a new place
     /// (after a Homebrew upgrade the old copy is gone).
+    private var loginItem: LoginItem {
+        let service = SMAppService.mainApp
+        return LoginItem(path: Bundle.main.bundlePath, savedPath: { Settings.loginItemPath },
+                         savePath: { Settings.loginItemPath = $0 }, enabled: { service.status == .enabled },
+                         register: { try service.register() }, unregister: { try service.unregister() })
+    }
+
     private func syncLoginItem() {
-        let service = SMAppService.mainApp, here = Bundle.main.bundlePath
-        do {
-            if Settings.loginItemPath == nil { try service.register() }
-            else if service.status == .enabled && Settings.loginItemPath != here { try service.unregister(); try service.register() }
-        } catch {
+        do { try loginItem.sync() } catch {
             log.error("login item: \(String(describing: error), privacy: .public)")
         }
-        if Settings.loginItemPath == nil || service.status == .enabled { Settings.loginItemPath = here }
-        log.notice("login item status: \(String(describing: service.status), privacy: .public)")
+        log.notice("login item status: \(String(describing: SMAppService.mainApp.status), privacy: .public)")
     }
 
     /// The menu's Start at Login, and the can't-run cases switching it off.
     private func startAtLogin(_ on: Bool) {
-        let service = SMAppService.mainApp
-        do {
-            if on { try service.register() } else if service.status == .enabled { try service.unregister() }
-        } catch {
+        do { try loginItem.setEnabled(on) } catch {
             log.error("login item: \(String(describing: error), privacy: .public)")
         }
-        Settings.loginItemPath = Bundle.main.bundlePath
     }
+
 }
 
 let app = NSApplication.shared

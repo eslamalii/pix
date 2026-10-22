@@ -33,6 +33,11 @@ final class ArtFiles {
         return image
     }
 
+    /// Occasion Props stay Classic, including when the Room uses a Skin.
+    func halloweenImage(_ name: String) -> CGImage? {
+        classic("\(Halloween.folder)/\(name)")
+    }
+
     /// Pix's own drawing, whatever the skin: what a skin's hats.png that stops early leaves out comes from here.
     private func classic(_ name: String) -> CGImage? {
         if let hit = cache["classic/" + name] { return hit }

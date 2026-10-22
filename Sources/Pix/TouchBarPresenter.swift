@@ -6,6 +6,19 @@ struct MissingTouchBarAPI: Error, CustomStringConvertible {
     var description: String { "this macOS is missing private Touch Bar API: \(names.joined(separator: ", "))" }
 }
 
+/// Live lookup and controlled missing-symbol lookup share the same launch check.
+struct TouchBarSymbols {
+    var method: (AnyClass, Selector) -> IMP?
+    var function: (String) -> UnsafeMutableRawPointer?
+
+    static var live: TouchBarSymbols {
+        let dfr = dlopen("/System/Library/PrivateFrameworks/DFRFoundation.framework/DFRFoundation", RTLD_NOW)
+        return TouchBarSymbols(method: { cls, selector in
+            class_getClassMethod(cls, selector).map(method_getImplementation)
+        }, function: { name in dlsym(dfr, name) })
+    }
+}
+
 /// Thin adapter over the private Touch Bar API (DFRFoundation + hidden NSTouchBar class methods).
 /// Every symbol is resolved up front, so a macOS update that removes one fails at launch, not mid-use.
 @MainActor
@@ -26,15 +39,14 @@ final class TouchBarPresenter {
     private let setPresence: PresenceFn
     private let setCloseBox: CloseBoxFn
 
-    init() throws {
+    init(symbols: TouchBarSymbols = .live) throws {
         var missing: [String] = []
         func method<T>(_ cls: AnyClass, _ sel: Selector, as: T.Type) -> T? {
-            guard let m = class_getClassMethod(cls, sel) else { missing.append("+[\(cls) \(sel)]"); return nil }
-            return unsafeBitCast(method_getImplementation(m), to: T.self)
+            guard let implementation = symbols.method(cls, sel) else { missing.append("+[\(cls) \(sel)]"); return nil }
+            return unsafeBitCast(implementation, to: T.self)
         }
-        let dfr = dlopen("/System/Library/PrivateFrameworks/DFRFoundation.framework/DFRFoundation", RTLD_NOW)
         func function<T>(_ name: String, as: T.Type) -> T? {
-            guard let sym = dlsym(dfr, name) else { missing.append(name); return nil }
+            guard let sym = symbols.function(name) else { missing.append(name); return nil }
             return unsafeBitCast(sym, to: T.self)
         }
 

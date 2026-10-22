@@ -6,12 +6,15 @@ import AmbientCore
 /// RoomSky supplies time and owns the window sky lifetime; this module keeps Halloween drawing rules.
 @MainActor
 final class HalloweenLayers {
+    private let art: ArtFiles
     private var inSeason = false
     /// Halloween's place among the world's layers, over the Room and under Pix: it dresses and undresses in here.
     private weak var stage: CALayer?
     private var geometry: RoomGeometry?
     private var frameRange = CAFrameRateRange.default
     private var props: [CALayer] = [], glows: [CALayer] = []
+
+    init(art: ArtFiles = ArtFiles()) { self.art = art }
 
     /// Takes its place over the Room's strips, under Pix, and lays the Occasion Props there in the season.
     func build(in world: CALayer, geometry: RoomGeometry, frameRange: CAFrameRateRange) {
@@ -49,7 +52,7 @@ final class HalloweenLayers {
         guard let stage, let geometry else { return }
         withoutAnimation {
             for strip in Art.strips {
-                let layer = Self.crisp(Self.image("room-\(strip)"))
+                let layer = pixelCrisp(art.halloweenImage("room-\(strip)"))
                 layer.frame = CGRect(x: geometry.stripX(strip), y: 0, width: CGFloat(Art.stripWidth), height: CGFloat(Art.height))
                 stage.addSublayer(layer)
                 props.append(layer)
@@ -81,12 +84,12 @@ final class HalloweenLayers {
     func fillSky(_ daylight: Daylight, in sky: CALayer, frameRange: CAFrameRateRange) {
         guard inSeason, daylight == .night else { return }
         let pane = sky.bounds
-        let moon = Self.crisp(Self.image("moon"))
+        let moon = pixelCrisp(art.halloweenImage("moon"))
         moon.frame = CGRect(origin: CGPoint(x: pane.width * 0.72, y: pane.height - Halloween.moon.height - 3), size: Halloween.moon)
         sky.addSublayer(moon)
         let beats = [CGRect(x: 0, y: 0, width: 0.5, height: 1), CGRect(x: 0.5, y: 0, width: 0.5, height: 1)]
         for height: CGFloat in [0.75, 0.5, 0.62] {
-            let bat = Self.crisp(Self.image("bat"))
+            let bat = pixelCrisp(art.halloweenImage("bat"))
             bat.bounds = CGRect(origin: .zero, size: Halloween.bat)
             bat.contentsRect = beats[0]
             let flap = CAKeyframeAnimation(keyPath: "contentsRect")
@@ -107,25 +110,5 @@ final class HalloweenLayers {
             bat.add(fly, forKey: "fly")
             sky.addSublayer(bat)
         }
-    }
-
-    private func withoutAnimation(_ change: () -> Void) {
-        CATransaction.begin()
-        CATransaction.setDisableActions(true)
-        change()
-        CATransaction.commit()
-    }
-
-    private static func image(_ name: String) -> CGImage? {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "Art/\(Halloween.folder)"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
-        return CGImageSourceCreateImageAtIndex(source, 0, nil)
-    }
-
-    private static func crisp(_ image: CGImage?) -> CALayer {
-        let layer = CALayer()
-        layer.contents = image
-        layer.magnificationFilter = .nearest
-        return layer
     }
 }

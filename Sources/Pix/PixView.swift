@@ -23,7 +23,9 @@ final class PixView: NSView {
     // It sits outside the world, so it stays put while Pix walks between Spots.
     private let hud = CALayer(), clock = pixelCrisp(nil), caption = CALayer(), captionIcon = pixelCrisp(nil), captionWord = pixelCrisp(nil)
     private var builtSize: CGSize = .zero
-    private var pendingTap: Task<Void, Never>?
+    private let timing: PixViewTiming
+    private var cancelTap: (() -> Void)?
+    private var tapGeneration = 0
 
     /// The bar's width. It starts at one Room strip and takes the real width once the view is on the bar.
     private lazy var barWidth = widthAnchor.constraint(equalToConstant: CGFloat(Art.stripWidth))
@@ -60,7 +62,8 @@ final class PixView: NSView {
         self.init(frame: frame, routine: Routine(timeZone: .current, garden: garden), effects: RoutineEffects())
     }
 
-    init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles()) {
+    init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles(), timing: PixViewTiming = .live) {
+        self.timing = timing
         self.art = art
         self.skin = art.skin
         self.composition = RoomComposition(routine: routine, effects: effects, timeZone: timeZone, art: art)
@@ -89,6 +92,7 @@ final class PixView: NSView {
     }
 
     func hide() {
+        cancelPendingTap()
         room = nil
         if world == nil { composition.stop() }  // a Moment still waiting for the scene is dropped; a built one stops in teardown
         scheduleRefresh()
@@ -115,24 +119,34 @@ final class PixView: NSView {
 
     override func touchesBegan(with event: NSEvent) {
         guard let touch = event.touches(matching: .began, in: self).first else { return }
-        guard pixHitArea.contains(touch.location(in: self)) else {
-            pendingTap?.cancel()
-            pendingTap = nil
+        self.touch(at: touch.location(in: self))
+    }
+
+    /// A Touch Bar touch in view coordinates, after AppKit supplies its location.
+    func touch(at point: CGPoint) {
+        guard room != nil, world != nil else { return }
+        guard pixHitArea.contains(point) else {
+            cancelPendingTap()
             return onTappedElsewhere()
         }
-        if let pending = pendingTap {
-            pending.cancel()
-            pendingTap = nil
+        if cancelTap != nil {
+            cancelPendingTap()
             onPixPetted()
         } else {
-            // Wait a moment: a second tap makes it a Pet instead.
-            pendingTap = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .milliseconds(300))
-                guard !Task.isCancelled, let self else { return }
-                pendingTap = nil
+            tapGeneration += 1
+            let mine = tapGeneration
+            cancelTap = timing.after(0.3) { [weak self] in
+                guard let self, tapGeneration == mine else { return }
+                cancelPendingTap()
                 onPixTapped()
             }
         }
+    }
+
+    private func cancelPendingTap() {
+        tapGeneration += 1
+        cancelTap?()
+        cancelTap = nil
     }
 
     /// Pix's on-screen frame as it is right now (mid-animation), padded because fingers are bigger than Pix.
@@ -145,6 +159,7 @@ final class PixView: NSView {
     // MARK: - Building and updating
 
     override func viewDidMoveToWindow() {
+        if window == nil { cancelPendingTap() }
         // Every Touch Bar is a little different: take the width this one gives us.
         if let width = window?.frame.width, width > 0, width != barWidth.constant { barWidth.constant = width }
         scheduleRefresh()
@@ -159,7 +174,7 @@ final class PixView: NSView {
     private func scheduleRefresh() {
         guard !refreshScheduled else { return }
         refreshScheduled = true
-        DispatchQueue.main.async { [weak self] in
+        timing.refresh { [weak self] in
             self?.refreshScheduled = false
             self?.refresh()
         }
@@ -193,8 +208,7 @@ final class PixView: NSView {
     }
 
     private func teardown() {
-        pendingTap?.cancel()
-        pendingTap = nil
+        cancelPendingTap()
         guard world != nil else { return }
         composition.stop()
         hud.removeFromSuperlayer()
@@ -223,6 +237,9 @@ final class PixView: NSView {
     private static let textHeight: CGFloat = 10, margin: CGFloat = 10
 
     private func buildHUD() {
+        hud.name = "statusCorner"
+        caption.name = "caption"
+        captionWord.name = "captionWord"
         clock.name = "clock"
         hud.frame = bounds
         hud.zPosition = 1

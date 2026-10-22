@@ -205,3 +205,79 @@ func invalidSkinHatSheetsUseClassic(size: (Int, Int)) throws {
     }
     withExtendedLifetime((window, otherWindow)) {}
 }
+
+@MainActor
+@Test func composedHalloweenUsesClassicFixtureArtAndRemovesItAfterTheSeason() throws {
+    let fixture = try ArtFixture()
+    defer { fixture.remove() }
+    let classic = fixture.classic.appendingPathComponent(Halloween.folder)
+    let skin = fixture.skin.appendingPathComponent(Halloween.folder)
+    for folder in [classic, skin] {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+    let drawings = Art.strips.map { ("room-" + $0, Art.stripWidth, Art.height) } + [
+        ("moon", Int(Halloween.moon.width), Int(Halloween.moon.height)),
+        ("bat", Int(Halloween.bat.width) * 2, Int(Halloween.bat.height))
+    ]
+    for (name, width, height) in drawings {
+        try fixture.draw(name, in: classic, width: width, height: height, shade: 0.2)
+        try fixture.draw(name, in: skin, width: width, height: height, shade: 0.9)
+    }
+    let art = ArtFiles(classicFolder: fixture.classic, skin: fixture.skin)
+    let zone = TimeZone(secondsFromGMT: 0)!
+    func date(_ text: String) -> Date { ISO8601DateFormatter().date(from: text)! }
+    var time = date("2026-10-23T23:59:00Z")
+    let composition = RoomComposition(
+        routine: Routine(timeZone: zone, random: { 0 }),
+        effects: RoutineEffects(now: { time }, wake: { _, _ in {} }, saveGarden: { _ in }),
+        timing: PlaybackTiming(transaction: { animations, _ in animations() }, after: { _, _ in {} }),
+        timeZone: zone, art: art)
+    let host = CALayer()
+    composition.build(in: host, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)),
+                      room: Room(spot: .window, activity: .other, mood: .content, fps: 12))
+    defer { composition.stop() }
+    let world = try #require(composition.world)
+    let props = try #require(world.sublayers?.first { $0.name == "occasionProps" })
+    let sky = try #require(world.sublayers?.first { $0.name == "skyBox" }?.sublayers?.first { $0.name == "skyLife" })
+    #expect(props.sublayers?.isEmpty != false)
+    #expect(sky.sublayers?.contains { $0.animation(forKey: "fly") != nil } == false)
+
+    time = date("2026-10-24T00:00:00Z")
+    composition.refreshTime()
+    let strips = try #require(props.sublayers?.prefix(Art.strips.count))
+    let moon = try #require(sky.sublayers?.first { $0.bounds.size == Halloween.moon && $0.contents != nil })
+    let bats = try #require(sky.sublayers?.filter { $0.animation(forKey: "fly") != nil })
+    #expect(bats.count == 3)
+    let seasonal = Array(zip(strips, Art.strips.map { "room-" + $0 })) + [(moon, "moon")] + bats.map { ($0, "bat") }
+    for (drawing, name) in seasonal {
+        let image = try #require(drawing.contents) as! CGImage
+        let source = try #require(CGImageSourceCreateWithURL(classic.appendingPathComponent(Art.file(name)) as CFURL, nil))
+        let expected = try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+        #expect(image.width == expected.width && image.height == expected.height)
+        #expect((image.dataProvider?.data as Data?) == (expected.dataProvider?.data as Data?))
+        #expect(image === art.halloweenImage(name))
+    }
+    #expect(strips.count == Art.strips.count)
+
+    time = date("2026-11-02T00:00:00Z")
+    composition.refreshTime()
+    #expect(props.sublayers?.isEmpty != false)
+    #expect(seasonal.allSatisfy { $0.0.superlayer == nil })
+    #expect(sky.sublayers?.contains { $0.animation(forKey: "fly") != nil } == false)
+}
+
+@MainActor
+@Test func missingOrUnreadableClassicOccasionArtDoesNotUseSkinArt() throws {
+    let fixture = try ArtFixture()
+    defer { fixture.remove() }
+    let skin = fixture.skin.appendingPathComponent(Halloween.folder)
+    let classic = fixture.classic.appendingPathComponent(Halloween.folder)
+    for folder in [classic, skin] {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    }
+    try fixture.draw("moon", in: skin, width: 10, height: 10)
+    let art = ArtFiles(classicFolder: fixture.classic, skin: fixture.skin)
+    #expect(art.halloweenImage("moon") == nil)
+    try Data("not a png".utf8).write(to: classic.appendingPathComponent("moon.png"))
+    #expect(art.halloweenImage("moon") == nil)
+}

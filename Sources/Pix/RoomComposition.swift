@@ -16,7 +16,7 @@ final class RoomComposition {
     private var wakeGeneration = 0
     private var calendar: Calendar
     private var room: Room?
-    private let halloween = HalloweenLayers()
+    private lazy var halloween = HalloweenLayers(art: art)
     private lazy var sky = RoomSky(halloween: halloween, art: art)
     private(set) var world: CALayer?
     private var monitors: [CALayer] = []
