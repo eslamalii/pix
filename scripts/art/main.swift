@@ -514,4 +514,21 @@ let bare = strip("desk", with: drawings, without: "mug").image
 let patch = Canvas(Int(Art.mug.width), Int(Art.mug.height))
 patch.stamp(bare.cropping(to: CGRect(x: Int(Art.mug.minX), y: Int(Art.mug.minY), width: Int(Art.mug.width), height: Int(Art.mug.height)))!, x: 0, y: 0)
 patch.save("mug-gone")
+// Each plant drooping, on the bare Room behind it, shown over the plant while it is thirsty.
+let droop = generatedProps["plant"]!()
+droop.clear(CGRect(x: 0, y: 0, width: droop.w, height: 13))                                      // the foliage; the pot stays
+droop.rect(5, 8, 2, 5, darkLeaf); droop.rect(5, 9, 1, 3, leaf)                                   // a short stem
+droop.dots([(5, 7), (6, 6), (7, 5), (8, 5), (9, 6), (9, 7)], leaf)                               // its top arching over to hang
+droop.dots([(6, 7), (8, 6), (10, 7), (10, 8)], darkLeaf)
+droop.dots([(4, 9), (3, 10), (2, 11), (7, 10), (8, 11), (9, 12)], leaf)                          // limp leaves sloping down
+droop.dots([(4, 10), (3, 11), (2, 12), (7, 11), (8, 12)], darkLeaf)
+droop.dots([(9, 8), (1, 12)], leafShade)                                                         // wilted tips
+let thirsty = Canvas(Int(Art.plant.width) * Art.plantProps.count, Int(Art.plant.height))
+let bareRoom = Dictionary(uniqueKeysWithValues: Art.strips.map { ($0, strip($0, with: drawings, without: "plant").image) })
+for (i, plant) in Art.plantProps.enumerated() {
+    let y = plant.y ?? floorY - Int(Art.plant.height)
+    thirsty.stamp(bareRoom[plant.strip]!.cropping(to: CGRect(x: plant.x, y: y, width: Int(Art.plant.width), height: Int(Art.plant.height)))!, x: i * Int(Art.plant.width), y: 0)
+    thirsty.stamp(droop.image, x: i * Int(Art.plant.width), y: 0)
+}
+thirsty.save("plant-thirsty")
 drawHalloween()

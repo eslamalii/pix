@@ -43,6 +43,10 @@ _Avoid_: system bar, normal bar, native bar
 How long the user has been continuously in one Activity. Short trips to another Activity don't break it; staying away for a while ends it.
 _Avoid_: streak, run, uptime
 
+**Away**:
+The user is away while the screen is asleep or locked, or while Pix isn't running. Showing the Default bar or hiding Pix isn't being away: the user is still there, the Character is just out of sight. The Character goes on with its own life while the user is away, and is found in the middle of it when they come back.
+_Avoid_: idle, absent, gone
+
 ### The Character's inner life
 
 **Mood**:
@@ -76,16 +80,28 @@ How the Character appears: for a Moment (its body, Emote, Caption and what plays
 _Avoid_: animation, sprite (those are the art)
 
 **Greeting**:
-The Moment when the Character notices the user arriving: when it starts up, or when the user is back after being away for a while.
+The Moment when the Character notices the user arriving: when it starts up, or when the user is back after being Away for a while. When the user was Away, it comes after a Pastime.
 _Avoid_: welcome, hello, wake-up
 
 **Fidget**:
-A small thing the Character does on its own while idling, now and then (looking around, watering the plant) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
+A small thing the Character does on its own while idling, now and then (looking around, refilling the mug) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
 _Avoid_: idle animation, tic, flourish
 
+**Pastime**:
+What the Character was doing on its own while the user was Away, caught for a moment when they come back, just before the Greeting: dozing on the couch, making coffee, or gazing out of the window. What it was doing follows from how long the user was away and the time of day they come back. Unlike a Fidget, the user never sees it start; unlike a Moment, it answers nothing.
+_Avoid_: hobby, idle, activity (that's the user's)
+
 **Errand**:
-A Fidget that uses a Prop: the Character walks to the Prop, uses it (waters the plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. A Moment or an app switch can cut it short.
+A trip to a Prop: the Character walks to the Prop, uses it (waters a plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. It happens as a Fidget, as Care, or at a time of day (the lamp at dusk). A Moment or an app switch can cut it short.
 _Avoid_: task, trip, chore
+
+**Need**:
+Something a Prop lacks that comes on with time until the Character sees to it, such as a plant going thirsty. A Need shows in the Room (a thirsty plant droops), keeps while the Character is away, and never grows worse or does harm: it only waits for the Character. Only the Character answers it; the user never owes the Room anything.
+_Avoid_: want, decay, neglect; and need for the Character's own wants, which will get their own word
+
+**Care**:
+The Errand that answers a Need: the Character notices a thirsty plant and waters it. It happens when a Fidget would, from a Spot where the Character is free to leave.
+_Avoid_: chore, upkeep, maintenance
 
 **Stroll**:
 How the Character idles at the window: it walks from one end of the window to the other, stops at each end to look around, and stretches at the right end before walking back. A Fidget or a Moment can interrupt it; a Fidget waits for the current walk to finish.
@@ -114,6 +130,10 @@ _Avoid_: holiday period, event window
 **Hat**:
 Something the Character wears on its head, earned by time spent with the user (days together, Pets, Focus sessions finished, Occasions shared), never bought or traded. The Character puts a new one on itself; after that, the user chooses which to wear. It takes the Hat off only when what it's doing can't be done in one (the headset for a call), and puts it back after.
 _Avoid_: cosmetic, item, reward, unlock
+
+**Wardrobe**:
+The Hats the Character has earned and the one it wears. A Hat just earned goes straight on, and its NEW HAT waits for a quiet moment on the Room; a Hat given back with forgotten Memory comes off.
+_Avoid_: inventory, collection, closet
 
 **Agent**:
 One conversation with the user's AI coding agent: two Claude Code windows are two Agents, and the tool itself (Claude Code, Cursor, Codex) is only the Agent's tool. Through hooks the user sets up, an Agent tells the Character that it's working, waiting for the user, done, or failed, known only by an anonymous ID it sends along; messages without an ID all count as one nameless Agent. The Character types along while any Agent works and tells the user when one needs them, has finished, or has failed; it never watches the Agents itself, and forgets an Agent once it's done, failed, or quiet for 10 minutes.

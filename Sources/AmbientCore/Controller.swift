@@ -47,7 +47,8 @@ public enum Greeting: String, Sendable, CaseIterable { case hello, cheerful, sle
 public enum Moment: Equatable, Sendable {
     case reaction(Reaction)
     case pause(Break)
-    case greeting(Greeting)
+    /// `after` is what Pix was doing on its own while the user was Away, caught for a moment before the Greeting.
+    case greeting(Greeting, after: Pastime? = nil)
     /// The charger went in: Pix perks up.
     case charging
     /// A Focus session began, or ran its full length.
@@ -241,6 +242,7 @@ enum Rules {
     static let breakEvery: TimeInterval = 45 * 60
     static let sessionBreaksAfter: TimeInterval = 5 * 60  // away this long starts a Session over…
     static let longAway = sessionBreaksAfter               // …and earns a Greeting on return
+    static let dozesAfter: TimeInterval = 2 * 3600         // Away this long, Pix is found dozing
     static let grumpySwitches = 6, grumpyWindow: TimeInterval = 2 * 60  // this many app switches within the window…
     static let grumpyApps = 3                                           // …across at least this many different apps…
     static let grumpyCalmsAfter: TimeInterval = 2 * 60                  // …until this long after switching was last scattered
@@ -260,9 +262,11 @@ public struct Saved: Equatable, Sendable {
     public var memory: Memory
     /// The hat Pix wears; nil for none.
     public var hat: Hat?
+    /// The last time the user was here; nil before the first launch.
+    public var lastSeen: Date?
 
-    public init(hidden: Bool = false, overrides: [String: Override] = [:], memory: Memory = Memory(), hat: Hat? = nil) {
-        (self.hidden, self.overrides, self.memory, self.hat) = (hidden, overrides, memory, hat)
+    public init(hidden: Bool = false, overrides: [String: Override] = [:], memory: Memory = Memory(), hat: Hat? = nil, lastSeen: Date? = nil) {
+        (self.hidden, self.overrides, self.memory, self.hat, self.lastSeen) = (hidden, overrides, memory, hat, lastSeen)
     }
 }
 
@@ -287,20 +291,19 @@ public struct Controller {
     private var recentTaps: [Date] = []
     private var lastPet: Date?
     private var awaySince: Date?
+    /// The last time the user was here: it stops when they go Away, so a relaunch can tell how long they were gone.
+    private var lastSeen: Date?
     /// When the Focus session ends, while there is one.
     private var focusUntil: Date?
-    /// A hat was earned alongside a Greeting, or on the Default bar, and its NEW HAT is still to play.
-    private var newHatOwed = false
     /// When each working Agent last said so, by its ID (nil: the nameless Agent). In memory only, never in the Memory.
     private var workingAgents: [String?: Date] = [:]
     /// The Mac is running hot.
     private var hot = false
     /// What Pix remembers of the user's days.
     public private(set) var memory: Memory
+    private var wardrobe: Wardrobe
     /// The hat Pix wears.
-    public private(set) var hat: Hat?
-    /// Every hat counts as earned (the developer's allHats setting).
-    private let allHats: Bool
+    public var hat: Hat? { wardrobe.worn }
     private var calendar: Calendar
 
     /// How long a Focus session lasts.
@@ -339,7 +342,7 @@ public struct Controller {
     }
 
     /// What Pix keeps between launches, as it is now.
-    public var saved: Saved { Saved(hidden: hidden, overrides: overrides, memory: memory, hat: hat) }
+    public var saved: Saved { Saved(hidden: hidden, overrides: overrides, memory: memory, hat: hat, lastSeen: lastSeen) }
 
     /// `saved` is what the app kept from the last launch; `allHats` is the developer's setting, never saved back.
     public init(selfBundleID: String, frontApp: String?, power: Power, at time: Date, timeZone: TimeZone, saved: Saved = Saved(),
@@ -349,7 +352,7 @@ public struct Controller {
         self.frontApp = frontApp
         overrides = saved.overrides
         memory = saved.memory
-        self.allHats = allHats
+        lastSeen = saved.lastSeen
         now = time
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
@@ -358,24 +361,23 @@ public struct Controller {
         activity = Self.activity(for: frontApp, overrides: overrides)
         self.power = power
         sessions[activity] = Session(startingAt: time)
-        hat = saved.hat.flatMap { wearableHats.contains($0) ? $0 : nil }
+        wardrobe = Wardrobe(wearing: saved.hat, memory: saved.memory, allHats: allHats)
     }
 
     /// The hats Pix may wear: those it has earned, or all of them with allHats.
-    public var wearableHats: [Hat] { allHats ? Hat.allCases : Hat.earned(by: memory) }
+    public var wearableHats: [Hat] { wardrobe.wearable(by: memory) }
 
     /// Pix's hello: on the day's first arrival maybe a special one from its Memory, otherwise in its Mood.
-    /// The arrival is remembered either way.
-    private mutating func greeting(at time: Date) -> Moment? {
-        let firstToday = memory.days.last != Memory.day(time, in: calendar)
-        let occasion = Occasion(on: time, calendar: calendar).map(\.greeting)
-        let special = firstToday ? occasion ?? memory.specialGreeting(at: time, calendar: calendar) : nil
-        memory.arrived(at: time, calendar: calendar)
-        if let special, special != .cheerful || mood != .sleepy { return .greeting(special) }
+    /// The arrival is remembered either way. When the user was Away for `away` seconds, Pix is found at a Pastime first;
+    /// nil, when it isn't known how long (the very first launch).
+    private mutating func greeting(at time: Date, awayFor away: TimeInterval?) -> Moment? {
+        let after = away.map { Pastime.found(awayFor: $0, at: time, calendar: calendar) }
+        let special = memory.arrive(at: time, calendar: calendar)
+        if let special, special != .cheerful || mood != .sleepy { return .greeting(special, after: after) }
         return switch mood {
-        case .cheerful: .greeting(.cheerful)
-        case .sleepy: .greeting(.sleepy)
-        case .content, .focused, .grumpy: .greeting(.hello)
+        case .cheerful: .greeting(.cheerful, after: after)
+        case .sleepy: .greeting(.sleepy, after: after)
+        case .content, .focused, .grumpy: .greeting(.hello, after: after)
         }
     }
 
@@ -387,23 +389,11 @@ public struct Controller {
 
     @discardableResult
     public mutating func handle(_ event: Event, at time: Date) -> Moment? {
-        let hatsBefore = Hat.earned(by: memory)
-        var moment = react(to: event, at: time)
-        if case .defaultBar = bar { moment = nil }  // nobody sees a Moment on the Default bar
-        let newHats = Hat.earned(by: memory).filter { !hatsBefore.contains($0) }
-        if let newest = newHats.last { hat = newest }  // a hat just earned goes straight on
-        if let worn = hat, !wearableHats.contains(worn) { hat = nil }  // given back with the Memory
-        let earned = !newHats.isEmpty
-        if earned { newHatOwed = true }
-        guard newHatOwed, case .room = bar else { return moment }  // nobody sees it on the Default bar: it waits
-        switch moment {
-        case .greeting?: return moment  // the Greeting first; NEW HAT follows on the next quiet event
-        case .some where !earned: return moment  // a NEW HAT owed from before waits for an event with no Moment of its own
-        default:
-            // A hat is rare: earning one is the Moment, whatever else was about to play.
-            newHatOwed = false
-            return .newHat
-        }
+        let before = memory
+        let moment = react(to: event, at: time)
+        lastSeen = isAway ? (awaySince ?? lastSeen) : time
+        let onRoom = bar != .defaultBar  // nobody sees a Moment on the Default bar
+        return wardrobe.moment(onRoom ? moment : nil, from: before, to: memory, onRoom: onRoom)
     }
 
     private mutating func react(to event: Event, at time: Date) -> Moment? {
@@ -418,7 +408,8 @@ public struct Controller {
         if !isAway && wasAway, let since = awaySince {
             sessions[activity]?.resume(at: time)
             awaySince = nil
-            if time.timeIntervalSince(since) >= Rules.longAway { return greeting(at: time) }
+            let away = time.timeIntervalSince(since)
+            if away >= Rules.longAway { return greeting(at: time, awayFor: away) }
         }
         // The user doing something counts as being here today, Greeting or not (say, working past midnight).
         switch event {
@@ -449,7 +440,7 @@ public struct Controller {
     private mutating func apply(_ event: Event, at time: Date, wasAway: Bool) -> Moment? {
         switch event {
         case .appStarted:
-            return greeting(at: time)
+            return greeting(at: time, awayFor: lastSeen.map { time.timeIntervalSince($0) })
         case .pixTapped:
             if poke(times: 1, at: time) { return .reaction(.dizzy) }
             if activity == .meeting { return .reaction(.shh) }  // Pix is on a call
@@ -507,7 +498,6 @@ public struct Controller {
             focusUntil = nil
         case .forgetMemory:
             memory = Memory()
-            newHatOwed = false
         case .thermalChanged(let nowHot):
             let heated = nowHot && !hot
             hot = nowHot
@@ -515,7 +505,7 @@ public struct Controller {
         case .timeZoneChanged(let zone):
             calendar.timeZone = zone
         case .chooseHat(let chosen):
-            if chosen.map(wearableHats.contains) ?? true { hat = chosen }
+            wardrobe.choose(chosen, memory: memory)
         case .agent(let state, let agent):
             workingAgents[agent] = state == .working ? time : nil
             switch state {

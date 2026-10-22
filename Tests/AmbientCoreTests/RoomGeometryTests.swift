@@ -44,13 +44,18 @@ let narrow = RoomGeometry(barWidth: 900)
 }
 
 @Test func pixStandsBesideAPlantFacingIt() {
-    #expect(m1.standingPoint(for: .waterPlant(at: 404, fromRight: true)) == ErrandStand(x: 424, facingLeft: true))
-    #expect(m1.standingPoint(for: .waterPlant(at: 404, fromRight: false)) == ErrandStand(x: 396, facingLeft: false))
+    #expect(m1.standingPoint(for: .waterPlant(deskPlant, fromRight: true)) == ErrandStand(x: 424, facingLeft: true))
+    #expect(m1.standingPoint(for: .waterPlant(deskPlant, fromRight: false)) == ErrandStand(x: 396, facingLeft: false))
+}
+
+@Test func pixStandsBesideTheWindowPlantOnTheWindowsStrip() {
+    #expect(m1.standingPoint(for: .waterPlant(windowPlant, fromRight: true)) == ErrandStand(x: 1702, facingLeft: true))  // 1004 + 678 + 6 + 14
+    #expect(m1.standingPoint(for: .waterPlant(windowPlant, fromRight: false)) == ErrandStand(x: 1674, facingLeft: false))  // 1004 + 678 + 6 - 14
 }
 
 @Test func errandsStandInTheSamePlaceOnAWiderBarBecauseTheDeskStripComesFirst() {
     #expect(wide.standingPoint(for: .switchLamp) == ErrandStand(x: 654, facingLeft: false))
-    #expect(narrow.standingPoint(for: .waterPlant(at: 730, fromRight: false)) == ErrandStand(x: 722, facingLeft: false))  // 730 + 6 - 14
+    #expect(narrow.standingPoint(for: .waterPlant(otherDeskPlant, fromRight: false)) == ErrandStand(x: 722, facingLeft: false))  // 730 + 6 - 14
 }
 
 @Test func theStrollAtTheWindowGoesBetweenItsEnds() {
@@ -102,4 +107,10 @@ let narrow = RoomGeometry(barWidth: 900)
     #expect(!Art.skinFits("pix-face", width: 72, height: 7, bundled: (60, 7)))
     #expect(Art.skinFits("hats", width: 80, height: 6, bundled: (80, 6)))
     #expect(!Art.skinFits("room-desk", width: 1000, height: 30, bundled: (1004, 30)))
+}
+
+@Test func pixIsFoundWhereItsPastimeIs() {
+    #expect(m1.place(of: .doze) == m1.rest(at: .couch))  // sitting on the couch
+    #expect(m1.place(of: .gaze) == m1.rest(at: .window))
+    #expect(m1.place(of: .coffee) == CGPoint(x: 613, y: 3))  // beside the coffee machine: 618 - 5, on the floor
 }

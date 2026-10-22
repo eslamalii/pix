@@ -38,11 +38,8 @@ public struct Memory: Codable, Equatable, Sendable {
     static let earlyBy = 45           // minutes before the usual arrival that count as early
     static let manyPets = 5           // Pets in a day that make the next morning's Greeting cheerful
 
-    /// The day's first Greeting, when it's special: back after days away, early, the weekend, or after a day of Pets.
-    /// Nil once Pix has seen the user today, or when nothing about today is special.
-    public func specialGreeting(at time: Date, calendar: Calendar) -> Greeting? {
-        let today = Self.day(time, in: calendar)
-        guard days.last != today else { return nil }
+    /// What makes a first arrival special: back after days away, early, the weekend, or after a day of Pets.
+    private func specialGreeting(at time: Date, calendar: Calendar) -> Greeting? {
         if let last = days.last, let gap = Self.days(from: last, to: time, in: calendar), gap >= Self.backAfterDays { return .missedYou }
         let weekend = calendar.isDateInWeekend(time)
         if !weekend, let usual = usualArrival, Self.minutes(time, in: calendar) <= usual - Self.earlyBy { return .early }
@@ -70,11 +67,17 @@ public struct Memory: Codable, Equatable, Sendable {
         return true
     }
 
-    /// The user arrived and Pix greeted them: the day's first arrival also notes its time, on a weekday.
-    public mutating func arrived(at time: Date, calendar: Calendar) {
-        guard saw(at: time, calendar: calendar), !calendar.isDateInWeekend(time) else { return }
-        arrivals[Self.day(time, in: calendar)] = Self.minutes(time, in: calendar)
-        arrivals = Self.latest(Self.keepArrivals, of: arrivals)
+    /// The user arrived and Pix greets them. The day's first arrival may be special (an Occasion first, then what Pix
+    /// remembers of the days before) and, on a weekday, notes its time; nil after that, or when nothing is special.
+    @discardableResult
+    public mutating func arrive(at time: Date, calendar: Calendar) -> Greeting? {
+        let special = Occasion(on: time, calendar: calendar)?.greeting ?? specialGreeting(at: time, calendar: calendar)
+        guard saw(at: time, calendar: calendar) else { return nil }  // read before it's remembered: today isn't new after
+        if !calendar.isDateInWeekend(time) {
+            arrivals[Self.day(time, in: calendar)] = Self.minutes(time, in: calendar)
+            arrivals = Self.latest(Self.keepArrivals, of: arrivals)
+        }
+        return special
     }
 
     /// A Focus session ran to the end (one stopped early doesn't count).
@@ -107,54 +110,5 @@ public struct Memory: Codable, Equatable, Sendable {
     /// The `count` latest days of a by-day record ("yyyy-MM-dd" sorts by date).
     private static func latest(_ count: Int, of record: [String: Int]) -> [String: Int] {
         Dictionary(uniqueKeysWithValues: record.sorted { $0.key < $1.key }.suffix(count).map { ($0.key, $0.value) })
-    }
-}
-
-/// A hat Pix earns by spending time with the user, worn by choice from the menu. Nothing to buy or trade.
-public enum Hat: String, CaseIterable, Sendable {
-    // Only ever add hats at the end: skins draw them by position (see Art.hats).
-    case cap, beanie, party, flower, crown, headband, witch, santa, topHat
-
-    /// What earns a hat: days together, Pets, Focus sessions finished, or an Occasion spent with the user.
-    public enum Requirement: Equatable, Sendable {
-        case days(Int), pets(Int), focusSessions(Int), occasion(Occasion)
-    }
-
-    public var requirement: Requirement {
-        switch self {
-        case .cap: .days(3)
-        case .beanie: .days(7)
-        case .party: .pets(25)
-        case .flower: .pets(100)
-        case .crown: .days(30)
-        case .headband: .focusSessions(10)
-        case .witch: .occasion(.halloween)
-        case .santa: .occasion(.holidays)
-        case .topHat: .occasion(.newYear)
-        }
-    }
-
-    public func isEarned(by memory: Memory) -> Bool {
-        switch requirement {
-        case .days(let days): memory.totalDays >= days
-        case .pets(let pets): memory.totalPets >= pets
-        case .focusSessions(let sessions): memory.totalFocusSessions >= sessions
-        case .occasion(let occasion): memory.occasions.contains(occasion)
-        }
-    }
-
-    /// The hats Pix has earned, in menu order.
-    public static func earned(by memory: Memory) -> [Hat] { allCases.filter { $0.isEarned(by: memory) } }
-
-    /// How it's earned, for the menu: "3 days together" or "25 Pets".
-    public var howToEarn: String {
-        switch requirement {
-        case .days(let days): "\(days) days together"
-        case .pets(let pets): "\(pets) Pets"
-        case .focusSessions(let sessions): "\(sessions) Focus sessions"
-        case .occasion(.halloween): "Halloween together"
-        case .occasion(.holidays): "the holidays together"
-        case .occasion(.newYear): "New Year's Day together"
-        }
     }
 }

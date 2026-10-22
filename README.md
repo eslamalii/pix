@@ -293,6 +293,12 @@ Sample skins (**Rose**, **Midnight**, and **Mint**) are included in `Skins/` (`.
 
 ---
 
+## Development
+
+Read [Architecture](ARCHITECTURE.md) for module ownership, dependency direction, feature placement and the criteria for architectural changes.
+
+---
+
 ## License & Community
 
 - **Code:** [MIT License](LICENSE).

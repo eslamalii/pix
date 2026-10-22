@@ -44,6 +44,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 codesign --force --sign - "$APP"
+scripts/verify-app.sh "$APP" $ARCH_FLAGS
 if [ "$1" = "--bundle" ]; then echo "Built $APP $VERSION ($BUILD)"; exit 0; fi
 
 pkill -x Pix 2>/dev/null && sleep 1 || true
