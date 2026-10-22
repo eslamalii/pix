@@ -15,7 +15,6 @@ final class PixView: NSView {
     private var room: Room?        // what the Controller wants shown
     private var shown: Room?       // what the layers currently show
     private let effects: RoutineEffects
-    private var calendar: Calendar
     private let composition: RoomComposition
     private var pix: CALayer { composition.pix }
     private var world: CALayer? { composition.world }
@@ -47,8 +46,9 @@ final class PixView: NSView {
     /// How the Clock reads; set from the menu.
     var clockStyle: ClockStyle = .system {
         didSet {
+            let zone = clockFormat.timeZone
             clockFormat = Self.format(for: clockStyle)
-            clockFormat.timeZone = calendar.timeZone
+            clockFormat.timeZone = zone
             if world != nil { updateClock(at: effects.now()) }
         }
     }
@@ -60,13 +60,10 @@ final class PixView: NSView {
     }
 
     init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current) {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        self.calendar = calendar
         self.composition = RoomComposition(routine: routine, effects: effects, timeZone: timeZone)
         self.effects = effects
         super.init(frame: frame)
-        clockFormat.timeZone = calendar.timeZone
+        clockFormat.timeZone = timeZone
         barWidth.isActive = true
         wantsLayer = true
         layer?.backgroundColor = NSColor.black.cgColor
@@ -74,7 +71,6 @@ final class PixView: NSView {
         allowedTouchTypes = .direct
         composition.onTime = { [weak self] time, zone in
             guard let self else { return }
-            calendar.timeZone = zone
             clockFormat.timeZone = zone
             updateClock(at: time)
         }
@@ -103,7 +99,6 @@ final class PixView: NSView {
 
     /// macOS moved to another time zone: all drawings and Routine decisions share this observation.
     func timeZoneChanged(_ zone: TimeZone) {
-        calendar.timeZone = zone
         clockFormat.timeZone = zone
         composition.timeZoneChanged(zone)
     }
