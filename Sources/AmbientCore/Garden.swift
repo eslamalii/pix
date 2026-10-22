@@ -21,8 +21,9 @@ public struct Garden: Codable, Equatable, Sendable {
 
     public init() {}
 
-    /// Plants the Garden hasn't seen before start freshly watered.
+    /// The Room's plants: ones the Garden hasn't seen before start freshly watered, and ones it no longer has are forgotten.
     public mutating func adopt(_ plants: [Plant], at time: Date, random: () -> Double) {
+        thirstyAt = thirstyAt.filter { plants.contains($0.key) }
         for plant in plants where thirstyAt[plant] == nil { watered(plant, at: time, random: random) }
     }
 

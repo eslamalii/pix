@@ -41,3 +41,12 @@ func aPlantTurnsThirstyThreeToSixHoursAfterItWasWatered(roll: Double, seconds: D
     #expect(Set(weekend) == Set(allPlants))
     #expect(Set(month) == Set(allPlants))
 }
+
+@Test func aPlantTheRoomNoLongerHasIsForgottenAtTheNextLaunch() throws {
+    var garden = Garden()
+    garden.adopt(allPlants, at: at(0), random: { 0 })  // all thirsty from 03:00
+    let moved = Plant(strip: "desk", x: 420)  // an update moved the desk plant
+    garden.adopt([moved, otherDeskPlant, windowPlant], at: at(4), random: { 0 })
+    #expect(Set(garden.thirsty(at: at(4))) == [otherDeskPlant, windowPlant])
+    #expect(garden.thirsty(at: at(7)).contains(moved))
+}
