@@ -133,10 +133,7 @@ public struct Routine {
     private var lamp: Bool?  // nil until the scene first starts, when it takes the hour's state
     /// The end of the window the Stroll heads for next.
     private var heading = WindowEnd.left
-    /// A Fidget fell due mid-walk: it plays when Pix reaches the end.
-    private var fidgetHeld = false
-    /// When the next Fidget falls due: set by an idle or settling at the window, kept by the Stroll's steps, cleared by anything else.
-    private var fidgetDue: Date?
+    private var fidgetClock: FidgetClock
     /// Sips left in the mug: it starts empty at launch, so the first desk Fidget is the refill.
     private var sipsLeft = 0
     /// Pix has the mug in hand: from setting off on the refill until it's idle again (or leaves for another Spot).
@@ -158,7 +155,7 @@ public struct Routine {
     }
 
     /// When the view should send `wake` (nil: no need).
-    public var nextWake: Date? { fidgetDue }
+    public var nextWake: Date? { fidgetClock.due }
 
     /// `random` and `thirstRandom` return a number in 0..<1; tests pass fixed ones. `garden` is what Pix kept of the
     /// plants' thirst from the last launch.
@@ -167,6 +164,7 @@ public struct Routine {
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         self.random = random
+        fidgetClock = FidgetClock(random: random)
         self.garden = garden
         self.thirstRandom = thirstRandom
     }
@@ -187,7 +185,8 @@ public struct Routine {
 
         case .sceneStopped:
             (running, current, waiting, afterGreeting) = (false, nil, nil, [])
-            (heading, fidgetHeld, fidgetDue) = (.left, false, nil)
+            heading = .left
+            fidgetClock.stop()
             return nil
 
         case .roomChanged(let new):
@@ -208,7 +207,7 @@ public struct Routine {
                 let moodChanged = new.mood != old?.mood
                 let hotChanged = new.hot != old?.hot
                 if moodChanged {
-                    fidgetDue = nextFidgetDue(for: new, at: time)
+                    fidgetClock.rest(at: time, fits: fidgetFits(new, at: time))
                 }
                 if isStrolling && (moodChanged || hotChanged) {
                     return .relook(restLook())
@@ -248,9 +247,7 @@ public struct Routine {
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
                 heading = end.other
-                let held = fidgetHeld
-                fidgetHeld = false  // played now or never: it must not wait for a later walk
-                if held, let fidget = fidget(at: time) { return fidget }  // in place of the stop
+                if fidgetClock.walkEnded(), let fidget = fidget(at: time) { return fidget }  // in place of the stop
                 return start(.stop(at: end, body: end.stopBody, restLook()))
             case .stop:
                 return nextStrollStep()
@@ -264,27 +261,8 @@ public struct Routine {
             return settle(at: time)
 
         case .wake:
-            guard running, let wakeTime = nextWake, time >= wakeTime else { return nil }
-            let fidgetTime = fidgetDue.map { time >= $0 } == true
-            if fidgetTime {
-                fidgetDue = nil
-            }
-            switch current {
-            case .stroll:
-                if fidgetTime { fidgetHeld = true }
-                return nil
-
-            case .stop:
-                if fidgetTime, let fidget = fidget(at: time) { return fidget }
-                return nil
-
-            case .idle:
-                if fidgetTime { return fidget(at: time) }
-                return nil
-
-            default:
-                return nil
-            }
+            guard running, fidgetClock.wake(at: time, during: current) else { return nil }
+            return fidget(at: time)
 
         case .timeZoneChanged(let zone):
             calendar.timeZone = zone
@@ -328,7 +306,7 @@ public struct Routine {
             needleDown = true
             return start(.dropNeedle)
         }
-        fidgetDue = nextFidgetDue(for: room, at: time)
+        fidgetClock.rest(at: time, fits: fidgetFits(room, at: time))
         if room.spot == .window {
             return nextStrollStep()
         }
@@ -343,9 +321,9 @@ public struct Routine {
     /// The Stroll's next walk.
     private mutating func nextStrollStep() -> Step { start(.stroll(to: heading, restLook())) }
 
-    /// When the next Fidget falls due 30 to 90 seconds on; none while focused, or when none fit where Pix is.
-    private func nextFidgetDue(for room: Room, at time: Date) -> Date? {
-        room.mood == .focused || Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty ? nil : time + 30 + random() * 60
+    /// Some Fidget fits where Pix is and how it feels: none while focused.
+    private func fidgetFits(_ room: Room, at time: Date) -> Bool {
+        room.mood != .focused && !Self.fidgets(for: room, sipsLeft: sipsLeft, coffee: coffeeHours(at: time)).isEmpty
     }
 
     /// A Fidget that fits where Pix is and how it feels, if any.
@@ -369,16 +347,7 @@ public struct Routine {
 
     private mutating func start(_ step: Step) -> Step {
         current = step
-        switch step {
-        case .stroll, .stop:
-            // The Fidget deadline carries on
-            break
-        case .idle:
-            fidgetHeld = false
-        default:
-            fidgetHeld = false
-            fidgetDue = nil
-        }
+        fidgetClock.started(step)
         switch step {
         case .walk, .errand, .walkBack, .pastime: place = .onTheWay  // until it finishes
         default: break
