@@ -8,7 +8,6 @@ private let log = Logger(subsystem: appID, category: "art")
 /// app bundle (Contents/Resources/Art).
 @MainActor
 final class ArtFiles {
-    static let shared = ArtFiles()
     private let classicFolder: URL?
 
     init(classicFolder: URL? = Bundle.main.resourceURL?.appendingPathComponent("Art"), skin: URL? = nil) {

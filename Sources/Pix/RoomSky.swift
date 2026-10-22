@@ -26,13 +26,17 @@ final class RoomSky {
 
     private let sky = CAGradientLayer(), skyBox = CALayer(), skyLife = CALayer()
     private let halloween: HalloweenLayers
+    private let art: ArtFiles
     private var conditions: Conditions?
     private var drawn: Conditions?
     private var visible = false
     private var fps = 12
     private var frameRange: CAFrameRateRange { capped(fps) }
 
-    init(halloween: HalloweenLayers) { self.halloween = halloween }
+    init(halloween: HalloweenLayers, art: ArtFiles = ArtFiles()) {
+        self.halloween = halloween
+        self.art = art
+    }
 
     func build(in world: CALayer, geometry: RoomGeometry) {
         skyBox.name = "skyBox"
@@ -85,7 +89,7 @@ final class RoomSky {
         switch daylight {
         case .night:
             for _ in 0..<Int(pane.width / 20) {  // one star per 20 points of window
-                let star = pixelCrisp(ArtFiles.shared.image("emotes"))
+                let star = pixelCrisp(art.image("emotes"))
                 star.contentsRect = emoteSlot("star")
                 star.frame = CGRect(x: .random(in: 0...(pane.width - 8)), y: .random(in: 4...(pane.height - 8)), width: 8, height: 8)
                 let twinkle = CAKeyframeAnimation(keyPath: "opacity")
@@ -120,7 +124,7 @@ final class RoomSky {
             skyLife.addSublayer(streak)
         case .day, .dawn:
             for i in 0..<3 {
-                let cloud = pixelCrisp(ArtFiles.shared.image("cloud"))
+                let cloud = pixelCrisp(art.image("cloud"))
                 cloud.frame = CGRect(x: 0, y: CGFloat(4 + i * 4), width: Art.cloud.width, height: Art.cloud.height)
                 let drift = CABasicAnimation(keyPath: "position.x")
                 drift.fromValue = -Art.cloud.width

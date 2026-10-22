@@ -147,3 +147,51 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
     #expect(waits.transactions.isEmpty)
     withExtendedLifetime(world) {}
 }
+
+@MainActor
+@Test func frameCapRefreshesIdleDrawingsWithoutFinishingTheStep() throws {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .musicCorner)
+    defer { playback.stop() }
+    var finished = 0
+    playback.onFinished = { finished += 1 }
+    playback.run(.idle(.musicCorner, .content))
+    let oldRecord = try #require(world.sublayers?.first { $0.animation(forKey: "turn") != nil })
+    playback.fps = 6
+    #expect(playback.step == .idle(.musicCorner, .content))
+    #expect(finished == 0 && waits.transactions.isEmpty)
+    #expect(oldRecord.superlayer == nil)
+    let record = try #require(world.sublayers?.first { $0.animation(forKey: "turn") != nil })
+    #expect(record.animation(forKey: "turn")?.preferredFrameRateRange.maximum == 6)
+    #expect(playback.pix.sublayers?.contains { $0.animation(forKey: "frames")?.preferredFrameRateRange.maximum == 6 } == true)
+    playback.fps = 6
+    #expect(record.superlayer === world) // An unchanged cap leaves the drawing alone.
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func frameCapKeepsFiniteCompletionAndRejectsItAfterInterruption() throws {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits)
+    defer { playback.stop() }
+    var finished = 0
+    playback.onFinished = { finished += 1 }
+    playback.run(.stroll(to: .left))
+    let walkDone = try #require(waits.transactions.last)
+    playback.fps = 6
+    #expect(waits.transactions.count == 1)
+    #expect(playback.pix.animation(forKey: "slide-position.x")?.preferredFrameRateRange.maximum == 12)
+    walkDone()
+    walkDone()
+    #expect(finished == 1)
+    playback.run(.moment(.reaction(.wave)))
+    let momentDone = try #require(waits.transactions.last)
+    #expect(playback.pix.sublayers?.contains { $0.animation(forKey: "frames")?.preferredFrameRateRange.maximum == 6 } == true)
+    playback.fps = 10
+    #expect(waits.transactions.count == 2)
+    playback.run(.idle(.desk, .content))
+    momentDone()
+    #expect(finished == 1)
+    #expect(playback.pix.sublayers?.contains { $0.animation(forKey: "frames")?.preferredFrameRateRange.maximum == 10 } == true)
+    withExtendedLifetime(world) {}
+}

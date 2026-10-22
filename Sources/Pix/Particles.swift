@@ -8,7 +8,7 @@ enum Particles {
     /// `count` sprites rising from `origin` in `host`, staggered over `period`, each making `flights` flights (forever
     /// by default). Inside a Moment they must end: the Moment ends when everything it started has.
     static func draw(_ sprite: String, count: Int, every period: Double, from origin: CGPoint, in host: CALayer?,
-                     rise: CGFloat = 8, life: Double = 2, flights: Float = .infinity, fps: Int, art: ArtFiles = .shared) -> [CALayer] {
+                     rise: CGFloat = 8, life: Double = 2, flights: Float = .infinity, fps: Int, art: ArtFiles = ArtFiles()) -> [CALayer] {
         guard let host else { return [] }
         return (0..<count).map { i in
             let particle = pixelCrisp(art.image("emotes"))

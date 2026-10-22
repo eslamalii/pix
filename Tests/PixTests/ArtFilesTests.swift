@@ -123,3 +123,85 @@ func invalidSkinHatSheetsUseClassic(size: (Int, Int)) throws {
     playback.stop()
     withExtendedLifetime(world) {}
 }
+
+@MainActor
+@Test func roomSkinRebuildUsesOneArtSourceAndLeavesAnotherRoomAlone() async throws {
+    let fixture = try ArtFixture()
+    defer { fixture.remove() }
+    let drawings = Art.bodies.map { ("pix-" + $0.name, Art.frame, Art.frame) } + [
+        ("pix-face", Art.faces.count * 10, 7), ("emotes", Art.emotes.count * Art.emote, Art.emote),
+        ("hats", Art.hats.count * 16, 6), ("room-desk", Art.stripWidth, Art.height),
+        ("room-window", Art.stripWidth, Art.height), ("mug-gone", 4, 4),
+        ("plant-thirsty", Art.plantProps.count * 12, 19), ("cloud", 16, 6)
+    ]
+    for (name, width, height) in drawings {
+        try fixture.draw(name, in: fixture.classic, width: width, height: height, shade: 0.2)
+        try fixture.draw(name, in: fixture.skin, width: width, height: height, shade: 0.7)
+        // A partial second Skin must fall back for Props and Room strips.
+        if name.hasPrefix("pix-") || name == "emotes" {
+            try fixture.draw(name, in: fixture.other, width: width, height: height, shade: 0.9)
+        }
+    }
+    let zone = TimeZone(secondsFromGMT: 0)!
+    let time = ISO8601DateFormatter().date(from: "2026-10-21T12:00:00Z")!
+    let art = ArtFiles(classicFolder: fixture.classic)
+    let otherArt = ArtFiles(classicFolder: fixture.classic)
+    func makeView(_ art: ArtFiles) -> (PixView, NSWindow) {
+        let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30),
+                           routine: Routine(timeZone: zone), effects: RoutineEffects(now: { time }, saveGarden: { _ in }),
+                           timeZone: zone, art: art)
+        let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
+        window.contentView = view
+        view.show(Room(spot: .window, activity: .other, mood: .focused, fps: 12))
+        return (view, window)
+    }
+    let (view, window) = makeView(art)
+    let (otherView, otherWindow) = makeView(otherArt)
+    defer {
+        view.hide()
+        otherView.hide()
+        window.contentView = nil
+        otherWindow.contentView = nil
+    }
+    // Selecting a Skin before the first build uses the same path as changing it later.
+    view.skin = fixture.skin
+    for _ in 0..<50 where layer("world", of: view) == nil || layer("world", of: otherView) == nil {
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    func verify(_ view: PixView, art: ArtFiles) throws {
+        let world = try #require(layer("world", of: view))
+        let pix = try #require(layer("pix", of: view))
+        let strips = try #require(world.sublayers?.filter { $0.name == "roomStrip" })
+        let cloud = try #require(layer("skyLife", of: view)?.sublayers?.first { $0.animation(forKey: "drift") != nil })
+        let body = try #require(pix.sublayers?.first { $0.animation(forKey: "frames") != nil })
+        let face = try #require(pix.sublayers?.first { $0.animation(forKey: "blink") != nil })
+        let mug = try #require(layer("mugGone", of: view))
+        let plant = try #require(layer("thirstyPlant", of: view))
+        let caption = try #require(layer("captionIcon", of: view))
+        for (drawing, name) in [(strips[0], "room-desk"), (strips[1], "room-window"),
+                                (body, "pix-walk"), (face, "pix-face"), (mug, "mug-gone"),
+                                (plant, "plant-thirsty"), (cloud, "cloud"), (caption, "emotes")] {
+            let image = try #require(drawing.contents) as! CGImage
+            #expect(image === art.image(name))
+        }
+    }
+    try verify(view, art: art)
+    try verify(otherView, art: otherArt)
+    let otherWorld = try #require(layer("world", of: otherView))
+    let otherMugImage = try #require(layer("mugGone", of: otherView)?.contents) as! CGImage
+    for skin in [fixture.other, nil] as [URL?] {
+        let previous = try #require(layer("world", of: view))
+        view.skin = skin
+        for _ in 0..<50 where layer("world", of: view) == nil || layer("world", of: view) === previous {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(previous.superlayer == nil)
+        try verify(view, art: art)
+        #expect(layer("world", of: otherView) === otherWorld)
+        #expect((layer("mugGone", of: otherView)?.contents as! CGImage) === otherMugImage)
+        #expect(otherArt.skin == nil)
+        let fallback = try #require(art.image("mug-gone"))
+        #expect((fallback.dataProvider?.data as Data?) == (otherMugImage.dataProvider?.data as Data?))
+    }
+    withExtendedLifetime((window, otherWindow)) {}
+}

@@ -25,14 +25,20 @@ final class Playback {
     /// The body Pix walks in during this step: with the mug held out in front while it carries it.
     private var walkBody = "walk"
     private(set) var step: Routine.Step?
-    var fps = 12
+    /// Resting drawings refresh immediately; finite steps keep their lifetime and use the new cap as they proceed.
+    var fps = 12 {
+        didSet {
+            guard fps != oldValue, world != nil, case .idle(let spot, let look) = step else { return }
+            idle(at: spot, look: look)
+        }
+    }
     var hat: Hat? { didSet { showHat() } }
     var onFinished: () -> Void = {}
     var showSkyLife: (Bool) -> Void = { _ in }
     var showCaption: (Caption) -> Void = { _ in }
     private var frameRange: CAFrameRateRange { capped(fps) }
 
-    init(timing: PlaybackTiming = .live, art: ArtFiles = .shared) {
+    init(timing: PlaybackTiming = .live, art: ArtFiles = ArtFiles()) {
         self.timing = timing
         self.art = art
     }

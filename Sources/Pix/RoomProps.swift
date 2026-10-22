@@ -4,6 +4,7 @@ import AmbientCore
 /// Owns stationary Prop drawings, as the Routine's Props say they show.
 @MainActor
 final class RoomProps {
+    private let art: ArtFiles
     let patches = CALayer(), lampGlow = CALayer()
     private let mugGone = CALayer()
     private var plants: [CALayer] = []
@@ -12,6 +13,8 @@ final class RoomProps {
     private var geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     private var steamFPS: Int?
 
+    init(art: ArtFiles = ArtFiles()) { self.art = art }
+
     func build(in world: CALayer, geometry: RoomGeometry) {
         stop()
         self.world = world
@@ -19,14 +22,14 @@ final class RoomProps {
         mugGone.name = "mugGone"
         mugGone.frame = geometry.rect(Art.mug, on: "desk")
         mugGone.backgroundColor = NSColor.black.cgColor
-        mugGone.contents = ArtFiles.shared.image("mug-gone")
+        mugGone.contents = art.image("mug-gone")
         mugGone.magnificationFilter = .nearest
         patches.name = "propPatches"
         patches.frame = world.bounds
         patches.addSublayer(mugGone)
         world.addSublayer(patches)
         plants = Art.plantProps.enumerated().map { i, plant in
-            let layer = pixelCrisp(ArtFiles.shared.image("plant-thirsty"))
+            let layer = pixelCrisp(art.image("plant-thirsty"))
             layer.name = "thirstyPlant"
             let top = plant.y ?? Art.height - Art.floor - Int(Art.plant.height)
             layer.frame = geometry.rect(CGRect(x: CGFloat(plant.x), y: CGFloat(top), width: Art.plant.width, height: Art.plant.height), on: plant.strip)
@@ -67,7 +70,7 @@ final class RoomProps {
         steam?.removeFromSuperlayer()
         let mug = geometry.rect(Art.mug, on: "desk")
         let origin = CGPoint(x: mug.midX, y: mug.maxY)
-        let particle = Particles.draw("steam", count: 1, every: 12, from: origin, in: world, rise: 7, fps: fps)[0]
+        let particle = Particles.draw("steam", count: 1, every: 12, from: origin, in: world, rise: 7, fps: fps, art: art)[0]
         particle.name = "deskSteam"
         steam = particle
         steamFPS = fps

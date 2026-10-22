@@ -15,6 +15,7 @@ final class PixView: NSView {
     private var room: Room?        // what the Controller wants shown
     private var shown: Room?       // what the layers currently show
     private let effects: RoutineEffects
+    private let art: ArtFiles
     private let composition: RoomComposition
     private var pix: CALayer { composition.pix }
     private var world: CALayer? { composition.world }
@@ -36,7 +37,7 @@ final class PixView: NSView {
     /// The chosen skin's folder (nil for Pix's own art). Changing it rebuilds the scene in the new art.
     var skin: URL? {
         didSet {
-            ArtFiles.shared.skin = skin
+            art.skin = skin
             guard world != nil else { return }
             teardown()
             scheduleRefresh()
@@ -59,8 +60,10 @@ final class PixView: NSView {
         self.init(frame: frame, routine: Routine(timeZone: .current, garden: garden), effects: RoutineEffects())
     }
 
-    init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current) {
-        self.composition = RoomComposition(routine: routine, effects: effects, timeZone: timeZone)
+    init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles()) {
+        self.art = art
+        self.skin = art.skin
+        self.composition = RoomComposition(routine: routine, effects: effects, timeZone: timeZone, art: art)
         self.effects = effects
         super.init(frame: frame)
         clockFormat.timeZone = timeZone
@@ -223,7 +226,8 @@ final class PixView: NSView {
         clock.name = "clock"
         hud.frame = bounds
         hud.zPosition = 1
-        captionIcon.contents = ArtFiles.shared.image("emotes")
+        captionIcon.name = "captionIcon"
+        captionIcon.contents = art.image("emotes")
         caption.opacity = 0
         caption.sublayers = [captionIcon, captionWord]
         hud.sublayers = [clock, caption]

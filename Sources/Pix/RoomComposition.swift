@@ -6,7 +6,8 @@ import AmbientCore
 @MainActor
 final class RoomComposition {
     private let playback: Playback
-    private let propDrawing = RoomProps()
+    private let propDrawing: RoomProps
+    private let art: ArtFiles
     private var routine: Routine
     private let effects: RoutineEffects
     private var savedGarden: Garden
@@ -16,7 +17,7 @@ final class RoomComposition {
     private var calendar: Calendar
     private var room: Room?
     private let halloween = HalloweenLayers()
-    private lazy var sky = RoomSky(halloween: halloween)
+    private lazy var sky = RoomSky(halloween: halloween, art: art)
     private(set) var world: CALayer?
     private var monitors: [CALayer] = []
 
@@ -31,12 +32,14 @@ final class RoomComposition {
     }
 
     init(routine: Routine = Routine(timeZone: .current), effects: RoutineEffects = RoutineEffects(),
-         timing: PlaybackTiming = .live, timeZone: TimeZone = .current) {
+         timing: PlaybackTiming = .live, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles()) {
         self.routine = routine
         self.effects = effects
+        self.art = art
         savedGarden = routine.garden
         props = routine.props(at: effects.now())
-        playback = Playback(timing: timing)
+        playback = Playback(timing: timing, art: art)
+        propDrawing = RoomProps(art: art)
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         playback.onFinished = { [weak self] in self?.send(.finished) }
@@ -59,7 +62,7 @@ final class RoomComposition {
         sky.build(in: world, geometry: geometry)
         var lastStrip: CALayer?
         for name in Art.strips {
-            let strip = pixelCrisp(ArtFiles.shared.image("room-\(name)"))
+            let strip = pixelCrisp(art.image("room-\(name)"))
             strip.name = "roomStrip"
             strip.frame = CGRect(x: geometry.stripX(name), y: 0, width: px(Art.stripWidth), height: px(Art.height))
             world.addSublayer(strip)
@@ -80,10 +83,7 @@ final class RoomComposition {
         let fpsChanged = room.fps != self.room?.fps
         self.room = room
         if fpsChanged { setFrameRate(room.fps) }
-        let next = send(.roomChanged(room))
-        if next == nil, fpsChanged, let step, case .idle = step {
-            playback.run(step, walkBody: props.walkBody) // Busy steps take the new cap when they end.
-        }
+        send(.roomChanged(room))
     }
 
     func play(_ moment: Moment) { send(.momentArrived(moment)) }
