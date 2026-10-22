@@ -376,10 +376,7 @@ public struct Controller {
     /// nil, when it isn't known how long (the very first launch).
     private mutating func greeting(at time: Date, awayFor away: TimeInterval?) -> Moment? {
         let after = away.map { Pastime.found(awayFor: $0, at: time, calendar: calendar) }
-        let firstToday = memory.days.last != Memory.day(time, in: calendar)
-        let occasion = Occasion(on: time, calendar: calendar).map(\.greeting)
-        let special = firstToday ? occasion ?? memory.specialGreeting(at: time, calendar: calendar) : nil
-        memory.arrived(at: time, calendar: calendar)
+        let special = memory.arrive(at: time, calendar: calendar)
         if let special, special != .cheerful || mood != .sleepy { return .greeting(special, after: after) }
         return switch mood {
         case .cheerful: .greeting(.cheerful, after: after)

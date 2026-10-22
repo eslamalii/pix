@@ -768,7 +768,7 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
 
 @Test func backAfterDaysAwayIsTheDaysFirstGreetingButNotTheNext() {
     var memory = Memory()
-    memory.arrived(at: at(9) - 5 * 86_400, calendar: enUS)  // the Wednesday before
+    memory.arrive(at: at(9) - 5 * 86_400, calendar: enUS)  // the Wednesday before
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: at(12)) == .greeting(.missedYou))
     c.handle(.screenSlept, at: at(12, 10))
@@ -823,7 +823,7 @@ func occasionsFallOnTheirDays(month: Int, day: Int, occasion: Occasion) {
 @Test func anOccasionIsTheDaysFirstGreetingEvenOverMemory() {
     let halloween = at(12) + 19 * 86_400  // Saturday 2026-10-31
     var memory = Memory()
-    memory.arrived(at: halloween - 10 * 86_400, calendar: enUS)  // long enough away to be missed
+    memory.arrive(at: halloween - 10 * 86_400, calendar: enUS)  // long enough away to be missed
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: halloween) == .greeting(.halloween))
     c.handle(.screenSlept, at: halloween + 600)
@@ -986,7 +986,7 @@ func anyOtherLinkIsIgnored(link: String) {
 
 @Test func whatPixKeepsFollowsHidingEarningAHatAndForgetting() {
     var memory = Memory()
-    for d in 1...2 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }  // Saturday and Sunday
+    for d in 1...2 { memory.arrive(at: at(9) - Double(d) * 86_400, calendar: enUS) }  // Saturday and Sunday
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
     c.handle(.appStarted, at: at(12))  // the third day earns the cap
     c.handle(.hidePix, at: at(12, 1))
@@ -997,7 +997,7 @@ func anyOtherLinkIsIgnored(link: String) {
 
 @Test func theThirdDayTogetherEarnsACapAndItsNewHatFollowsTheGreeting() {
     var memory = Memory()
-    for d in 1...2 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }  // Saturday and Sunday
+    for d in 1...2 { memory.arrive(at: at(9) - Double(d) * 86_400, calendar: enUS) }  // Saturday and Sunday
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory))
     #expect(c.handle(.appStarted, at: at(12)) == .greeting(.hello))
     #expect(Hat.earned(by: c.memory) == [.cap])
@@ -1104,7 +1104,7 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
 @Test func twoHatsEarnedTogetherPutTheLastOneOn() {
     let halloween = at(12) + 19 * 86_400  // and the third day together
     var memory = Memory()
-    for d in 1...2 { memory.arrived(at: halloween - Double(d) * 86_400, calendar: enUS) }
+    for d in 1...2 { memory.arrive(at: halloween - Double(d) * 86_400, calendar: enUS) }
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: halloween, timeZone: utc, saved: Saved(memory: memory))
     c.handle(.appStarted, at: halloween)
     #expect(Hat.earned(by: c.memory) == [.cap, .witch])
@@ -1135,7 +1135,7 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
 
 @Test func theHatWornAtLaunchStaysOnIfItsEarned() {
     var memory = Memory()
-    for d in 1...3 { memory.arrived(at: at(9) - Double(d) * 86_400, calendar: enUS) }
+    for d in 1...3 { memory.arrive(at: at(9) - Double(d) * 86_400, calendar: enUS) }
     let c = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(memory: memory, hat: .cap))
     #expect(c.hat == .cap)
     let notEarned = Controller(selfBundleID: selfID, frontApp: "com.apple.Safari", power: charger, at: at(12), timeZone: utc, saved: Saved(hat: .crown))

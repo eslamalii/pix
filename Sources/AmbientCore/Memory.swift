@@ -38,11 +38,8 @@ public struct Memory: Codable, Equatable, Sendable {
     static let earlyBy = 45           // minutes before the usual arrival that count as early
     static let manyPets = 5           // Pets in a day that make the next morning's Greeting cheerful
 
-    /// The day's first Greeting, when it's special: back after days away, early, the weekend, or after a day of Pets.
-    /// Nil once Pix has seen the user today, or when nothing about today is special.
-    public func specialGreeting(at time: Date, calendar: Calendar) -> Greeting? {
-        let today = Self.day(time, in: calendar)
-        guard days.last != today else { return nil }
+    /// What makes a first arrival special: back after days away, early, the weekend, or after a day of Pets.
+    private func specialGreeting(at time: Date, calendar: Calendar) -> Greeting? {
         if let last = days.last, let gap = Self.days(from: last, to: time, in: calendar), gap >= Self.backAfterDays { return .missedYou }
         let weekend = calendar.isDateInWeekend(time)
         if !weekend, let usual = usualArrival, Self.minutes(time, in: calendar) <= usual - Self.earlyBy { return .early }
@@ -70,11 +67,17 @@ public struct Memory: Codable, Equatable, Sendable {
         return true
     }
 
-    /// The user arrived and Pix greeted them: the day's first arrival also notes its time, on a weekday.
-    public mutating func arrived(at time: Date, calendar: Calendar) {
-        guard saw(at: time, calendar: calendar), !calendar.isDateInWeekend(time) else { return }
-        arrivals[Self.day(time, in: calendar)] = Self.minutes(time, in: calendar)
-        arrivals = Self.latest(Self.keepArrivals, of: arrivals)
+    /// The user arrived and Pix greets them. The day's first arrival may be special (an Occasion first, then what Pix
+    /// remembers of the days before) and, on a weekday, notes its time; nil after that, or when nothing is special.
+    @discardableResult
+    public mutating func arrive(at time: Date, calendar: Calendar) -> Greeting? {
+        let special = Occasion(on: time, calendar: calendar)?.greeting ?? specialGreeting(at: time, calendar: calendar)
+        guard saw(at: time, calendar: calendar) else { return nil }  // read before it's remembered: today isn't new after
+        if !calendar.isDateInWeekend(time) {
+            arrivals[Self.day(time, in: calendar)] = Self.minutes(time, in: calendar)
+            arrivals = Self.latest(Self.keepArrivals, of: arrivals)
+        }
+        return special
     }
 
     /// A Focus session ran to the end (one stopped early doesn't count).
