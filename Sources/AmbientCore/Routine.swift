@@ -117,8 +117,6 @@ public struct Routine {
         case onTheWay
     }
 
-    private static let lampOnFrom = 19, lampOnUntil = 6  // hours, local time
-
     private var calendar: Calendar
     private let random: () -> Double
     private var room: Room?
@@ -129,7 +127,7 @@ public struct Routine {
     /// Moments that arrived while Pix was found at a Pastime: they play after the Greeting, in order.
     private var afterGreeting: [Moment] = []
     private var needleDown = false
-    private var lamp: Bool?  // nil until the scene first starts, when it takes the hour's state
+    private var lamp = Lamp()
     /// The end of the window the Stroll heads for next.
     private var heading = WindowEnd.left
     private var fidgetClock: FidgetClock
@@ -149,7 +147,7 @@ public struct Routine {
     public func props(at time: Date) -> Props {
         let resting: Bool
         if case .idle(.desk, _)? = current { resting = true } else { resting = false }
-        return Props(lampLit: lamp == true, mugAway: mug.inHand, mugSteams: resting && mug.hot(atHour: hour(of: time)),
+        return Props(lampLit: lamp.lit, mugAway: mug.inHand, mugSteams: resting && mug.hot(atHour: hour(of: time)),
                      thirstyPlants: Set(garden.thirsty(at: time)))
     }
 
@@ -174,7 +172,7 @@ public struct Routine {
         case .sceneStarted(let room):
             self.room = room
             running = true
-            if lamp == nil { lamp = lampWanted(at: time) }
+            lamp.found(atHour: hour(of: time))
             garden.adopt(Self.plants, at: time, random: thirstRandom)
             let from = lastSpot ?? room.spot
             (place, lastSpot) = (.spot(from), room.spot)
@@ -239,7 +237,7 @@ public struct Routine {
                 place = .prop
                 return start(.use(errand))
             case .use(let errand):
-                if errand == .switchLamp { lamp = lampWanted(at: time) }
+                if errand == .switchLamp { lamp.switched(atHour: hour(of: time)) }
                 if errand == .refillMug { mug.filled(inHand: true) }
                 if case .waterPlant(let plant, _) = errand { garden.watered(plant, at: time, random: thirstRandom) }
                 if room?.spot == .window { return nextStrollStep() }  // at the window, on from the Prop is part of the Stroll
@@ -391,14 +389,9 @@ public struct Routine {
 
     private func hour(of time: Date) -> Int { calendar.component(.hour, from: time) }
 
-    private func lampWanted(at time: Date) -> Bool {
-        let hour = hour(of: time)
-        return hour >= Self.lampOnFrom || hour < Self.lampOnUntil
-    }
-
     /// The lamp isn't as the hour wants it, and Pix is on the desk side to do something about it.
     private func lampNeedsSwitching(at time: Date) -> Bool {
-        guard let lamp, let room, room.spot != .window else { return false }
-        return lamp != lampWanted(at: time)
+        guard let room, room.spot != .window else { return false }
+        return lamp.needsSwitching(atHour: hour(of: time))
     }
 }
