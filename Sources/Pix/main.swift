@@ -9,7 +9,7 @@ private let log = Logger(subsystem: appID, category: "app")
 /// Wires macOS events into the Controller and applies its decision to the Touch Bar.
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let trayID = NSTouchBarItem.Identifier("\(appID).sparkles")
+    private let trayID = NSTouchBarItem.Identifier("\(appID).pixButton")
     private let barID = NSTouchBarItem.Identifier("\(appID).ambient")
     private let bar = NSTouchBar()
     private let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30))  // it takes the bar's real width
@@ -37,9 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         log.notice("starting \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev", privacy: .public)")
 
-        let sparkles = NSCustomTouchBarItem(identifier: trayID)
-        sparkles.view = NSButton(image: StatusMenu.icon, target: self, action: #selector(sparklesTapped))
-        presenter.addToControlStrip(sparkles)
+        let pixButton = NSCustomTouchBarItem(identifier: trayID)
+        pixButton.view = NSButton(image: StatusMenu.icon, target: self, action: #selector(pixButtonTapped))
+        presenter.addToControlStrip(pixButton)
 
         let item = NSCustomTouchBarItem(identifier: barID)
         item.view = view
@@ -96,7 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         checkForTouchBar()
     }
 
-    @objc private func sparklesTapped() { send(.sparklesTapped) }
+    @objc private func pixButtonTapped() { send(.pixButtonTapped) }
 
     /// pix://agent/working, …/waiting, …/done or …/failed, from an Agent's hooks. Anything else is ignored.
     func application(_ application: NSApplication, open urls: [URL]) { agentDelivery.receive(urls) }

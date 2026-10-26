@@ -30,7 +30,7 @@ final class AppExecution {
         saveChanges()
         switch event {
         // macOS may have closed the bar without notifying Pix.
-        case .frontAppChanged, .sparklesTapped, .showPix: effects.render(controller.bar)
+        case .frontAppChanged, .pixButtonTapped, .showPix: effects.render(controller.bar)
         default: if controller.bar != before { effects.render(controller.bar) }
         }
         if let moment { effects.play(moment) }

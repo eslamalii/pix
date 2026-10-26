@@ -98,10 +98,10 @@ func onACallATapOnPixAlwaysGetsShh(time: Date) {
     #expect(handedBack.bar == .defaultBar)
 }
 
-@Test func tappingSparklesBringsPixBackWithoutSwitchingApps() {
+@Test func tappingThePixButtonBringsPixBackWithoutSwitchingApps() {
     var c = launched(in: "com.spotify.client")
     c.handle(.tappedElsewhere, at: at(12, 1))
-    c.handle(.sparklesTapped, at: at(12, 2))
+    c.handle(.pixButtonTapped, at: at(12, 2))
     #expect(c.bar == room(.musicCorner, .music))
 }
 
@@ -383,7 +383,7 @@ func pingPong(_ c: inout Controller, at times: [Date]) {
     var c = launched(in: "com.microsoft.VSCode", at: at(12, 0))
     c.handle(.tappedElsewhere, at: at(12, 5))
     c.handle(.clockTick, at: at(12, 45))
-    c.handle(.sparklesTapped, at: at(12, 46))
+    c.handle(.pixButtonTapped, at: at(12, 46))
     #expect(c.bar == room(.desk, .coding, .focused))
 }
 
@@ -589,8 +589,8 @@ func aMomentPlaysOnlyWhilePixIsShown(maker: MomentMaker, hidden: Bool) {
     #expect((c.bar == .defaultBar) == hidden)
 }
 
-@Test(arguments: [Event.showPix, .sparklesTapped])
-func showPixAndSparklesBringAHiddenPixBack(event: Event) {
+@Test(arguments: [Event.showPix, .pixButtonTapped])
+func showPixAndThePixButtonBringAHiddenPixBack(event: Event) {
     var c = launched(in: "com.microsoft.VSCode")
     c.handle(.hidePix, at: at(12, 1))
     c.handle(.frontAppChanged("com.apple.Safari"), at: at(12, 2))
@@ -656,11 +656,11 @@ func showPixAndSparklesBringAHiddenPixBack(event: Event) {
     #expect(c.bar == .defaultBar)
 }
 
-@Test func sparklesShowPixInAnAppGivenItsOwnTouchBarUntilTheNextVisit() {
+@Test func thePixButtonShowsPixInAnAppGivenItsOwnTouchBarUntilTheNextVisit() {
     var c = Controller(selfBundleID: selfID, frontApp: "com.apple.finder", power: charger, at: at(12), timeZone: utc,
                        saved: Saved(overrides: ["com.apple.finder": .defaultBar]))
     #expect(c.bar == .defaultBar)
-    c.handle(.sparklesTapped, at: at(12, 1))
+    c.handle(.pixButtonTapped, at: at(12, 1))
     #expect(c.bar == room(.window, .other))
     c.handle(.frontAppChanged("com.apple.Safari"), at: at(12, 2))
     c.handle(.frontAppChanged("com.apple.finder"), at: at(12, 3))
@@ -948,7 +948,7 @@ func anyOtherLinkIsIgnored(link: String) {
     c.handle(.agent(.working, agent: "b"), at: at(12, 2))
     c.handle(.tappedElsewhere, at: at(12, 3))
     #expect(c.handle(.agent(.done, agent: "a"), at: at(12, 4)) == nil)
-    c.handle(.sparklesTapped, at: at(12, 5))
+    c.handle(.pixButtonTapped, at: at(12, 5))
     #expect(c.bar == agentRoom(.desk, .browsing))
 }
 
@@ -1068,7 +1068,7 @@ func anyDayOfTheHolidaysTogetherEarnsTheSantaHat(daysAfter: Int) {
     c.handle(.tappedElsewhere, at: time + 60)
     #expect(c.handle(.clockTick, at: time + 25 * 60) == nil)  // nobody sees DONE on the Default bar
     #expect(Hat.earned(by: c.memory).contains(.headband))
-    #expect(c.handle(.sparklesTapped, at: time + 26 * 60) == .newHat)
+    #expect(c.handle(.pixButtonTapped, at: time + 26 * 60) == .newHat)
 }
 
 @Test func forgettingTheMemoryGivesBackTheOccasionHatAndItsNewHatIsNoLongerOwed() {

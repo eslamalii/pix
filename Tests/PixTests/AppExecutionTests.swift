@@ -45,7 +45,7 @@ private final class AppEffects {
     let observed = AppEffects()
     let app = observed.start()
     let time = Date(timeIntervalSince1970: 12 * 3600 + 1)
-    for event in [Event.frontAppChanged("com.apple.Safari"), .sparklesTapped, .showPix] {
+    for event in [Event.frontAppChanged("com.apple.Safari"), .pixButtonTapped, .showPix] {
         let before = observed.bars.count
         app.send(event, at: time)
         #expect(observed.bars.count == before + 1)

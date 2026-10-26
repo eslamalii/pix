@@ -48,8 +48,8 @@ private func fakeSymbols() -> TouchBarSymbols { TouchBarSymbols(method: { _, sel
 @MainActor
 @Test func handingTheBarBackClaimsTheControlStripSlotForThePixButton() throws {
     let presenter = try TouchBarPresenter(symbols: fakeSymbols())
-    let tray = NSTouchBarItem.Identifier("pix.sparkles")
+    let tray = NSTouchBarItem.Identifier("pix.pixButton")
     touchBarCalls = []
     presenter.hide(NSTouchBar(), tray: tray)
-    #expect(touchBarCalls == ["minimizeSystemModalTouchBar:", "presence pix.sparkles true"])
+    #expect(touchBarCalls == ["minimizeSystemModalTouchBar:", "presence pix.pixButton true"])
 }

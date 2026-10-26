@@ -175,7 +175,7 @@ public enum Event: Sendable {
     case frontAppChanged(String?)
     /// The user chose what an app is for (by bundle ID), overriding Pix's guess; nil goes back to the guess.
     case override(String, Override?)
-    case sparklesTapped
+    case pixButtonTapped
     /// The user chose Hide Pix or Show Pix in the menu.
     case hidePix
     case showPix
@@ -413,7 +413,7 @@ public struct Controller {
         }
         // The user doing something counts as being here today, Greeting or not (say, working past midnight).
         switch event {
-        case .frontAppChanged, .pixTapped, .pixPetted, .tappedElsewhere, .sparklesTapped, .startFocus:
+        case .frontAppChanged, .pixTapped, .pixPetted, .tappedElsewhere, .pixButtonTapped, .startFocus:
             if !isAway { memory.saw(at: time, calendar: calendar) }
         default: break
         }
@@ -471,7 +471,7 @@ public struct Controller {
         case .override(let app, let choice):
             (overrides[app], showingAnyway) = (choice, false)  // not a switch: it doesn't count toward grumpy
             switchActivity(to: Self.activity(for: frontApp, overrides: overrides), at: time, wasAway: wasAway)
-        case .sparklesTapped: (hidden, animating, showingAnyway) = (false, true, true)
+        case .pixButtonTapped: (hidden, animating, showingAnyway) = (false, true, true)
         case .showPix: (hidden, animating) = (false, true)
         case .hidePix: hidden = true
         case .powerChanged(let newPower):
