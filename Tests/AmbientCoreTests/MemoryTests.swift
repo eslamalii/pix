@@ -122,6 +122,17 @@ func firstGreeting(_ memory: Memory, at time: Date) -> Greeting? {
     #expect(Hat.flower.howToEarn == "100 Pets")
 }
 
+@Test func flyingBackOverTheDateLineToADayAlreadySeenIsNotANewDayTogether() {
+    var memory = remembering(arrivals: [day(0, 9)])  // Monday
+    var auckland = enUS, honolulu = enUS
+    auckland.timeZone = TimeZone(secondsFromGMT: 13 * 3600)!
+    honolulu.timeZone = TimeZone(secondsFromGMT: -10 * 3600)!
+    memory.arrive(at: day(0, 12), calendar: auckland)                  // already Tuesday in Auckland
+    #expect(memory.arrive(at: day(0, 22), calendar: honolulu) == nil)  // and still Monday on landing in Honolulu
+    #expect(memory.days == ["2026-10-12", "2026-10-13"])
+    #expect(memory.totalDays == 2)
+}
+
 @Test func theTotalsOutliveTheTrimmedDays() {
     var memory = Memory()
     for d in 0..<70 { memory.arrive(at: day(d, 9), calendar: enUS) }

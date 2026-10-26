@@ -61,7 +61,7 @@ public struct Memory: Codable, Equatable, Sendable {
     public mutating func saw(at time: Date, calendar: Calendar) -> Bool {
         if let occasion = Occasion(on: time, calendar: calendar) { occasions.insert(occasion) }
         let today = Self.day(time, in: calendar)
-        guard days.last != today else { return false }
+        guard !days.contains(today) else { return false }  // flying west over the date line goes back to a day already seen
         days = Array((days + [today]).suffix(Self.keepDays))
         totalDays += 1
         return true
