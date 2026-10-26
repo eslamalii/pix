@@ -39,7 +39,7 @@ final class HalloweenLayers {
         }
         if capChanged {
             for glow in glows {
-                if let flicker = glow.animation(forKey: "flicker") {
+                if let flicker = glow.animation(forKey: "flicker")?.copy() as? CAAnimation {  // an added animation is read-only
                     flicker.preferredFrameRateRange = frameRange
                     glow.add(flicker, forKey: "flicker")
                 }
