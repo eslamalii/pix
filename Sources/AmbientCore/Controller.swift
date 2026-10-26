@@ -255,7 +255,7 @@ enum Rules {
 /// What the Controller owns that Pix keeps between launches: the app saves it after each event and gives it back at
 /// launch.
 public struct Saved: Equatable, Sendable {
-    /// The user hid Pix; only Show Pix or ✨ brings it back.
+    /// The user hid Pix; only Show Pix or the Pix button in the Control Strip brings it back.
     public var hidden: Bool
     /// What the user chose some apps are for, by bundle ID.
     public var overrides: [String: Override]
@@ -276,11 +276,11 @@ public struct Controller {
     /// The app in front, as far as Pix knows (never Pix itself once another app has been in front).
     public private(set) var frontApp: String?
     private var overrides: [String: Override]
-    /// ✨ was tapped in an app Pix steps aside for: Pix shows until another app comes to the front.
+    /// The Pix button in the Control Strip was tapped in an app Pix steps aside for: Pix shows until another app comes to the front.
     private var showingAnyway = false
     public private(set) var power: Power
     private var animating = true
-    /// The user hid Pix; only Show Pix or ✨ brings it back.
+    /// The user hid Pix; only Show Pix or the Pix button in the Control Strip brings it back.
     public private(set) var hidden: Bool
     private var asleep = false
     private var isLocked = false

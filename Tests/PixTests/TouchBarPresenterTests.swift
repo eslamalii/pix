@@ -43,10 +43,10 @@ private func fakeSymbols() -> TouchBarSymbols { TouchBarSymbols(method: { _, sel
     }
 }) }
 
-/// The Control Strip shows one app's item, whichever claimed it last: handing the bar back claims it for ✨ again,
+/// The Control Strip shows one app's item, whichever claimed it last: handing the bar back claims it for the Pix button again,
 /// so another app that took the slot since doesn't leave the user without a way back to Pix.
 @MainActor
-@Test func handingTheBarBackClaimsTheControlStripSlotForSparkles() throws {
+@Test func handingTheBarBackClaimsTheControlStripSlotForThePixButton() throws {
     let presenter = try TouchBarPresenter(symbols: fakeSymbols())
     let tray = NSTouchBarItem.Identifier("pix.sparkles")
     touchBarCalls = []

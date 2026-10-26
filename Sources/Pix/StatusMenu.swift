@@ -138,8 +138,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
-    /// Pix's head in pixels, as a template image so macOS tints it for light and dark menu bars.
-    private static let icon: NSImage = {
+    /// Pix's head in pixels, as a template image so macOS tints it for light and dark menu bars and the Touch Bar.
+    static let icon: NSImage = {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
             NSColor.black.setFill()
             for (x, y, w, h) in [(8, 1, 2, 2), (8, 3, 2, 1),                       // antenna

@@ -75,7 +75,7 @@ _Wrong guess? Use **Treat ‹app› as…** in the menu bar to assign any app pe
 - **Double-tap Pix:** Pet Pix (`♥`) to cheer it up, even when it's grumpy.
 - **Tap Pix 5 times rapidly:** Makes Pix dizzy!
 - **Tap anywhere else:** Instantly brings back your standard macOS Touch Bar.
-- **Tap ✨ or switch apps:** Brings Pix right back.
+- **Tap Pix's head in the Control Strip, or switch apps:** Brings Pix right back.
 
 ### Moods, Seasons & Memory
 

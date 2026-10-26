@@ -38,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         log.notice("starting \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "dev", privacy: .public)")
 
         let sparkles = NSCustomTouchBarItem(identifier: trayID)
-        sparkles.view = NSButton(title: "✨", target: self, action: #selector(sparklesTapped))
+        sparkles.view = NSButton(image: StatusMenu.icon, target: self, action: #selector(sparklesTapped))
         presenter.addToControlStrip(sparkles)
 
         let item = NSCustomTouchBarItem(identifier: barID)

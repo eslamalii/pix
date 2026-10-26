@@ -62,7 +62,7 @@ final class TouchBarPresenter {
             (present, minimize, addTray, setPresence, setCloseBox)
     }
 
-    /// Puts `item` (the ✨ button) in the Control Strip. Its identifier ties the modal bar to it.
+    /// Puts `item` (the Pix button) in the Control Strip. Its identifier ties the modal bar to it.
     func addToControlStrip(_ item: NSTouchBarItem) {
         addTray(NSTouchBarItem.self, Self.addTraySel, item)
         setPresence(item.identifier.rawValue as CFString, true)
@@ -89,7 +89,7 @@ final class TouchBarPresenter {
     }
 
     /// Hands the Touch Bar back to the system's default bar, and claims the Control Strip's one slot for apps back for
-    /// `tray` (the ✨ button): whichever app claimed it last shows there.
+    /// `tray` (the Pix button): whichever app claimed it last shows there.
     func hide(_ bar: NSTouchBar, tray: NSTouchBarItem.Identifier) {
         minimize(NSTouchBar.self, Self.minimizeSel, bar)
         setPresence(tray.rawValue as CFString, true)
