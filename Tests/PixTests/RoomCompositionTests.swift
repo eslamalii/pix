@@ -33,6 +33,27 @@ import AmbientCore
 }
 
 @MainActor
+@Test func theMonitorsStayFullOfCodeThroughoutTheirScroll() throws {
+    let composition = RoomComposition(effects: RoutineEffects(saveGarden: { _ in }))
+    let host = CALayer()
+    composition.build(in: host, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)),
+                      room: Room(spot: .desk, activity: .coding, mood: .content, fps: 12))
+    let world = try #require(composition.world)
+    let lines = world.sublayers?.compactMap { $0.sublayers?.first { $0.animation(forKey: "scroll") != nil } } ?? []
+    #expect(lines.count == Art.monitors.count)
+    for code in lines {
+        let screen = try #require(code.superlayer).bounds
+        let scroll = try #require(code.animation(forKey: "scroll") as? CABasicAnimation)
+        let by = try #require(scroll.byValue as? CGFloat)
+        for step in 0...4 {
+            let shown = code.frame.offsetBy(dx: 0, dy: by * CGFloat(step) / 4)
+            #expect(shown.contains(screen), "\(step)/4 of the way, the code no longer covers the screen")
+        }
+    }
+    composition.stop()
+}
+
+@MainActor
 private final class RoomExecution {
     let zone = TimeZone(secondsFromGMT: 0)!
     var time = Date(timeIntervalSince1970: 12 * 3600)

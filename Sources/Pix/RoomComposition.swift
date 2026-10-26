@@ -162,7 +162,7 @@ final class RoomComposition {
         screen.frame = rect
         screen.masksToBounds = true
         let lines = CALayer()
-        lines.frame = CGRect(x: 0, y: 0, width: rect.width, height: rect.height * 2)
+        lines.frame = CGRect(x: 0, y: -rect.height, width: rect.width, height: rect.height * 2)  // a screen below, as it scrolls up one
         let palette: [UInt32] = [0x7ee787, 0x79c0ff, 0xff7b72, 0xd2a8ff, 0xe3b341]
         let rows = Int(rect.height) / 2
         let pattern = (0..<rows).map { _ in (indent: Int.random(in: 1...4), length: Int.random(in: 3...16), color: palette.randomElement()!) }
