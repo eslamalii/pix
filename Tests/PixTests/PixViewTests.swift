@@ -38,6 +38,21 @@ func particlesComingAndGoingDontFade(_ name: String) async throws {
     withExtendedLifetime(window) {}
 }
 
+/// The Status corner is outside the Room: a Prop scrolling under the clock or a caption is hidden, not drawn through.
+@MainActor
+@Test func theClockAndCaptionSitOnTheBarsOwnBlackOverTheRoom() async throws {
+    let (view, window) = try await builtView()
+    view.play(.agentDone)
+    let corner = try #require(layer("statusCorner", of: view))
+    let black = NSColor.black.cgColor
+    for name in ["clock", "caption"] {
+        let text = try #require(layer(name, of: view)).frame
+        let under = corner.sublayers?.filter { $0.backgroundColor == black && $0.frame.contains(text) } ?? []
+        #expect(!under.isEmpty, "nothing black under the \(name)")
+    }
+    withExtendedLifetime(window) {}
+}
+
 @MainActor
 @Test func lampLightStaysAbovePixAfterBuildingTheRoom() async throws {
     let (view, window) = try await builtView()

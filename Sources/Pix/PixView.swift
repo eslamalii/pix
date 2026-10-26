@@ -20,8 +20,10 @@ final class PixView: NSView {
     private var pix: CALayer { composition.pix }
     private var world: CALayer? { composition.world }
     // The status corner at the right end of the bar: the clock, and a caption beside it while a Moment plays.
-    // It sits outside the world, so it stays put while Pix walks between Spots.
+    // It sits outside the world, so it stays put while Pix walks between Spots, on the bar's black so the Room
+    // scrolling under it is hidden rather than drawn through.
     private let hud = CALayer(), clock = pixelCrisp(nil), caption = CALayer(), captionIcon = pixelCrisp(nil), captionWord = pixelCrisp(nil)
+    private let clockBacking = CALayer()
     private var builtSize: CGSize = .zero
     private let timing: PixViewTiming
     private var cancelTap: (() -> Void)?
@@ -234,7 +236,7 @@ final class PixView: NSView {
     }
 
     private static let clockColor = color(0x8f95a3), captionColor = color(0x5ee6ff)
-    private static let textHeight: CGFloat = 10, margin: CGFloat = 10
+    private static let textHeight: CGFloat = 10, margin: CGFloat = 10, captionGap: CGFloat = 8
 
     private func buildHUD() {
         hud.name = "statusCorner"
@@ -246,8 +248,10 @@ final class PixView: NSView {
         captionIcon.name = "captionIcon"
         captionIcon.contents = art.image("emotes")
         caption.opacity = 0
+        caption.backgroundColor = NSColor.black.cgColor
         caption.sublayers = [captionIcon, captionWord]
-        hud.sublayers = [clock, caption]
+        clockBacking.backgroundColor = NSColor.black.cgColor
+        hud.sublayers = [clockBacking, clock, caption]
         layer?.addSublayer(hud)
     }
 
@@ -257,6 +261,7 @@ final class PixView: NSView {
             clock.contents = image
             let width = CGFloat(image?.width ?? 0)
             clock.frame = CGRect(x: bounds.width - Self.margin - width, y: (bounds.height - Self.textHeight) / 2, width: width, height: Self.textHeight)
+            clockBacking.frame = CGRect(x: clock.frame.minX - Self.captionGap / 2, y: 0, width: bounds.width - clock.frame.minX + Self.captionGap / 2, height: bounds.height)
         }
     }
 
@@ -267,9 +272,12 @@ final class PixView: NSView {
         withoutAnimation {
             captionWord.contents = image
             captionIcon.contentsRect = emoteSlot(text.emote)
-            caption.frame = CGRect(x: clock.frame.minX - 8 - wordWidth - gap - icon, y: 0, width: icon + gap + wordWidth, height: bounds.height)
-            captionIcon.frame = CGRect(x: 0, y: (bounds.height - icon) / 2, width: icon, height: icon)
-            captionWord.frame = CGRect(x: icon + gap, y: (bounds.height - Self.textHeight) / 2, width: wordWidth, height: Self.textHeight)
+            // Its black runs on to the clock's, a gap's half either side of the text.
+            let pad = Self.captionGap / 2
+            caption.frame = CGRect(x: clock.frame.minX - Self.captionGap - wordWidth - gap - icon - pad, y: 0,
+                                   width: pad + icon + gap + wordWidth + pad, height: bounds.height)
+            captionIcon.frame = CGRect(x: pad, y: (bounds.height - icon) / 2, width: icon, height: icon)
+            captionWord.frame = CGRect(x: pad + icon + gap, y: (bounds.height - Self.textHeight) / 2, width: wordWidth, height: Self.textHeight)
         }
         let fade = CAKeyframeAnimation(keyPath: "opacity")
         fade.values = [0, 1, 1, 0]
