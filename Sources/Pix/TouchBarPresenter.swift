@@ -88,8 +88,10 @@ final class TouchBarPresenter {
         return false
     }
 
-    /// Hands the Touch Bar back to the system's default bar.
-    func hide(_ bar: NSTouchBar) {
+    /// Hands the Touch Bar back to the system's default bar, and claims the Control Strip's one slot for apps back for
+    /// `tray` (the ✨ button): whichever app claimed it last shows there.
+    func hide(_ bar: NSTouchBar, tray: NSTouchBarItem.Identifier) {
         minimize(NSTouchBar.self, Self.minimizeSel, bar)
+        setPresence(tray.rawValue as CFString, true)
     }
 }

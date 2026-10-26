@@ -148,7 +148,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             presenter.show(bar, tray: trayID)
         case .defaultBar:
             view.hide()
-            presenter.hide(bar)
+            presenter.hide(bar, tray: trayID)
         }
     }
 
