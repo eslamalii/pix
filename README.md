@@ -75,7 +75,7 @@ _Wrong guess? Use **Treat ‹app› as…** in the menu bar to assign any app pe
 - **Double-tap Pix:** Pet Pix (`♥`) to cheer it up, even when it's grumpy.
 - **Tap Pix 5 times rapidly:** Makes Pix dizzy!
 - **Tap anywhere else:** Instantly brings back your standard macOS Touch Bar.
-- **Tap ✨ or switch apps:** Brings Pix right back.
+- **Tap Pix's head in the Control Strip, or switch apps:** Brings Pix right back.
 
 ### Moods, Seasons & Memory
 
@@ -290,6 +290,12 @@ Sample skins (**Rose**, **Midnight**, and **Mint**) are included in `Skins/` (`.
 | **MacBook Pro 13" (M2, 2022)**                        | Supported                   |
 | **MacBook Pro 16" & 13" (2019, 2020 Intel)**          | Supported (Universal binary & Homebrew) |
 | **MacBook Pro 13" & 15" (2016–2019 with Esc on bar)** | Room centered automatically |
+
+---
+
+## Development
+
+Read [Architecture](ARCHITECTURE.md) for module ownership, dependency direction, feature placement and the criteria for architectural changes.
 
 ---
 

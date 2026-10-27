@@ -14,36 +14,38 @@ func day(_ days: Int, _ h: Int, _ m: Int = 0) -> Date { at(h, m) + Double(days) 
 
 func remembering(arrivals: [Date]) -> Memory {
     var memory = Memory()
-    for time in arrivals { memory.arrived(at: time, calendar: enUS) }
+    for time in arrivals { memory.arrive(at: time, calendar: enUS) }
     return memory
+}
+
+/// What the arrival at `time` would be greeted with, leaving `memory` as it was.
+func firstGreeting(_ memory: Memory, at time: Date) -> Greeting? {
+    var memory = memory
+    return memory.arrive(at: time, calendar: enUS)
 }
 
 @Test func theFirstArrivalEverIsNotSpecialAndPixRemembersTheDayAndTime() {
     var memory = Memory()
-    #expect(memory.specialGreeting(at: day(0, 9), calendar: enUS) == nil)
-    memory.arrived(at: day(0, 9), calendar: enUS)
+    #expect(memory.arrive(at: day(0, 9), calendar: enUS) == nil)
     #expect(memory.days == ["2026-10-12"])
     #expect(memory.arrivals == ["2026-10-12": 540])
 }
 
 @Test func onlyTheDaysFirstArrivalCanBeSpecialOrNoteItsTime() {
     var memory = remembering(arrivals: [day(-5, 9)])  // last seen the Wednesday before
-    #expect(memory.specialGreeting(at: day(0, 9), calendar: enUS) == .missedYou)
-    memory.arrived(at: day(0, 9), calendar: enUS)
-    #expect(memory.specialGreeting(at: day(0, 14), calendar: enUS) == nil)
-    memory.arrived(at: day(0, 14), calendar: enUS)
+    #expect(memory.arrive(at: day(0, 9), calendar: enUS) == .missedYou)
+    #expect(memory.arrive(at: day(0, 14), calendar: enUS) == nil)
     #expect(memory.arrivals["2026-10-12"] == 540)
 }
 
 @Test func backAfterFourDaysAwayButNotAfterAWeekend() {
-    #expect(remembering(arrivals: [day(-4, 9)]).specialGreeting(at: day(0, 9), calendar: enUS) == .missedYou)  // Thursday to Monday
-    #expect(remembering(arrivals: [day(-3, 9)]).specialGreeting(at: day(0, 9), calendar: enUS) == nil)        // Friday to Monday
+    #expect(firstGreeting(remembering(arrivals: [day(-4, 9)]), at: day(0, 9)) == .missedYou)  // Thursday to Monday
+    #expect(firstGreeting(remembering(arrivals: [day(-3, 9)]), at: day(0, 9)) == nil)        // Friday to Monday
 }
 
 @Test func theWeekendGetsItsOwnGreetingAndNoArrivalTime() {
     var memory = remembering(arrivals: [day(4, 9)])
-    #expect(memory.specialGreeting(at: day(5, 10), calendar: enUS) == .weekend)
-    memory.arrived(at: day(5, 10), calendar: enUS)
+    #expect(memory.arrive(at: day(5, 10), calendar: enUS) == .weekend)
     #expect(memory.days.last == "2026-10-17")
     #expect(memory.arrivals["2026-10-17"] == nil)
 }
@@ -51,11 +53,18 @@ func remembering(arrivals: [Date]) -> Memory {
 @Test func earlyIsFortyFiveMinutesBeforeTheUsualArrivalOnceThereAreFive() {
     let week = remembering(arrivals: (0...4).map { day($0, 9) })
     #expect(week.usualArrival == 540)
-    #expect(week.specialGreeting(at: day(7, 8, 15), calendar: enUS) == .early)
-    #expect(week.specialGreeting(at: day(7, 8, 16), calendar: enUS) == nil)
+    #expect(firstGreeting(week, at: day(7, 8, 15)) == .early)
+    #expect(firstGreeting(week, at: day(7, 8, 16)) == nil)
     let fourDays = remembering(arrivals: (0...3).map { day($0, 9) })
     #expect(fourDays.usualArrival == nil)
-    #expect(fourDays.specialGreeting(at: day(4, 6), calendar: enUS) == nil)
+    #expect(firstGreeting(fourDays, at: day(4, 6)) == nil)
+}
+
+@Test func anOccasionBeatsWhatPixRemembersOnTheDaysFirstArrivalOnly() {
+    var memory = remembering(arrivals: [day(9, 9)])  // last seen ten days before Halloween
+    #expect(memory.arrive(at: day(19, 9), calendar: enUS) == .halloween)
+    #expect(memory.arrive(at: day(19, 14), calendar: enUS) == nil)
+    #expect(memory.occasions == [.halloween])
 }
 
 @Test func theUsualArrivalIsTheMedian() {
@@ -66,23 +75,23 @@ func remembering(arrivals: [Date]) -> Memory {
 @Test func aDayOfPetsMakesTheNextMorningCheerful() {
     var memory = remembering(arrivals: [day(0, 9)])
     for i in 1...4 { memory.petted(at: day(0, 10, i), calendar: enUS) }
-    #expect(memory.specialGreeting(at: day(1, 9), calendar: enUS) == nil)
+    #expect(firstGreeting(memory, at: day(1, 9)) == nil)
     memory.petted(at: day(0, 11), calendar: enUS)
-    #expect(memory.specialGreeting(at: day(1, 9), calendar: enUS) == .cheerful)
-    #expect(memory.specialGreeting(at: day(2, 9), calendar: enUS) == nil)  // only the day after
+    #expect(firstGreeting(memory, at: day(1, 9)) == .cheerful)
+    #expect(firstGreeting(memory, at: day(2, 9)) == nil)  // only the day after
 }
 
 @Test func backBeatsEarlyAndEarlyBeatsPets() {
     var memory = remembering(arrivals: (0...4).map { day($0, 9) })
     for i in 1...5 { memory.petted(at: day(6, 10, i), calendar: enUS) }  // a Sunday of Pets, without arriving
-    #expect(memory.specialGreeting(at: day(7, 8), calendar: enUS) == .early)
-    #expect(memory.specialGreeting(at: day(9, 8), calendar: enUS) == .missedYou)
+    #expect(firstGreeting(memory, at: day(7, 8)) == .early)
+    #expect(firstGreeting(memory, at: day(9, 8)) == .missedYou)
 }
 
 @Test func pixRemembersSixtyDaysTwentyArrivalsAndFourteenDaysOfPets() {
     var memory = Memory()
     for d in 0..<70 {
-        memory.arrived(at: day(d, 9), calendar: enUS)
+        memory.arrive(at: day(d, 9), calendar: enUS)
         memory.petted(at: day(d, 10), calendar: enUS)
     }
     #expect(memory.days.count == 60)
@@ -103,9 +112,9 @@ func remembering(arrivals: [Date]) -> Memory {
 
 @Test func hatsAreEarnedByDaysTogetherOrPets() {
     var memory = Memory()
-    for d in 0..<2 { memory.arrived(at: day(d, 9), calendar: enUS) }
+    for d in 0..<2 { memory.arrive(at: day(d, 9), calendar: enUS) }
     #expect(Hat.earned(by: memory) == [])
-    memory.arrived(at: day(2, 9), calendar: enUS)
+    memory.arrive(at: day(2, 9), calendar: enUS)
     #expect(Hat.earned(by: memory) == [.cap])
     for i in 0..<25 { memory.petted(at: day(2, 10) + Double(i), calendar: enUS) }
     #expect(Hat.earned(by: memory) == [.cap, .party])
@@ -113,9 +122,20 @@ func remembering(arrivals: [Date]) -> Memory {
     #expect(Hat.flower.howToEarn == "100 Pets")
 }
 
+@Test func flyingBackOverTheDateLineToADayAlreadySeenIsNotANewDayTogether() {
+    var memory = remembering(arrivals: [day(0, 9)])  // Monday
+    var auckland = enUS, honolulu = enUS
+    auckland.timeZone = TimeZone(secondsFromGMT: 13 * 3600)!
+    honolulu.timeZone = TimeZone(secondsFromGMT: -10 * 3600)!
+    memory.arrive(at: day(0, 12), calendar: auckland)                  // already Tuesday in Auckland
+    #expect(memory.arrive(at: day(0, 22), calendar: honolulu) == nil)  // and still Monday on landing in Honolulu
+    #expect(memory.days == ["2026-10-12", "2026-10-13"])
+    #expect(memory.totalDays == 2)
+}
+
 @Test func theTotalsOutliveTheTrimmedDays() {
     var memory = Memory()
-    for d in 0..<70 { memory.arrived(at: day(d, 9), calendar: enUS) }
+    for d in 0..<70 { memory.arrive(at: day(d, 9), calendar: enUS) }
     #expect(memory.days.count == 60)
     #expect(memory.totalDays == 70)
     #expect(Hat.earned(by: memory).contains(.crown))
@@ -127,10 +147,6 @@ func remembering(arrivals: [Date]) -> Memory {
     #expect(memory.totalDays == 3)
     #expect(memory.totalPets == 4)
     #expect(Hat.earned(by: memory) == [.cap])
-}
-
-@Test func everyHatHasItsCellInTheArt() {
-    #expect(Art.hats == Hat.allCases.map(\.rawValue))
 }
 
 @Test func aMemorySavedBeforeFocusSessionsAndOccasionsStillReads() throws {

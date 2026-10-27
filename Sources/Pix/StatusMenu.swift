@@ -1,6 +1,5 @@
 import AmbientCore
 import AppKit
-import ServiceManagement
 
 /// The menu-bar icon (Pix's head in pixels) and its menu: Hide/Show Pix, Treat … as, Focus, Start at login, Clock, About, Quit.
 /// It only shows and reports choices; the app decides what they mean.
@@ -8,6 +7,7 @@ import ServiceManagement
 final class StatusMenu: NSObject, NSMenuDelegate {
     /// Everything the menu shows, asked for each time it opens.
     struct State {
+        var startAtLogin = false
         var hidden = false
         /// The app in front (not Pix), for "Treat … as", and the user's choice for it.
         var frontApp: (id: String, name: String, override: Override?)?
@@ -64,7 +64,7 @@ final class StatusMenu: NSObject, NSMenuDelegate {
             menu.addItem(Action("Focus with Pix for \(Int(Controller.focusLength / 60)) Minutes") { [weak self] in self?.onFocus(true) })
         }
         menu.addItem(.separator())
-        let startAtLogin = SMAppService.mainApp.status == .enabled  // macOS's own setting, wherever it was changed
+        let startAtLogin = state.startAtLogin
         menu.addItem(Action("Start at Login", checked: startAtLogin) { [weak self] in self?.onStartAtLogin(!startAtLogin) })
         menu.addItem(hats(state))
         menu.addItem(skins(state))
@@ -138,8 +138,8 @@ final class StatusMenu: NSObject, NSMenuDelegate {
         NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     }
 
-    /// Pix's head in pixels, as a template image so macOS tints it for light and dark menu bars.
-    private static let icon: NSImage = {
+    /// Pix's head in pixels, as a template image so macOS tints it for light and dark menu bars and the Touch Bar.
+    static let icon: NSImage = {
         let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
             NSColor.black.setFill()
             for (x, y, w, h) in [(8, 1, 2, 2), (8, 3, 2, 1),                       // antenna

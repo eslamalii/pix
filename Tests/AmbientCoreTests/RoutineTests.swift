@@ -59,7 +59,17 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
 
 @Test func aNewMoodWhileIdlingShowsAtOnce() {
     var routine = started(at: .desk)
-    #expect(routine.handle(.roomChanged(scene(.desk, .grumpy)), at: at(12, 1)) == idling(.desk, .grumpy))
+    #expect(routine.handle(.roomChanged(scene(.desk, .grumpy)), at: at(12, 1)) == .relook(.grumpy, at: .desk))
+    #expect(routine.nextWake == at(12, 2))  // a new Mood restarts the Fidget deadline
+}
+
+@Test func runningHotWhileIdlingShowsAtOnceWithoutMovingTheFidget() {
+    var routine = started(at: .desk)
+    let due = routine.nextWake
+    var hot = scene(.desk)
+    hot.hot = true
+    #expect(routine.handle(.roomChanged(hot), at: at(12, 0, 30)) == .relook(.desk, RestLook(spot: .desk, mood: .content, hot: true)))
+    #expect(routine.nextWake == due)
 }
 
 @Test func aNewMoodWhileBusyShowsWhenPixIsDone() {
@@ -71,7 +81,7 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
 
 @Test func whenFocusedNoFidgetIsDue() {
     var routine = started(at: .desk)
-    #expect(routine.handle(.roomChanged(scene(.desk, .focused)), at: at(12, 1)) == .idle(.desk, .focused))
+    #expect(routine.handle(.roomChanged(scene(.desk, .focused)), at: at(12, 1)) == .relook(.focused, at: .desk))
     #expect(routine.nextWake == nil)
 }
 
@@ -101,6 +111,43 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
     var routine = Routine(timeZone: utc, random: Dice([]).roll)
     #expect(routine.handle(.momentArrived(.greeting(.hello)), at: at(12)) == nil)
     #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .moment(.greeting(.hello)))
+}
+
+@Test func aGreetingWaitingForTheSceneIsNotReplacedByALaterMoment() {
+    var routine = Routine(timeZone: utc, random: Dice([]).roll)
+    routine.handle(.momentArrived(.greeting(.hello)), at: at(12))
+    routine.handle(.momentArrived(.agentAsks), at: at(12))  // say, an Agent's hook launched Pix
+    #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.agentAsks))
+    #expect(routine.handle(.finished, at: at(12)) == idling(.desk))
+}
+
+@Test func behindAWaitingGreetingOnlyTheLatestMomentWaits() {
+    var routine = Routine(timeZone: utc, random: Dice([]).roll)
+    routine.handle(.momentArrived(.greeting(.hello)), at: at(12))
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12))
+    routine.handle(.momentArrived(.overheated), at: at(12))
+    #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.overheated))
+    #expect(routine.handle(.finished, at: at(12)) == idling(.desk))
+}
+
+@Test func aMomentWaitsForAPlayingGreetingToEnd() {
+    var routine = started(at: .desk)
+    #expect(routine.handle(.momentArrived(.greeting(.hello)), at: at(12, 1)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.momentArrived(.agentAsks), at: at(12, 1)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 1)) == .moment(.agentAsks))
+    #expect(routine.handle(.finished, at: at(12, 1)) == idling(.desk))
+}
+
+@Test func aGreetingAndALaterMomentDuringAWalkBothPlayOnArrival() {
+    var routine = started(at: .desk)
+    routine.handle(.roomChanged(scene(.couch)), at: at(12, 1))
+    routine.handle(.momentArrived(.greeting(.hello)), at: at(12, 1))
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .moment(.reaction(.wave)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == idling(.couch))
 }
 
 @Test func aMomentStillWaitingWhenTheSceneStopsIsDropped() {
@@ -307,7 +354,7 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
     // Hot change:
     var hotRoom = scene(.window, .content)
     hotRoom.hot = true
-    #expect(routine.handle(.roomChanged(hotRoom), at: at(12, 1, 30)) == .relook(RestLook(spot: .window, mood: .content, hot: true)))
+    #expect(routine.handle(.roomChanged(hotRoom), at: at(12, 1, 30)) == .relook(.window, RestLook(spot: .window, mood: .content, hot: true)))
 }
 
 @Test func anAgentStartingWorkMidStrollSendsPixWalkingToDesk() {
@@ -404,32 +451,23 @@ func fidgetsFitWherePixIsAndHowItFeels(spot: Spot, mood: Mood, bodies: [Fidget])
     var routine = started(at: .desk)
     #expect(routine.handle(.wake, at: at(12, 0, 59)) == nil)
     #expect(routine.nextWake == at(12, 1))
-    #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.lookaround))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .fidget(.stretch))
 }
 
 @Test func aLateWakeStillPlaysTheFidgetAndAStaleOneDoesNothing() {
     var routine = started(at: .desk)
-    #expect(routine.handle(.wake, at: at(12, 5)) == .fidget(.lookaround))
+    #expect(routine.handle(.wake, at: at(12, 5)) == .fidget(.stretch))
     #expect(routine.nextWake == nil)
     #expect(routine.handle(.wake, at: at(12, 6)) == nil)
 }
 
-@Test(arguments: [0.3, 0.6])
+@Test(arguments: [0.5, 0.9])
 func pixNeverRepeatsAFidgetBackToBack(roll: Double) {
     var routine = started(at: .desk, dice: Dice([0.5, roll, 0.5, roll]))  // the same roll twice
     let first = routine.handle(.wake, at: at(12, 1))
     #expect(routine.handle(.finished, at: at(12, 1, 10)) == idling(.desk))
     let second = routine.handle(.wake, at: at(12, 2, 10))
     #expect(first != nil && second != nil && first != second)
-}
-
-@Test func wateringThePlantIsAFidgetSoItDoesNotRepeatEither() {
-    var routine = started(at: .desk, dice: Dice([0.5, 0.99, 0.5, 0.99]))  // the desk's last choice: water
-    guard case .errand(.waterPlant)? = routine.handle(.wake, at: at(12, 1)) else { Issue.record("no water errand"); return }
-    routine.handle(.finished, at: at(12, 1, 5))  // use
-    routine.handle(.finished, at: at(12, 1, 10))  // walk back
-    #expect(routine.handle(.finished, at: at(12, 1, 15)) == idling(.desk))
-    guard case .fidget? = routine.handle(.wake, at: at(12, 2, 15)) else { Issue.record("repeated the water errand"); return }
 }
 
 // MARK: - The mug
@@ -469,6 +507,7 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
     routine.handle(.finished, at: at(12, 1, 22))  // poured: the mug is full
+    routine.handle(.finished, at: at(12, 1, 40))  // set down on the desk, Pix beside it
     #expect(routine.props(at: at(hour, minute)).mugSteams == steams)
 }
 
@@ -507,14 +546,22 @@ func aPouredMugSteamsOnlyInCoffeeHoursThenGoesCold(hour: Int, minute: Int, steam
     #expect(routine.props(at: at(12)).mugAway == false)
 }
 
-@Test func theMugSteamsOnlyOncePixHasPoured() {
+@Test func theMugSteamsOnlyOncePixHasPouredAndRestsBesideIt() {
     var routine = started(at: .desk, dice: Dice([0.5, 0]))
     #expect(routine.props(at: at(12, 2)).mugSteams == false)
     routine.handle(.wake, at: at(12, 1))
     routine.handle(.finished, at: at(12, 1, 20))
     #expect(routine.props(at: at(12, 2)).mugSteams == false)  // at the cabinet, not yet poured
     routine.handle(.finished, at: at(12, 1, 22))
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // poured, but in hand on the way back
+    routine.handle(.finished, at: at(12, 1, 40))
     #expect(routine.props(at: at(12, 2)).mugSteams)
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1, 45))
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // a Moment hides it
+    routine.handle(.finished, at: at(12, 1, 50))
+    #expect(routine.props(at: at(12, 2)).mugSteams)
+    routine.handle(.sceneStopped, at: at(12, 1, 55))
+    #expect(routine.props(at: at(12, 2)).mugSteams == false)  // off the Touch Bar
 }
 
 // Coffee hours: 06:00 to 17:00, so the first desk Fidget (roll 0) is the refill inside them and stretching outside.
@@ -570,10 +617,10 @@ func pixDrinksCoffeeOnlyFromSixToFiveInTheEvening(hour: Int, minute: Int, second
 
 // MARK: - Errands
 
-let wateringFromTheDesk = Errand.waterPlant(at: 404, fromRight: true)  // the plant left of the desk is nearest
+let wateringFromTheDesk = Errand.waterPlant(deskPlant, fromRight: true)  // the plant left of the desk is nearest
 
 func wateringThePlant() -> Routine {
-    started(at: .desk, dice: Dice([0.5, 0.9]))  // the fourth desk Fidget
+    tending(at: .desk, garden: thirstyGarden())  // the first Fidget slot, at 12:01, goes to Care
 }
 
 @Test func wateringThePlantWalksToItUsesItAndWalksBack() {
@@ -673,4 +720,35 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     routine.handle(.momentArrived(.reaction(.wave)), at: at(19))
     #expect(routine.props(at: at(12)).lampLit == false)
     #expect(routine.handle(.finished, at: at(19)) == .errand(.switchLamp))
+}
+
+@Test func anAgentStartingAndStoppingAtTheDeskRefreshesTheLookWithoutMovingItsFidget() {
+    var routine = started(at: .desk)
+    let due = routine.nextWake
+    var room = scene(.desk)
+    room.agentWorking = true
+    let working = RestLook(spot: .desk, mood: room.mood, agentWorking: true)
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 10)) == .relook(.desk, working))
+    #expect(routine.nextWake == due)
+    room.agentWorking = false
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 20)) == .relook(room.mood, at: .desk))
+    #expect(routine.nextWake == due)
+}
+
+@Test func anAgentChangeDuringAMomentWaitsForItsCompletionThenUsesTheFreshLook() {
+    var routine = started(at: .desk)
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 0, 5))
+    var room = scene(.desk)
+    room.agentWorking = true
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 10)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 0, 15)) == .idle(.desk, RestLook(spot: .desk, mood: room.mood, agentWorking: true)))
+}
+
+@Test func anAgentChangeDuringAWalkWaitsForArrival() {
+    var routine = started(at: .window)
+    var room = scene(.desk)
+    #expect(routine.handle(.roomChanged(room), at: at(12)) == .walk(to: .desk))
+    room.agentWorking = true
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 1)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 0, 5)) == .idle(.desk, RestLook(spot: .desk, mood: room.mood, agentWorking: true)))
 }
