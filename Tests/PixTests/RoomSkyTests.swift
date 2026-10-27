@@ -88,21 +88,6 @@ private func windowSky() -> (sky: RoomSky, world: CALayer, life: CALayer) {
 }
 
 @MainActor
-@Test func halloweenGlowsKeepFlickeringAtTheNewCapWhenTheBatteryTakesOver() {
-    let (sky, world, _) = windowSky()
-    let night = skyTime("2026-10-26T21:00:00Z")
-    sky.refresh(at: night, calendar: skyCalendar, fps: 12)
-    sky.refresh(at: night + 60, calendar: skyCalendar, fps: 6)
-    let stage = world.sublayers?.first { $0.name == "occasionProps" }
-    let flickers = stage?.sublayers?.compactMap { $0.animation(forKey: "flicker") } ?? []
-    #expect(!flickers.isEmpty)
-    for flicker in flickers {
-        #expect(flicker.preferredFrameRateRange == CAFrameRateRange(minimum: 6, maximum: 6, preferred: 6))
-    }
-    withExtendedLifetime(world) {}
-}
-
-@MainActor
 @Test func changingTimeZoneUpdatesTheSkyAtTheSameInstant() {
     let (sky, world, life) = windowSky()
     let time = skyTime("2026-10-21T12:00:00Z")

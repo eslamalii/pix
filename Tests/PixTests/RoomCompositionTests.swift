@@ -121,6 +121,32 @@ private final class RoomExecution {
     }
 }
 
+/// Every animation in `layer` and below that loops forever.
+@MainActor
+private func loops(in layer: CALayer) -> [(layer: String, key: String, animation: CAAnimation)] {
+    let own = (layer.animationKeys() ?? []).compactMap { key in
+        layer.animation(forKey: key).map { (layer.name ?? "unnamed", key, $0) }
+    }.filter { $0.2.repeatCount == .infinity }
+    return own + (layer.sublayers ?? []).flatMap { loops(in: $0) }
+}
+
+@MainActor
+@Test(arguments: [Spot.window, .desk])
+func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
+    let execution = RoomExecution()
+    execution.time = ISO8601DateFormatter().date(from: "2026-10-31T22:00:00Z")!  // Halloween night: glows, bats and stars
+    execution.build(at: spot)
+    defer { execution.composition.stop() }
+    let world = try #require(execution.composition.world)
+    execution.composition.update(to: Room(spot: spot, activity: .other, mood: .content, fps: 6))
+    let looping = loops(in: world)
+    #expect(looping.contains { $0.key == "flicker" } && looping.contains { $0.key == "scroll" })
+    if spot == .window { #expect(looping.contains { $0.key == "flap" } && looping.contains { $0.key == "twinkle" }) }
+    for loop in looping {
+        #expect(loop.animation.preferredFrameRateRange.maximum == 6, "\(loop.layer)'s \(loop.key) kept its old cap")
+    }
+}
+
 @MainActor
 @Test func composedRefillUpdatesMugAndSteamAndMinuteCanRemoveSteamWithoutANewStep() throws {
     let execution = RoomExecution()
@@ -132,9 +158,7 @@ private final class RoomExecution {
     #expect(execution.drawing("deskSteam") != nil)
     let oldSteam = try #require(execution.drawing("deskSteam"))
     execution.composition.update(to: Room(spot: .desk, activity: .other, mood: .content, fps: 6))
-    #expect(oldSteam.superlayer == nil)
-    #expect(execution.drawing("deskSteam")?.animation(forKey: "flight")?.preferredFrameRateRange.maximum == 6)
-    #expect(execution.composition.pix.sublayers?.contains { $0.animation(forKey: "frames")?.preferredFrameRateRange.maximum == 6 } == true)
+    #expect(execution.drawing("deskSteam") === oldSteam)  // a new cap re-caps the steam rather than redrawing it
     let step = execution.composition.step
     execution.time = Date(timeIntervalSince1970: 17 * 3600)
     execution.composition.refreshTime()

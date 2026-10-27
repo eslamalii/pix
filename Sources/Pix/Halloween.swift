@@ -30,20 +30,11 @@ final class HalloweenLayers {
     /// Every minute: the faces and flames glow from dusk until dawn, and the Room dresses or undresses the moment the
     /// season starts or ends, even with Pix on the bar at midnight.
     func paint(_ daylight: Daylight, at time: Date, calendar: Calendar, frameRange: CAFrameRateRange) {
-        let capChanged = self.frameRange != frameRange
         self.frameRange = frameRange
         let now = Halloween.inSeason(on: time, calendar: calendar)
         if now != inSeason {
             inSeason = now
             if now { dress() } else { undress() }
-        }
-        if capChanged {
-            for glow in glows {
-                if let flicker = glow.animation(forKey: "flicker")?.copy() as? CAAnimation {  // an added animation is read-only
-                    flicker.preferredFrameRateRange = frameRange
-                    glow.add(flicker, forKey: "flicker")
-                }
-            }
         }
         withoutAnimation { for glow in glows { glow.isHidden = daylight != .dusk && daylight != .night } }
     }

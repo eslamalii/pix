@@ -134,7 +134,7 @@ final class RoomComposition {
 
     private func setFrameRate(_ fps: Int) {
         playback.fps = fps
-        for screen in monitors { recap(screen.sublayers?.first, key: "scroll", fps: fps) }
+        if let world { recap(world, fps: fps) }
     }
 
     func stop() {
@@ -149,11 +149,16 @@ final class RoomComposition {
         room = nil
     }
 
-    /// Re-adds an animation that loops forever with a new frame-rate cap.
-    private func recap(_ layer: CALayer?, key: String, fps: Int) {
-        guard let layer, let animation = layer.animation(forKey: key)?.copy() as? CAAnimation else { return }
-        animation.preferredFrameRateRange = capped(fps)
-        layer.add(animation, forKey: key)
+    /// Re-adds everything that loops forever in `layer` and below with a new frame-rate cap (an added animation is
+    /// read-only, so each is a copy). Every drawing caps its animations as it starts them; this is the one place a cap
+    /// change reaches them. Finite animations keep theirs: they carry Step completion and end soon anyway.
+    private func recap(_ layer: CALayer, fps: Int) {
+        for key in layer.animationKeys() ?? [] {
+            guard let animation = layer.animation(forKey: key)?.copy() as? CAAnimation, animation.repeatCount == .infinity else { continue }
+            animation.preferredFrameRateRange = capped(fps)
+            layer.add(animation, forKey: key)
+        }
+        for sublayer in layer.sublayers ?? [] { recap(sublayer, fps: fps) }
     }
 
     /// Lines of "code" scrolling up a monitor, forever.

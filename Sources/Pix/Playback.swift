@@ -25,13 +25,8 @@ final class Playback {
     /// The body Pix walks in during this step: with the mug held out in front while it carries it.
     private var walkBody = "walk"
     private(set) var step: Routine.Step?
-    /// Resting drawings refresh immediately; finite steps keep their lifetime and use the new cap as they proceed.
-    var fps = 12 {
-        didSet {
-            guard fps != oldValue, world != nil, case .idle(let spot, let look) = step else { return }
-            idle(at: spot, look: look)
-        }
-    }
+    /// The cap for animations started from now on; RoomComposition re-caps what already loops.
+    var fps = 12
     var hat: Hat? { didSet { showHat() } }
     var onFinished: () -> Void = {}
     var showSkyLife: (Bool) -> Void = { _ in }

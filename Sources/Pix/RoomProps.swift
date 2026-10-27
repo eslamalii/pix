@@ -11,7 +11,6 @@ final class RoomProps {
     private var steam: CALayer?
     private weak var world: CALayer?
     private var geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
-    private var steamFPS: Int?
 
     init(art: ArtFiles = ArtFiles()) { self.art = art }
 
@@ -63,24 +62,20 @@ final class RoomProps {
         guard props.mugSteams, let world else {
             steam?.removeFromSuperlayer()
             steam = nil
-            steamFPS = nil
             return
         }
-        guard steam == nil || steamFPS != fps else { return }
-        steam?.removeFromSuperlayer()
+        guard steam == nil else { return }
         let mug = geometry.rect(Art.mug, on: "desk")
         let origin = CGPoint(x: mug.midX, y: mug.maxY)
         let particle = Particles.draw("steam", count: 1, every: 12, from: origin, in: world, rise: 7, fps: fps, art: art)[0]
         particle.name = "deskSteam"
         steam = particle
-        steamFPS = fps
     }
 
     func stop() {
         for layer in plants + [patches, lampGlow, mugGone] { layer.removeFromSuperlayer() }
         steam?.removeFromSuperlayer()
         steam = nil
-        steamFPS = nil
         plants = []
         world = nil
     }
