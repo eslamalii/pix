@@ -26,7 +26,7 @@ One thing that stands in the Room, such as a plant, the lamp, the bookcase or a 
 _Avoid_: object, item, decoration, furniture
 
 **Occasion Prop**:
-A Prop that stands in the Room only in an Occasion season, such as Halloween's jack-o'-lanterns, bunting and the ghost hanging from the lamp. Some glow from dusk; one can hang over a Prop and cover it for the season, as the haunted print covers the print.
+A Prop that stands in the Room only around an Occasion: through its Occasion season, such as Halloween's jack-o'-lanterns, bunting and the ghost hanging from the lamp, or for the Occasion's day once the Character has placed it. Some glow from dusk; one can hang over a Prop and cover it for the season, as the haunted print covers the print.
 _Avoid_: decoration, seasonal item
 
 ### What the user is doing
