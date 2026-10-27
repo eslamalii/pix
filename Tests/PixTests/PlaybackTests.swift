@@ -71,6 +71,16 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
 }
 
 @MainActor
+@Test func relookInTheMusicCornerKeepsTheRecordSpinning() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .musicCorner)
+    playback.run(.idle(.musicCorner, .content))
+    playback.run(.relook(.sleepy, at: .musicCorner))
+    #expect(world.sublayers?.filter { $0.animation(forKey: "turn") != nil }.count == 2)
+    #expect(playback.step == .idle(.musicCorner, .content))
+}
+
+@MainActor
 @Test func stoppingPlaybackInvalidatesDelayedAndAnimationCallbacks() throws {
     let waits = PlaybackWaits()
     let (playback, world) = playing(waits)

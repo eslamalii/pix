@@ -92,8 +92,8 @@ public struct Routine {
         /// The Stroll: stop at an end of the window: a beat, a look around, then the end's body (a stretch), or, with
         /// none, standing a while. Finished when the view is done.
         case stop(at: WindowEnd, body: String?, RestLook)
-        /// Mid-Stroll Look update: face and particles change without interrupting motion.
-        case relook(RestLook)
+        /// The Look at the Spot changes (face, particles, body) without interrupting the idle or the Stroll.
+        case relook(Spot, RestLook)
 
         public static func idle(_ spot: Spot, _ mood: Mood) -> Step {
             .idle(spot, RestLook(spot: spot, mood: mood))
@@ -104,8 +104,8 @@ public struct Routine {
         public static func stop(at end: WindowEnd, body: String?, _ mood: Mood = .content) -> Step {
             .stop(at: end, body: body, RestLook(spot: .window, mood: mood))
         }
-        public static func relook(_ mood: Mood) -> Step {
-            .relook(RestLook(spot: .window, mood: mood))
+        public static func relook(_ mood: Mood, at spot: Spot = .window) -> Step {
+            .relook(spot, RestLook(spot: spot, mood: mood))
         }
     }
 
@@ -199,27 +199,12 @@ public struct Routine {
                 }
                 return walk(to: new.spot)
             }
-            if new.spot == .window {
-                let moodChanged = new.mood != old?.mood
-                let hotChanged = new.hot != old?.hot
-                if moodChanged {
-                    fidgetClock.rest(at: time, fits: fidgetFits(new, at: time))
-                }
-                if isStrolling && (moodChanged || hotChanged) {
-                    return .relook(restLook())
-                }
-                return nil
-            }
-            switch current {
-            case .idle?:
-                if new.mood != old?.mood || new.hot != old?.hot { return settle(at: time) }
-                // Only the Look changes when an Agent starts or stops: keep the Fidget's existing deadline.
-                if new.spot == .desk && new.agentWorking != old?.agentWorking {
-                    return start(.idle(new.spot, restLook()))
-                }
-            default: break
-            }
-            return nil  // the Activity or frame rate alone changes nothing Pix does
+            // Anything else Pix is doing ends in settling, which takes the new Room.
+            guard isResting, let old else { return nil }
+            // A new Mood changes which Fidgets fit; running hot or an Agent only changes how Pix looks.
+            if new.mood != old.mood { fidgetClock.rest(at: time, fits: fidgetFits(new, at: time)) }
+            let look = restLook()
+            return look != Self.restLook(in: old) ? .relook(new.spot, look) : nil  // the Activity or frame rate alone changes nothing
 
         case .momentArrived(let moment):
             if !running || mustFinish {
@@ -282,16 +267,21 @@ public struct Routine {
         }
     }
 
-    private var isStrolling: Bool {
+    /// Idling at a Spot, or on the Stroll.
+    private var isResting: Bool {
         switch current {
-        case .stroll, .stop: true
+        case .idle?, .stroll?, .stop?: true
         default: false
         }
     }
 
     private func restLook() -> RestLook {
         guard let room else { return RestLook(spot: .window, mood: .content) }
-        return RestLook(spot: room.spot, mood: room.mood, agentWorking: room.agentWorking, hot: room.hot)
+        return Self.restLook(in: room)
+    }
+
+    private static func restLook(in room: Room) -> RestLook {
+        RestLook(spot: room.spot, mood: room.mood, agentWorking: room.agentWorking, hot: room.hot)
     }
 
     /// What Pix does when nothing else is going on: a waiting Moment, the lamp, the walk from a Pastime, the way home,

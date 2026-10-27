@@ -155,9 +155,9 @@ final class Playback {
         case .stop(let end, let body, let restLook):
             log.info("stop: \(String(describing: end), privacy: .public)")
             stop(body: body, restLook: restLook)
-        case .relook(let restLook):
+        case .relook(let spot, let restLook):
             log.info("relook")
-            apply(restLook, at: .window)
+            apply(restLook, at: spot)
         case .pastime(let pastime):
             log.info("pastime: \(pastime.rawValue, privacy: .public)")
             found(at: pastime)
@@ -166,22 +166,11 @@ final class Playback {
 
     /// The resting loop for the Spot and Look, plus its particles.
     private func idle(at spot: Spot, look: RestLook) {
-        guard let world else { return }
         log.info("idle: \(spot.rawValue, privacy: .public) · \(look.mood.rawValue, privacy: .public)")
         _ = takeOver()
         apply(look, at: spot)
         place(at: geometry.rest(at: spot), facing: CATransform3DIdentity)
         breathe(true)
-        switch spot {
-        case .desk, .call, .couch:
-            break
-        case .musicCorner:
-            let record = geometry.rect(Art.turntable, on: "desk")
-            ambient += spinningRecord(record)
-            ambient += Particles.draw("note", count: 3, every: 2.4, from: CGPoint(x: record.midX, y: record.maxY), in: world, rise: 10, fps: fps, art: art)
-        case .window:
-            break
-        }
     }
 
     /// The scene opens with Pix at the Pastime's place, doing it for two seconds; then the step is finished.
@@ -201,7 +190,8 @@ final class Playback {
         after(2, token: mine) { [weak self] in self?.finish() }
     }
 
-    /// Applies the at-rest Look carried by the Step: face, glow, sky life, particles and body.
+    /// Applies the at-rest Look carried by the Step: face, glow, sky life, particles, the Spot's own (the spinning record
+    /// in the music corner) and body.
     private func apply(_ look: RestLook, at spot: Spot) {
         blink(in: look.mood)
         clearAmbient()
@@ -211,6 +201,11 @@ final class Playback {
         for particle in look.particles {
             ambient += particle == "zzz" ? Particles.draw(particle, count: 2, every: 3.5, from: besideHead, in: pix, rise: 10, life: 2.5, fps: fps, art: art)
                                          : Particles.draw(particle, count: 2, every: 2.5, from: besideHead, in: pix, rise: 8, fps: fps, art: art)
+        }
+        if spot == .musicCorner, let world {
+            let record = geometry.rect(Art.turntable, on: "desk")
+            ambient += spinningRecord(record)
+            ambient += Particles.draw("note", count: 3, every: 2.4, from: CGPoint(x: record.midX, y: record.maxY), in: world, rise: 10, fps: fps, art: art)
         }
         if let body = look.body { setBody(body, speedUp: look.speedUp) }
     }

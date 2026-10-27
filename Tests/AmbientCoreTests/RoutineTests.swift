@@ -59,7 +59,17 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
 
 @Test func aNewMoodWhileIdlingShowsAtOnce() {
     var routine = started(at: .desk)
-    #expect(routine.handle(.roomChanged(scene(.desk, .grumpy)), at: at(12, 1)) == idling(.desk, .grumpy))
+    #expect(routine.handle(.roomChanged(scene(.desk, .grumpy)), at: at(12, 1)) == .relook(.grumpy, at: .desk))
+    #expect(routine.nextWake == at(12, 2))  // a new Mood restarts the Fidget deadline
+}
+
+@Test func runningHotWhileIdlingShowsAtOnceWithoutMovingTheFidget() {
+    var routine = started(at: .desk)
+    let due = routine.nextWake
+    var hot = scene(.desk)
+    hot.hot = true
+    #expect(routine.handle(.roomChanged(hot), at: at(12, 0, 30)) == .relook(.desk, RestLook(spot: .desk, mood: .content, hot: true)))
+    #expect(routine.nextWake == due)
 }
 
 @Test func aNewMoodWhileBusyShowsWhenPixIsDone() {
@@ -71,7 +81,7 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
 
 @Test func whenFocusedNoFidgetIsDue() {
     var routine = started(at: .desk)
-    #expect(routine.handle(.roomChanged(scene(.desk, .focused)), at: at(12, 1)) == .idle(.desk, .focused))
+    #expect(routine.handle(.roomChanged(scene(.desk, .focused)), at: at(12, 1)) == .relook(.focused, at: .desk))
     #expect(routine.nextWake == nil)
 }
 
@@ -344,7 +354,7 @@ func strollingRight(dice: Dice = Dice([])) -> Routine {
     // Hot change:
     var hotRoom = scene(.window, .content)
     hotRoom.hot = true
-    #expect(routine.handle(.roomChanged(hotRoom), at: at(12, 1, 30)) == .relook(RestLook(spot: .window, mood: .content, hot: true)))
+    #expect(routine.handle(.roomChanged(hotRoom), at: at(12, 1, 30)) == .relook(.window, RestLook(spot: .window, mood: .content, hot: true)))
 }
 
 @Test func anAgentStartingWorkMidStrollSendsPixWalkingToDesk() {
@@ -718,10 +728,10 @@ func aMomentThatCutsAnErrandShortIsFollowedByAWalkHomeNotAJump(leg: Int) {
     var room = scene(.desk)
     room.agentWorking = true
     let working = RestLook(spot: .desk, mood: room.mood, agentWorking: true)
-    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 10)) == .idle(.desk, working))
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 10)) == .relook(.desk, working))
     #expect(routine.nextWake == due)
     room.agentWorking = false
-    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 20)) == .idle(.desk, room.mood))
+    #expect(routine.handle(.roomChanged(room), at: at(12, 0, 20)) == .relook(room.mood, at: .desk))
     #expect(routine.nextWake == due)
 }
 
