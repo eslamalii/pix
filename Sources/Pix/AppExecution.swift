@@ -38,6 +38,11 @@ final class AppExecution {
 
     private func saveChanges() {
         let saved = controller.saved
+        var seenOnly = lastSaved
+        seenOnly.lastSeen = saved.lastSeen
+        // lastSeen moves with every event but only a relaunch reads it: writing it at most every half minute (each
+        // clock tick still does) spares a defaults write per app switch.
+        if saved == seenOnly, let was = lastSaved.lastSeen, let now = saved.lastSeen, abs(now.timeIntervalSince(was)) < 30 { return }
         guard saved != lastSaved else { return }
         effects.save(saved)
         lastSaved = saved

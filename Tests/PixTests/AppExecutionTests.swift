@@ -41,6 +41,19 @@ private final class AppEffects {
 }
 
 @MainActor
+@Test func appExecutionSavesLastSeenAtMostEveryHalfMinute() {
+    let observed = AppEffects()
+    let app = observed.start()
+    app.send(.frontAppChanged("com.apple.Safari"), at: Date(timeIntervalSince1970: 12 * 3600))  // today is seen: saved
+    let saves = observed.saves.count
+    for second in [1.0, 5, 29] { app.send(.frontAppChanged("com.apple.Safari"), at: Date(timeIntervalSince1970: 12 * 3600 + second)) }
+    #expect(observed.saves.count == saves)
+    app.send(.clockTick, at: Date(timeIntervalSince1970: 12 * 3600 + 60))
+    #expect(observed.saves.count == saves + 1)
+    #expect(observed.saves.last?.lastSeen == Date(timeIntervalSince1970: 12 * 3600 + 60))
+}
+
+@MainActor
 @Test func appExecutionRepresentsOnExplicitRequestsEvenWhenTheBarIsUnchanged() {
     let observed = AppEffects()
     let app = observed.start()
