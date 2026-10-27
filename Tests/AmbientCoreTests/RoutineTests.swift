@@ -103,6 +103,43 @@ func theSceneStartsWithPixIdlingAtItsSpotAndAFidgetDueIn30To90Seconds(roll: Doub
     #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .moment(.greeting(.hello)))
 }
 
+@Test func aGreetingWaitingForTheSceneIsNotReplacedByALaterMoment() {
+    var routine = Routine(timeZone: utc, random: Dice([]).roll)
+    routine.handle(.momentArrived(.greeting(.hello)), at: at(12))
+    routine.handle(.momentArrived(.agentAsks), at: at(12))  // say, an Agent's hook launched Pix
+    #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.agentAsks))
+    #expect(routine.handle(.finished, at: at(12)) == idling(.desk))
+}
+
+@Test func behindAWaitingGreetingOnlyTheLatestMomentWaits() {
+    var routine = Routine(timeZone: utc, random: Dice([]).roll)
+    routine.handle(.momentArrived(.greeting(.hello)), at: at(12))
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12))
+    routine.handle(.momentArrived(.overheated), at: at(12))
+    #expect(routine.handle(.sceneStarted(scene(.desk)), at: at(12)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.overheated))
+    #expect(routine.handle(.finished, at: at(12)) == idling(.desk))
+}
+
+@Test func aMomentWaitsForAPlayingGreetingToEnd() {
+    var routine = started(at: .desk)
+    #expect(routine.handle(.momentArrived(.greeting(.hello)), at: at(12, 1)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.momentArrived(.agentAsks), at: at(12, 1)) == nil)
+    #expect(routine.handle(.finished, at: at(12, 1)) == .moment(.agentAsks))
+    #expect(routine.handle(.finished, at: at(12, 1)) == idling(.desk))
+}
+
+@Test func aGreetingAndALaterMomentDuringAWalkBothPlayOnArrival() {
+    var routine = started(at: .desk)
+    routine.handle(.roomChanged(scene(.couch)), at: at(12, 1))
+    routine.handle(.momentArrived(.greeting(.hello)), at: at(12, 1))
+    routine.handle(.momentArrived(.reaction(.wave)), at: at(12, 1))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .moment(.greeting(.hello)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .moment(.reaction(.wave)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == idling(.couch))
+}
+
 @Test func aMomentStillWaitingWhenTheSceneStopsIsDropped() {
     var routine = Routine(timeZone: utc, random: Dice([]).roll)
     routine.handle(.momentArrived(.greeting(.hello)), at: at(12))

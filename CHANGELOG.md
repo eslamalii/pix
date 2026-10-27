@@ -19,6 +19,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **No more ghost Pix mid-walk:** tapping Pix while it strolled at the window, or switching apps while it walked between Spots, flashed a fading copy of Pix for a quarter of a second at the spot it was walking to. It happened whenever Zs, hearts or steam appeared or vanished during a walk.
 
+- **Pix's hello is no longer lost to the next thing that happens:** when an Agent's hook started Pix, or the Mac was already hot at launch, Pix opened straight into ASKING or HOT and never said hello or showed what it was up to while you were away. A Moment that arrives while Pix is greeting you also used to cut the Greeting short. Pix now always greets you first, then plays the latest thing that happened meanwhile.
+
 - **Pix types along as soon as an Agent starts:** at the desk, Pix kept typing at its old speed until something else changed when an Agent started or stopped working. It now switches at once, without putting off its next Fidget.
 
 ## [1.2.0] - 2026-10-18

@@ -123,9 +123,7 @@ public struct Routine {
     private var running = false
     private var current: Step?
     private var place: Place?
-    private var waiting: Moment?
-    /// Moments that arrived while Pix was found at a Pastime: they play after the Greeting, in order.
-    private var afterGreeting: [Moment] = []
+    private var waiting = WaitingMoments()
     private var needleDown = false
     private var lamp = Lamp()
     /// The end of the window the Stroll heads for next.
@@ -177,11 +175,12 @@ public struct Routine {
             let from = lastSpot ?? room.spot
             (place, lastSpot) = (.spot(from), room.spot)
             heading = .left
-            if case .greeting(_, let pastime?)? = waiting { return start(.pastime(pastime)) }  // the Greeting follows it
+            if let pastime = waiting.pastime { return start(.pastime(pastime)) }  // the Greeting follows it
             return from == room.spot ? settle(at: time) : walk(to: room.spot)
 
         case .sceneStopped:
-            (running, current, waiting, afterGreeting) = (false, nil, nil, [])
+            (running, current) = (false, nil)
+            waiting.drop()
             heading = .left
             fidgetClock.stop()
             return nil
@@ -223,9 +222,10 @@ public struct Routine {
             return nil  // the Activity or frame rate alone changes nothing Pix does
 
         case .momentArrived(let moment):
-            if !running { waiting = moment; return nil }
-            if case .walk = current { waiting = moment; return nil }  // it plays on arrival
-            if case .pastime = current { afterGreeting.append(moment); return nil }  // the Greeting comes first
+            if !running || mustFinish {
+                waiting.add(moment)
+                return nil
+            }
             return start(.moment(moment))
 
         case .finished:
@@ -273,6 +273,15 @@ public struct Routine {
 
     // MARK: - Deciding
 
+    /// Pix is walking to a Spot (a Moment plays on arrival), found at a Pastime or greeting the user (the Greeting
+    /// comes first): a Moment waits for it.
+    private var mustFinish: Bool {
+        switch current {
+        case .walk?, .pastime?, .moment(.greeting)?: true
+        default: false
+        }
+    }
+
     private var isStrolling: Bool {
         switch current {
         case .stroll, .stop: true
@@ -289,11 +298,7 @@ public struct Routine {
     /// the needle, or rest.
     private mutating func settle(at time: Date) -> Step? {
         guard let room else { return nil }
-        if let moment = waiting {
-            waiting = nil
-            return start(.moment(moment))
-        }
-        if !afterGreeting.isEmpty { return start(.moment(afterGreeting.removeFirst())) }
+        if let moment = waiting.next() { return start(.moment(moment)) }
         if lampNeedsSwitching(at: time) { return start(.errand(.switchLamp)) }
         // Back from a Pastime at another Spot: the walk between Spots, which scrolls the Room to another strip.
         if case .spot(let from)? = place, Art.spot(from) != Art.spot(room.spot) { return walk(to: room.spot) }

@@ -110,6 +110,25 @@ func fromAnotherStripPixWalksToTheWindowBeforeItStrolls(pastime: Pastime) {
     #expect(routine.handle(.finished, at: at(12)) == idling(.couch))
 }
 
+@Test func aGreetingAfterAPastimeIsNotReplacedByAMomentThatArrivesBeforeTheScene() {
+    var routine = Routine(timeZone: utc, random: Dice([]).roll, garden: Garden(), thirstRandom: { 0 })
+    routine.handle(.momentArrived(.greeting(.sleepy, after: .doze)), at: at(12))
+    routine.handle(.momentArrived(.agentAsks), at: at(12))  // say, an Agent's hook launched Pix
+    #expect(routine.handle(.sceneStarted(scene(.couch)), at: at(12)) == .pastime(.doze))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.greeting(.sleepy, after: .doze)))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.agentAsks))
+    #expect(routine.handle(.finished, at: at(12)) == idling(.couch))
+}
+
+@Test func ofTheMomentsThatArriveDuringThePastimeOnlyTheLatestFollowsTheGreeting() {
+    var (routine, _) = returning(to: .couch, after: .doze, greeting: .sleepy)
+    routine.handle(.momentArrived(.newHat), at: at(12))
+    routine.handle(.momentArrived(.agentDone), at: at(12))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.greeting(.sleepy, after: .doze)))
+    #expect(routine.handle(.finished, at: at(12)) == .moment(.agentDone))
+    #expect(routine.handle(.finished, at: at(12)) == idling(.couch))
+}
+
 @Test func aCoffeePastimeThatAMomentArrivesDuringStillFillsTheMug() {
     var (routine, _) = returning(to: .desk, after: .coffee, time: at(8))
     routine.handle(.momentArrived(.newHat), at: at(8))
