@@ -15,6 +15,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 
 - **Watering is no longer a random idle Fidget:** Pix used to water the one plant nearest the desk now and then, whether it needed it or not, and never touched the other two. It now waters a plant only when it is thirsty.
 
+- **Pix's head in the Control Strip:** the button that brings Pix back shows Pix's head, the same as in the menu bar, instead of ✨.
+
+- **Lighter while your Agents work:** Pix used to save when you were last there on every message from an Agent's hooks. It now saves it at most every half minute, which cuts the CPU each message costs by about two thirds.
+
 ### Fixed
 
 - **No more ghost Pix mid-walk:** tapping Pix while it strolled at the window, or switching apps while it walked between Spots, flashed a fading copy of Pix for a quarter of a second at the spot it was walking to. It happened whenever Zs, hearts or steam appeared or vanished during a walk.
@@ -22,6 +26,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 - **Pix's hello is no longer lost to the next thing that happens:** when an Agent's hook started Pix, or the Mac was already hot at launch, Pix opened straight into ASKING or HOT and never said hello or showed what it was up to while you were away. A Moment that arrives while Pix is greeting you also used to cut the Greeting short. Pix now always greets you first, then plays the latest thing that happened meanwhile.
 
 - **Pix types along as soon as an Agent starts:** at the desk, Pix kept typing at its old speed until something else changed when an Agent started or stopped working. It now switches at once, without putting off its next Fidget.
+
+- **The Pix button stays in the Control Strip:** the collapsed Control Strip has room for one app's button, and whichever app claims it last gets it. An app that claimed it after Pix started left you without a way back to Pix there. Pix now claims it again each time it hands you the normal Touch Bar.
+
+- **The clock and captions stay clear:** while Pix walked between Spots, the Room scrolled through the clock and the caption beside it. They now sit on the bar's black.
+
+- **The desk monitors stay full of code:** part of each monitor went blank as its code scrolled, until the loop started over.
+
+- **Every loop slows down together:** when Pix lowers its frame rate (on battery, in Low Power Mode or when the Mac runs hot), Halloween's flickering lights, and Pix's walk, bob and blink during a Stroll, kept the old rate. Everything that loops in the Room now takes the new one at once.
+
+- **A day together counts once after flying west:** crossing the date line westwards goes back to a date Pix has already seen, and Pix counted that day a second time towards the hats earned by days together.
 
 ## [1.2.0] - 2026-10-18
 
