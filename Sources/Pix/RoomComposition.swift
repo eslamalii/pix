@@ -25,6 +25,8 @@ final class RoomComposition {
     var onCaption: (Caption) -> Void = { _ in }
     var pix: CALayer { playback.pix }
     var step: Routine.Step? { playback.step }
+    /// The frame-rate cap the Room is drawn at now.
+    var fps: Int { playback.fps }
     private(set) var props: Props
     var hat: Hat? {
         get { playback.hat }
@@ -109,12 +111,12 @@ final class RoomComposition {
         if world != nil {
             switch event {
             case .sceneStarted, .roomChanged, .minutePassed, .timeZoneChanged:
-                sky.refresh(at: time, calendar: calendar, fps: room?.fps ?? 12)
+                sky.refresh(at: time, calendar: calendar, fps: fps)
                 onTime(time, calendar.timeZone)
             default: break
             }
         }
-        propDrawing.update(props, fps: room?.fps ?? 12)
+        propDrawing.update(props, fps: fps)
         if let step { playback.run(step, walkBody: props.walkBody) }
         return step
     }
