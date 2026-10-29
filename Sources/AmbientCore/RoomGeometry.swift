@@ -52,6 +52,19 @@ public struct RoomGeometry: Sendable {
         }
     }
 
+    /// Where a stop's Occasion Prop for the day is drawn.
+    public func occasionPropRect(stop: Int) -> CGRect {
+        let at = Art.occasionStops[stop], size = CGFloat(Art.occasionProp)
+        return rect(CGRect(x: CGFloat(at.x), y: CGFloat(at.y), width: size, height: size), on: at.strip)
+    }
+
+    /// Where Pix, coming from `x`, stands to place or admire a stop's Occasion Prop: beside it on that side, facing it,
+    /// its raised hand meeting the cell's middle.
+    public func occasionStand(stop: Int, from x: CGFloat) -> ErrandStand {
+        let middle = occasionPropRect(stop: stop).midX, reach = CGFloat(Art.raisedHand), fromRight = x > middle
+        return ErrandStand(x: fromRight ? middle + reach : middle - reach, facingLeft: fromRight)
+    }
+
     /// Where Pix is found at a Pastime: on the couch, beside the coffee machine with the mug held out, or at the window.
     public func place(of pastime: Pastime) -> CGPoint {
         switch pastime {

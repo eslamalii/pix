@@ -97,7 +97,7 @@ public enum Daylight: Sendable {
 }
 
 /// A day of the year Pix celebrates with the day's first Greeting.
-public enum Occasion: String, Codable, Sendable {
+public enum Occasion: String, Codable, Sendable, CaseIterable {
     case halloween, holidays, newYear
 
     public init?(month: Int, day: Int) {
