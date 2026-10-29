@@ -12,7 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let trayID = NSTouchBarItem.Identifier("\(appID).pixButton")
     private let barID = NSTouchBarItem.Identifier("\(appID).ambient")
     private let bar = NSTouchBar()
-    private let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30))  // it takes the bar's real width
+    private let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: CGFloat(Art.height)))  // it takes the bar's real width
     private let monitor = UsageMonitor()
     private lazy var menu = StatusMenu()
     private var presenter: TouchBarPresenter!
