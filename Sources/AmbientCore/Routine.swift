@@ -51,7 +51,7 @@ public struct Props: Equatable, Sendable {
 }
 
 /// What Pix does next with its body in the Room. The view tells it what happened and performs the step it asks for;
-/// it decides in Spots and Props, never in screen points.
+/// it decides in Spots, Props and the art contract's positions along a strip, never in screen points.
 public struct Routine {
     public enum Event: Sendable {
         /// The scene is on the Touch Bar, showing this Room.
