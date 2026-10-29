@@ -6,7 +6,9 @@ import AmbientCore
 /// A PixView with its scene built, on a window of its own. The view holds its window weakly: keep the window.
 @MainActor
 func builtView() async throws -> (view: PixView, window: NSWindow) {
-    let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30))
+    // A fresh Garden and no saving: the machine's own defaults neither choose the plants' thirst nor get written.
+    let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30),
+                       routine: Routine(timeZone: .current), effects: RoutineEffects(saveGarden: { _ in }))
     let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.contentView = view
     view.show(Room(spot: .window, activity: .other, mood: .sleepy, fps: 12))

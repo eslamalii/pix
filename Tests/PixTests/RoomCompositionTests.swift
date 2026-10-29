@@ -331,8 +331,10 @@ func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
     let wake = try #require(execution.wakes.last)
     wake()
     let plant = Plant(strip: "desk", x: 404)
-    #expect(execution.composition.step == .errand(.waterPlant(plant, fromRight: true)))
-    try execution.finish() // Arrive at the plant.
+    #expect(execution.composition.step == .errand(.waterPlant(plant)))
+    try execution.finish() // Arrive at the plant: from the desk, on its right, facing it.
+    #expect(execution.composition.pix.position.x == 424)
+    #expect(CATransform3DEqualToTransform(execution.composition.pix.transform, facingLeft))
     #expect(execution.saves.isEmpty)
     try execution.finish() // Water it.
     #expect(execution.saves.count == 1)

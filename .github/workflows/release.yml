@@ -62,7 +62,9 @@ jobs:
             -e "s|^  sha256 \".*\"|  sha256 \"$SHA\"|" \
             -e "s|(ENV\[\"PIX_BUILD\"\] = )\"[0-9]+\"|\1\"$BUILD\"|" \
             Formula/pix.rb
-          grep -q "v$VERSION.tar.gz" Formula/pix.rb && grep -q "$SHA" Formula/pix.rb && grep -q "\"$BUILD\"" Formula/pix.rb
+          grep -q "v$VERSION.tar.gz" Formula/pix.rb
+          grep -q "$SHA" Formula/pix.rb
+          grep -q "\"$BUILD\"" Formula/pix.rb
           git diff --quiet && exit 0 # already up to date (a rerun)
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -am "pix $VERSION"
@@ -80,7 +82,9 @@ jobs:
             -e "s|(<span class=\"logo-badge mono\">)v[^<]*<|\1v$VERSION<|" \
             -e "s|download/v[0-9.]+/Pix-[0-9.]+\.dmg|download/v$VERSION/Pix-$VERSION.dmg|g" \
             public/index.html
-          grep -q "\"softwareVersion\": \"$VERSION\"" public/index.html && grep -q "mono\">v$VERSION<" public/index.html
+          grep -q "\"softwareVersion\": \"$VERSION\"" public/index.html
+          grep -q "mono\">v$VERSION<" public/index.html
+          grep -q "download/v$VERSION/Pix-$VERSION.dmg" public/index.html
           git diff --quiet && exit 0
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -am "Pix $VERSION"

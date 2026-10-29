@@ -20,7 +20,7 @@ func tending(at spot: Spot, _ mood: Mood = .content, garden: Garden, time: Date 
 
 @Test func pixWatersAThirstyPlantAtItsNextFidgetSlot() {
     var routine = tending(at: .desk, garden: thirstyGarden())
-    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.waterPlant(deskPlant, fromRight: true)))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.waterPlant(deskPlant)))
 }
 
 /// Plays the Errand Pix was just asked for to its end: out, use, back.
@@ -32,10 +32,10 @@ func playErrand(_ routine: inout Routine, at time: Date) {
 
 @Test func careGoesToTheNearestThirstyPlantFirstOneAtATimeAndThenTheFidgetsReturn() {
     var routine = tending(at: .desk, garden: thirstyGarden())
-    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.waterPlant(deskPlant, fromRight: true)))
+    #expect(routine.handle(.wake, at: at(12, 1)) == .errand(.waterPlant(deskPlant)))
     playErrand(&routine, at: at(12, 1))
     #expect(routine.props(at: at(12, 1)).thirstyPlants == [otherDeskPlant, windowPlant])
-    #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.waterPlant(otherDeskPlant, fromRight: false)))
+    #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.waterPlant(otherDeskPlant)))
     playErrand(&routine, at: at(12, 3))
     #expect(routine.props(at: at(12, 3)).thirstyPlants == [windowPlant])  // not on the desk's strip: left for the window
     guard case .fidget? = routine.handle(.wake, at: routine.nextWake!) else { Issue.record("no ordinary Fidget"); return }
@@ -60,7 +60,7 @@ func playErrand(_ routine: inout Routine, at time: Date) {
     routine.handle(.finished, at: at(12, 1))  // wave done: walk back
     routine.handle(.finished, at: at(12, 1))  // home
     #expect(routine.props(at: at(12, 1)).thirstyPlants == [deskPlant])
-    #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.waterPlant(deskPlant, fromRight: true)))  // tried again
+    #expect(routine.handle(.wake, at: routine.nextWake!) == .errand(.waterPlant(deskPlant)))  // tried again
 }
 
 @Test(arguments: [Mood.focused, .sleepy])
@@ -99,11 +99,11 @@ func pixDoesNotLeaveTheCallOrTheCouchToTendThePlants(spot: Spot, fidget: Routine
 
 // MARK: - The window plant
 
-@Test func strollingAtTheWindowPixWatersTheWindowPlantWhereItStopsFromWhicheverSideItIsOn() {
+@Test func strollingAtTheWindowPixWatersTheWindowPlantWhereItStops() {
     var routine = tending(at: .window, garden: thirstyGarden([windowPlant]))
     #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // mid-walk to the left end: the Fidget waits
-    #expect(routine.handle(.finished, at: at(12, 1)) == .errand(.waterPlant(windowPlant, fromRight: false)))  // at the left end, the plant is to its right
-    #expect(routine.handle(.finished, at: at(12, 1)) == .use(.waterPlant(windowPlant, fromRight: false)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .errand(.waterPlant(windowPlant)))
+    #expect(routine.handle(.finished, at: at(12, 1)) == .use(.waterPlant(windowPlant)))
     #expect(routine.props(at: at(12, 1)).thirstyPlants == [windowPlant])
     #expect(routine.handle(.finished, at: at(12, 1)) == .stroll(to: .right))  // on from the plant, not back to the middle first
     #expect(routine.props(at: at(12, 1)).thirstyPlants.isEmpty)
@@ -114,12 +114,4 @@ func pixDoesNotLeaveTheCallOrTheCouchToTendThePlants(spot: Spot, fidget: Routine
     routine.handle(.wake, at: at(12, 1))
     #expect(routine.handle(.roomChanged(scene(.window)), at: at(12, 1)) == .walk(to: .window))
     #expect(routine.props(at: at(12, 1)).thirstyPlants == [deskPlant])
-}
-
-@Test func atTheRightEndOfTheWindowPixWatersFromTheRightHandSide() {
-    var routine = tending(at: .window, garden: thirstyGarden([windowPlant]))
-    routine.handle(.finished, at: at(12, 0, 30))  // the left end: a look around
-    routine.handle(.finished, at: at(12, 0, 40))  // on, to the right end
-    #expect(routine.handle(.wake, at: at(12, 1)) == nil)  // the Fidget falls due mid-walk and waits
-    #expect(routine.handle(.finished, at: at(12, 1, 30)) == .errand(.waterPlant(windowPlant, fromRight: true)))
 }

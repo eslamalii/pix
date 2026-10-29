@@ -617,7 +617,7 @@ func pixDrinksCoffeeOnlyFromSixToFiveInTheEvening(hour: Int, minute: Int, second
 
 // MARK: - Errands
 
-let wateringFromTheDesk = Errand.waterPlant(deskPlant, fromRight: true)  // the plant left of the desk is nearest
+let wateringFromTheDesk = Errand.waterPlant(deskPlant)  // the plant left of the desk is nearest
 
 func wateringThePlant() -> Routine {
     tending(at: .desk, garden: thirstyGarden())  // the first Fidget slot, at 12:01, goes to Care

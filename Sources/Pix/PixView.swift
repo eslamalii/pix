@@ -287,6 +287,6 @@ final class PixView: NSView {
         caption.add(fade, forKey: "caption")
     }
 
-    private var frameRange: CAFrameRateRange { capped(shown?.fps ?? 12) }
+    private var frameRange: CAFrameRateRange { capped(composition.fps) }
 
 }

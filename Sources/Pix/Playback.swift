@@ -138,9 +138,9 @@ final class Playback {
             perform(fidget.rawValue, loops: 1)
         case .errand(let errand):
             log.info("errand: \(errand.body, privacy: .public)")
-            walk(.errand(to: geometry.standingPoint(for: errand).x))
-        case .use(let errand):
-            withoutAnimation { pix.transform = geometry.standingPoint(for: errand).facingLeft ? facingLeft : CATransform3DIdentity }
+            walk(.errand(to: geometry.standingPoint(for: errand, from: pix.position.x).x))
+        case .use(let errand):  // already at the Prop, so on the side it came from
+            withoutAnimation { pix.transform = geometry.standingPoint(for: errand, from: pix.position.x).facingLeft ? facingLeft : CATransform3DIdentity }
             perform(errand.body, loops: 1)
         case .walkBack(let spot):
             walk(.errand(to: geometry.rest(at: spot).x))
