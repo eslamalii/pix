@@ -61,6 +61,21 @@ private let desk = m1.rest(at: .desk).x
     #expect(narrow.standingPoint(for: .waterPlant(otherDeskPlant), from: desk) == ErrandStand(x: 722, facingLeft: false))  // 730 + 6 - 14
 }
 
+@Test func theDaysOccasionPropsAreDrawnAtTheirStopsInWorldPoints() {
+    #expect(m1.occasionPropRect(stop: 0) == CGRect(x: 121, y: 11, width: 12, height: 12))  // on the bookcase: 30 - (7 + 12)
+    #expect(m1.occasionPropRect(stop: 2) == CGRect(x: 822, y: 0, width: 12, height: 12))   // on the cabinet, down to the strip's last row
+    #expect(wide.occasionPropRect(stop: 3) == CGRect(x: 1085 + 392, y: 2, width: 12, height: 12))  // on the windowsill
+}
+
+@Test func pixReachesEachStopWithItsRaisedHandFromTheSideItComesFrom() {
+    // The tour, left to right from the desk: the bookcase from the right, then each next stop from the left.
+    #expect(m1.occasionStand(stop: 0, from: desk) == ErrandStand(x: 135, facingLeft: true))    // 121 + 6 + 8
+    #expect(m1.occasionStand(stop: 1, from: 135) == ErrandStand(x: 278, facingLeft: false))    // 280 + 6 - 8
+    #expect(m1.occasionStand(stop: 2, from: 278) == ErrandStand(x: 820, facingLeft: false))    // 822 + 6 - 8
+    #expect(m1.occasionStand(stop: 3, from: 820) == ErrandStand(x: 1394, facingLeft: false))   // 1004 + 392 + 6 - 8
+    #expect(m1.occasionStand(stop: 3, from: m1.strollEnd(.right)) == ErrandStand(x: 1410, facingLeft: true))  // 1004 + 392 + 6 + 8
+}
+
 @Test func theStrollAtTheWindowGoesBetweenItsEnds() {
     #expect(m1.strollEnd(.left) == 1154)  // 1004 + 150
     #expect(m1.strollEnd(.right) == 1864)  // 1004 + 860

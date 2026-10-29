@@ -73,3 +73,56 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 @Test func everyPastimeIsDrawnFromTheArtContract() {
     for pastime in Pastime.allCases { #expect(bodies.contains(pastime.body), "pastime \(pastime) body \(pastime.body)") }
 }
+
+// MARK: - The day's Occasion Props
+
+/// An image in Art/, as drawn.
+private func artImage(_ name: String) throws -> CGImage {
+    let file = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("../../Art").standardized
+        .appendingPathComponent(Art.file(name))
+    let source = try #require(CGImageSourceCreateWithURL(file as CFURL, nil), "missing Art/\(Art.file(name))")
+    return try #require(CGImageSourceCreateImageAtIndex(source, 0, nil))
+}
+
+/// How many pixels of `image` inside `rect` (top-left origin) are drawn, not transparent.
+private func drawnPixels(of image: CGImage, in rect: CGRect) -> Int {
+    let (w, h) = (image.width, image.height)
+    var pixels = [UInt8](repeating: 0, count: w * h * 4)
+    let context = CGContext(data: &pixels, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                            space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    context.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+    var drawn = 0
+    for y in Int(rect.minY)..<Int(rect.maxY) { for x in Int(rect.minX)..<Int(rect.maxX) where pixels[(y * w + x) * 4 + 3] > 0 { drawn += 1 } }
+    return drawn
+}
+
+private func cell(_ stop: (strip: String, x: Int, y: Int)) -> CGRect {
+    CGRect(x: stop.x, y: stop.y, width: Art.occasionProp, height: Art.occasionProp)
+}
+
+@Test func everyStopsCellLiesInsideItsStrip() {
+    let strip = CGRect(x: 0, y: 0, width: Art.stripWidth, height: Art.height)
+    for stop in Art.occasionStops {
+        #expect(Art.strips.contains(stop.strip), "stop on \(stop.strip)")
+        #expect(strip.contains(cell(stop)), "stop at \(stop.x), \(stop.y)")
+    }
+}
+
+@Test func halloweensSeasonPropsLeaveEveryStopClear() throws {
+    // On October 31 both stand in the Room: a day's Occasion Prop must never be drawn over the season's.
+    for stop in Art.occasionStops {
+        let season = try artImage("\(Halloween.folder)/room-\(stop.strip)")
+        #expect(drawnPixels(of: season, in: cell(stop)) == 0, "stop at \(stop.x), \(stop.y)")
+    }
+}
+
+@Test(arguments: Occasion.allCases)
+func everyOccasionHasOneDrawnCellPerStop(occasion: Occasion) throws {
+    let sheet = try artImage(Art.occasionPropSheet(occasion.rawValue))
+    #expect(sheet.width == Art.occasionStops.count * Art.occasionProp)
+    #expect(sheet.height == Art.occasionProp)
+    for stop in Art.occasionStops.indices {
+        let cell = CGRect(x: stop * Art.occasionProp, y: 0, width: Art.occasionProp, height: Art.occasionProp)
+        #expect(drawnPixels(of: sheet, in: cell) > 0, "nothing drawn at stop \(stop)")
+    }
+}

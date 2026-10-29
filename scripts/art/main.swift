@@ -531,4 +531,41 @@ for (i, plant) in Art.plantProps.enumerated() {
     thirsty.stamp(droop.image, x: i * Int(Art.plant.width), y: 0)
 }
 thirsty.save("plant-thirsty")
+// The day's Occasion Props, one cell per stop in Art.occasionStops' order: bookcase, shelf, cabinet, windowsill.
+// Each is a few dots layers, drawn in order. The cabinet's drawings start a row down: its cell starts a row above them, to stay in the strip.
+let jack = [emoteArt["pumpkin"]!, ([(2, 3), (5, 3), (3, 5), (4, 5)], hex(0xffe08a))]  // the pumpkin Emote with glowing eyes and mouth
+let occasionArt: [(occasion: String, stops: [[([(Int, Int)], CGColor)]])] = [
+    ("halloween", [
+        [([(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (1, 1), (2, 2),
+           (3, 3), (4, 4), (5, 5), (6, 6), (3, 1), (5, 2), (7, 3), (1, 3), (2, 5), (3, 7), (4, 2), (2, 4)], shade)],  // a cobweb in the corner
+        jack,
+        [([(0, 1), (1, 2), (2, 3), (3, 3), (4, 2), (5, 1), (6, 1), (7, 2), (8, 3), (9, 3), (10, 2), (11, 1)], hex(0x8a6fd6)),
+         ([(2, 4), (3, 4), (8, 4), (9, 4)], hex(0xff9a3c))],  // a spooky garland
+        jack,
+    ]),
+    ("holidays", [
+        [([(0, 0), (1, 1), (2, 1), (3, 0), (4, 0), (5, 1), (6, 1), (7, 0), (8, 0), (9, 1), (10, 1), (11, 0)], leaf),
+         ([(2, 2), (6, 2), (10, 2)], bulb)],  // a pine garland with baubles
+        [([(3, 2), (4, 2), (3, 3), (4, 3), (3, 4), (4, 4), (3, 5), (4, 5), (2, 6), (3, 6), (4, 6), (5, 6)], shell),
+         ([(3, 0), (4, 1)], hex(0xffd84a))],  // a candle and its flame
+        [([(3, 1), (4, 1), (5, 1), (2, 2), (6, 2), (2, 3), (6, 3), (2, 4), (6, 4), (3, 5), (4, 5), (5, 5)], leaf),
+         ([(4, 1), (3, 5), (5, 5)], hex(0xff4d4d))],  // a wreath with berries
+        [([(4, 0), (3, 1), (4, 1), (5, 1), (2, 2), (3, 2), (4, 2), (5, 2), (6, 2), (1, 3), (2, 3), (3, 3), (4, 3), (5, 3), (6, 3), (7, 3),
+           (3, 4), (4, 4), (5, 4)], leaf), ([(4, 0), (2, 2), (6, 3)], hex(0xffd84a))],  // a little tree with a star
+    ]),
+    ("newYear", [
+        [([(0, 0), (1, 1), (2, 2), (3, 1), (4, 0), (5, 1), (6, 2), (7, 1), (8, 0), (9, 1), (10, 2), (11, 1)], hex(0xffd84a)),
+         ([(2, 3), (6, 3), (10, 3)], glow)],  // gold streamers
+        [([(1, 1), (2, 2), (3, 2), (4, 1), (5, 1), (6, 2), (7, 2), (8, 1)], blush), ([(3, 0), (6, 0)], hex(0xffd84a))],  // a party garland
+        [([(3, 1), (4, 1), (2, 2), (3, 2), (4, 2), (5, 2), (2, 3), (3, 3), (4, 3), (5, 3), (3, 4), (4, 4)], bulb),
+         ([(3, 5), (4, 5)], hex(0xffd84a))],  // a confetti lantern
+        [([(3, 0), (3, 1), (3, 2), (1, 2), (2, 2), (4, 2), (5, 2), (2, 3), (4, 3), (1, 4), (5, 4)], hex(0xffd84a)),
+         ([(3, 2)], light)],  // a star to toast with
+    ]),
+]
+for (occasion, stops) in occasionArt {
+    let sheet = Canvas(Art.occasionProp * Art.occasionStops.count, Art.occasionProp)
+    for (i, layers) in stops.enumerated() { for (dots, color) in layers { sheet.dots(dots, color, dx: i * Art.occasionProp) } }
+    sheet.save(Art.occasionPropSheet(occasion))
+}
 drawHalloween()
