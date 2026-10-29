@@ -342,7 +342,7 @@ public struct Routine {
         fidgetClock.started(step)
         switch step {
         case .walk, .errand, .walkBack, .pastime: place = .onTheWay  // until it finishes
-        default: break
+        case .idle, .moment, .fidget, .use, .dropNeedle, .stroll, .stop, .relook: break
         }
         if case .moment = step { lastFidget = nil }  // a cut-short Errand may be tried again at once
         if case .walk = step { lastFidget = nil }

@@ -21,7 +21,7 @@ struct FidgetClock {
         switch step {
         case .stroll, .stop: break  // the Stroll carries the deadline, and a held Fidget, on
         case .idle: held = false
-        default: (held, due) = (false, nil)
+        case .walk, .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .relook: (held, due) = (false, nil)
         }
     }
 

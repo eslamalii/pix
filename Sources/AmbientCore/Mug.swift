@@ -20,7 +20,7 @@ struct Mug {
         switch step {
         case .errand(.refillMug), .pastime(.coffee): inHand = true
         case .walk, .idle: inHand = false
-        default: break
+        case .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .stroll, .stop, .relook: break
         }
     }
 
