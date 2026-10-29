@@ -1,10 +1,6 @@
 import Foundation
 
-/// A hat Pix earns by spending time with the user, worn by choice from the menu. Nothing to buy or trade.
-public enum Hat: String, CaseIterable, Sendable {
-    // Only ever add hats at the end: skins draw them by position (see Art.hats).
-    case cap, beanie, party, flower, crown, headband, witch, santa, topHat
-
+extension Hat {
     /// What earns a hat: days together, Pets, Focus sessions finished, or an Occasion spent with the user.
     public enum Requirement: Equatable, Sendable {
         case days(Int), pets(Int), focusSessions(Int), occasion(Occasion)

@@ -18,5 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: scripts/test.sh
+      # The art generator compiles the art contract too; it is otherwise only built when someone redraws the art.
+      - run: scripts/make-art.sh --check
       # Assemble and verify architectures, deployment metadata, signature and bundled art.
       - run: scripts/build-app.sh --bundle
