@@ -29,6 +29,11 @@ public struct Garden: Codable, Equatable, Sendable {
 
     public func thirsty(at time: Date) -> [Plant] { thirstyAt.filter { $0.value <= time }.map(\.key) }
 
+    /// The thirsty plant on `strip` whose middle is nearest `x` (along the strip), if any.
+    func nearestThirsty(on strip: String, to x: Int, at time: Date) -> Plant? {
+        thirsty(at: time).filter { $0.strip == strip }.min { abs($0.middle - x) < abs($1.middle - x) }
+    }
+
     /// Pix watered the plant: it turns thirsty again after a while.
     public mutating func watered(_ plant: Plant, at time: Date, random: () -> Double) {
         let range = Self.thirstAfter

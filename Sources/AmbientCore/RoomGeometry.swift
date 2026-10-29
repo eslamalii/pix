@@ -38,14 +38,14 @@ public struct RoomGeometry: Sendable {
         stripX(Art.spot(.window).strip) + CGFloat(end == .left ? Art.wanderFrom : Art.wanderTo)
     }
 
-    /// Where Pix stands to use an Errand's Prop, and which way it faces.
-    public func standingPoint(for errand: Errand) -> ErrandStand {
+    /// Where Pix, coming from `x`, stands to use an Errand's Prop, and which way it faces.
+    public func standingPoint(for errand: Errand, from x: CGFloat) -> ErrandStand {
         let desk = stripX("desk")
         switch errand {
         case .switchLamp:  // the raised right hand meets the switch on the lamp's pole
             return ErrandStand(x: desk + Art.lamp.minX + CGFloat(Art.lampSwitch - Art.raisedHand), facingLeft: false)
-        case .waterPlant(let plant, let fromRight):  // beside the plant, the can held out toward it
-            let middle = stripX(plant.strip) + CGFloat(plant.x) + Art.plant.width / 2, reach = CGFloat(Art.wateringReach)
+        case .waterPlant(let plant):  // beside the plant on the side Pix comes from, the can held out toward it
+            let middle = stripX(plant.strip) + CGFloat(plant.middle), reach = CGFloat(Art.wateringReach), fromRight = x > middle
             return ErrandStand(x: fromRight ? middle + reach : middle - reach, facingLeft: fromRight)
         case .refillMug:  // left of the coffee machine, the mug held out under its spout
             return ErrandStand(x: desk + Art.coffeeMachine.minX - CGFloat(Art.pourReach), facingLeft: false)
@@ -56,7 +56,7 @@ public struct RoomGeometry: Sendable {
     public func place(of pastime: Pastime) -> CGPoint {
         switch pastime {
         case .doze, .gaze: rest(at: pastime.spot)
-        case .coffee: CGPoint(x: standingPoint(for: .refillMug).x, y: CGFloat(Art.floor))
+        case .coffee: CGPoint(x: standingPoint(for: .refillMug, from: rest(at: .desk).x).x, y: CGFloat(Art.floor))
         }
     }
 

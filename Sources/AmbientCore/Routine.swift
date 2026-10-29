@@ -4,8 +4,8 @@ import Foundation
 /// A trip to a Prop, as a Fidget, as Care, or at a time of day: Pix walks to it, uses it, and walks back to its Spot.
 public enum Errand: Equatable, Sendable {
     case switchLamp
-    /// A thirsty plant, approached from its right or its left.
-    case waterPlant(Plant, fromRight: Bool)
+    /// A thirsty plant.
+    case waterPlant(Plant)
     /// The coffee machine by the desk: Pix takes its mug there and fills it.
     case refillMug
 
@@ -224,7 +224,7 @@ public struct Routine {
             case .use(let errand):
                 if errand == .switchLamp { lamp.switched(atHour: hour(of: time)) }
                 if errand == .refillMug { mug.filled(inHand: true) }
-                if case .waterPlant(let plant, _) = errand { garden.watered(plant, at: time, random: thirstRandom) }
+                if case .waterPlant(let plant) = errand { garden.watered(plant, at: time, random: thirstRandom) }
                 if room?.spot == .window { return nextStrollStep() }  // at the window, on from the Prop is part of the Stroll
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
@@ -376,10 +376,7 @@ public struct Routine {
     /// and only from the desk or the window, not while sleepy.
     private func plantToWater(at time: Date) -> Errand? {
         guard let room, room.mood != .sleepy, room.spot == .desk || room.spot == .window else { return nil }
-        let strip = Art.spot(room.spot).strip, here = restX
-        func distance(_ plant: Plant) -> Int { abs(plant.middle - here) }
-        let plant = garden.thirsty(at: time).filter { $0.strip == strip }.min { distance($0) < distance($1) }
-        return plant.map { .waterPlant($0, fromRight: here > $0.middle) }
+        return garden.nearestThirsty(on: Art.spot(room.spot).strip, to: restX, at: time).map(Errand.waterPlant)
     }
 
     private func hour(of time: Date) -> Int { calendar.component(.hour, from: time) }
