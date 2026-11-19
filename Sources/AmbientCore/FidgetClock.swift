@@ -34,7 +34,7 @@ struct FidgetClock {
             held = true
             return false
         case .stop?, .idle?: return true
-        default: return false
+        case .walk?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, nil: return false
         }
     }
 

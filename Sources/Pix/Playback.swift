@@ -123,7 +123,8 @@ final class Playback {
         // Relook changes the active step's appearance; it does not replace its lifetime.
         switch step {
         case .relook: break
-        default: self.step = step
+        case .walk, .idle, .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .stroll, .stop:
+            self.step = step
         }
         switch step {
         case .walk(let spot):

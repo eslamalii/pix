@@ -263,7 +263,7 @@ public struct Routine {
     private var mustFinish: Bool {
         switch current {
         case .walk?, .pastime?, .moment(.greeting)?: true
-        default: false
+        case .idle?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .stroll?, .stop?, .relook?, nil: false
         }
     }
 
@@ -271,7 +271,7 @@ public struct Routine {
     private var isResting: Bool {
         switch current {
         case .idle?, .stroll?, .stop?: true
-        default: false
+        case .walk?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, nil: false
         }
     }
 
@@ -368,7 +368,8 @@ public struct Routine {
     private var restX: Int {
         switch current {
         case .stroll(let end, _)?, .stop(let end, _, _)?: end == .left ? Art.wanderFrom : Art.wanderTo
-        default: room.map { Art.spot($0.spot).x } ?? 0
+        case .walk?, .idle?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, nil:
+            room.map { Art.spot($0.spot).x } ?? 0
         }
     }
 
