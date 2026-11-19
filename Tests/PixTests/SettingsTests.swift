@@ -140,3 +140,12 @@ private struct SettingsFixture {
     settings.loginItemPath = nil
     #expect(defaults.object(forKey: "skin") == nil && defaults.object(forKey: "loginItemPath") == nil)
 }
+
+@Test func aGardenSavedUnderTheGardenKeyStillReads() throws {
+    let fixture = SettingsFixture()
+    defer { fixture.remove() }
+    var garden = Garden()
+    garden.adopt([Plant(strip: "desk", x: 404)], at: Date(timeIntervalSince1970: 0), random: { 0 })
+    try fixture.defaults().set(JSONEncoder().encode(garden), forKey: "garden")
+    #expect(try fixture.reader().garden == garden)
+}

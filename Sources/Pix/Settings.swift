@@ -34,9 +34,10 @@ struct Settings {
         set { Settings().saved = newValue }
     }
 
-    static var garden: Garden {
-        get { Settings().garden }
-        set { Settings().garden = newValue }
+    /// What the Routine keeps between launches.
+    static var routine: Routine.Saved {
+        get { Routine.Saved(garden: Settings().garden) }
+        set { Settings().garden = newValue.garden }
     }
 
     /// What the Controller owns that Pix keeps between launches (Hide Pix, "Treat … as", the Memory, the hat and when the

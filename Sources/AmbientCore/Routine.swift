@@ -133,8 +133,13 @@ public struct Routine {
     private var mug = Mug()
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
-    /// Which plants are thirsty: Pix's Care answers it.
-    public private(set) var garden: Garden
+    /// What the Routine keeps between launches.
+    public struct Saved: Equatable, Sendable {
+        /// Which plants are thirsty: Pix's Care answers it.
+        public var garden: Garden
+        public init(garden: Garden = Garden()) { self.garden = garden }
+    }
+    public private(set) var saved: Saved
     /// Dice for how long a watered plant stays watered, apart from `random` so Fidgets don't depend on them.
     private let thirstRandom: () -> Double
 
@@ -146,21 +151,20 @@ public struct Routine {
         let resting: Bool
         if case .idle(.desk, _)? = current { resting = true } else { resting = false }
         return Props(lampLit: lamp.lit, mugAway: mug.inHand, mugSteams: resting && mug.hot(atHour: hour(of: time)),
-                     thirstyPlants: Set(garden.thirsty(at: time)))
+                     thirstyPlants: Set(saved.garden.thirsty(at: time)))
     }
 
     /// When the view should send `wake` (nil: no need).
     public var nextWake: Date? { fidgetClock.due }
 
-    /// `random` and `thirstRandom` return a number in 0..<1; tests pass fixed ones. `garden` is what Pix kept of the
-    /// plants' thirst from the last launch.
-    public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }, garden: Garden = Garden(),
+    /// `random` and `thirstRandom` return a number in 0..<1; tests pass fixed ones. `saved` is what Pix kept from the last launch.
+    public init(timeZone: TimeZone, random: @escaping () -> Double = { Double.random(in: 0..<1) }, saved: Saved = Saved(),
                 thirstRandom: @escaping () -> Double = { Double.random(in: 0..<1) }) {
         calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         self.random = random
         fidgetClock = FidgetClock(random: random)
-        self.garden = garden
+        self.saved = saved
         self.thirstRandom = thirstRandom
     }
 
@@ -171,7 +175,7 @@ public struct Routine {
             self.room = room
             running = true
             lamp.found(atHour: hour(of: time))
-            garden.adopt(Self.plants, at: time, random: thirstRandom)
+            saved.garden.adopt(Self.plants, at: time, random: thirstRandom)
             let from = lastSpot ?? room.spot
             (place, lastSpot) = (.spot(from), room.spot)
             heading = .left
@@ -224,7 +228,7 @@ public struct Routine {
             case .use(let errand):
                 if errand == .switchLamp { lamp.switched(atHour: hour(of: time)) }
                 if errand == .refillMug { mug.filled(inHand: true) }
-                if case .waterPlant(let plant) = errand { garden.watered(plant, at: time, random: thirstRandom) }
+                if case .waterPlant(let plant) = errand { saved.garden.watered(plant, at: time, random: thirstRandom) }
                 if room?.spot == .window { return nextStrollStep() }  // at the window, on from the Prop is part of the Stroll
                 return start(.walkBack(to: room?.spot ?? .desk))
             case .stroll(let end, _):
@@ -377,7 +381,7 @@ public struct Routine {
     /// and only from the desk or the window, not while sleepy.
     private func plantToWater(at time: Date) -> Errand? {
         guard let room, room.mood != .sleepy, room.spot == .desk || room.spot == .window else { return nil }
-        return garden.nearestThirsty(on: Art.spot(room.spot).strip, to: restX, at: time).map(Errand.waterPlant)
+        return saved.garden.nearestThirsty(on: Art.spot(room.spot).strip, to: restX, at: time).map(Errand.waterPlant)
     }
 
     private func hour(of time: Date) -> Int { calendar.component(.hour, from: time) }

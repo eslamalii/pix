@@ -11,7 +11,7 @@ func thirstyGarden(_ plants: [Plant] = allPlants) -> Garden {
 
 /// A Routine with its scene started at `spot`, at noon, with the Garden as given. The first Fidget falls due at 12:01.
 func tending(at spot: Spot, _ mood: Mood = .content, garden: Garden, time: Date = at(12), dice: Dice = Dice([])) -> Routine {
-    var routine = Routine(timeZone: utc, random: dice.roll, garden: garden, thirstRandom: { 0 })
+    var routine = Routine(timeZone: utc, random: dice.roll, saved: .init(garden: garden), thirstRandom: { 0 })
     routine.handle(.sceneStarted(scene(spot, mood)), at: time)
     return routine
 }

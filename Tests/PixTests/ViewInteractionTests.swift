@@ -36,7 +36,7 @@ private func interactiveView(
     let zone = TimeZone(secondsFromGMT: 0)!
     let view = PixView(frame: CGRect(x: 0, y: 0, width: 1004, height: 30), routine: Routine(timeZone: zone),
                        effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) },
-                                               wake: { _, _ in {} }, saveGarden: { _ in }),
+                                               wake: { _, _ in {} }),
                        timeZone: zone, timing: waits.timing, playbackTiming: waits.playbackTiming)
     let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.contentView = view

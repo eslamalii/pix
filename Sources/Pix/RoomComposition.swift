@@ -10,7 +10,7 @@ final class RoomComposition {
     private let art: ArtFiles
     private var routine: Routine
     private let effects: RoutineEffects
-    private var savedGarden: Garden
+    private var lastSaved: Routine.Saved
     private var cancelWake: (() -> Void)?
     /// Bumped with each wake asked for, so a superseded one that fires anyway can't reach the Routine.
     private var wakeGeneration = 0
@@ -38,7 +38,7 @@ final class RoomComposition {
         self.routine = routine
         self.effects = effects
         self.art = art
-        savedGarden = routine.garden
+        lastSaved = routine.saved
         props = routine.props(at: effects.now())
         playback = Playback(timing: timing, art: art)
         propDrawing = RoomProps(art: art)
@@ -104,9 +104,9 @@ final class RoomComposition {
         let step = routine.handle(event, at: time)
         props = routine.props(at: time)
         askForWake()
-        if routine.garden != savedGarden {
-            effects.saveGarden(routine.garden)
-            savedGarden = routine.garden
+        if routine.saved != lastSaved {
+            effects.save(routine.saved)
+            lastSaved = routine.saved
         }
         if world != nil {
             switch event {

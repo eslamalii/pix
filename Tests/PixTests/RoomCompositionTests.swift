@@ -5,7 +5,7 @@ import AmbientCore
 
 @MainActor
 @Test func composedRoomPreservesDrawingOrderHostPolicyAndRebuildCleanup() throws {
-    let composition = RoomComposition(effects: RoutineEffects(saveGarden: { _ in }))
+    let composition = RoomComposition(effects: RoutineEffects())
     let host = CALayer()
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     let room = Room(spot: .window, activity: .other, mood: .content, fps: 12)
@@ -34,7 +34,7 @@ import AmbientCore
 
 @MainActor
 @Test func theMonitorsStayFullOfCodeThroughoutTheirScroll() throws {
-    let composition = RoomComposition(effects: RoutineEffects(saveGarden: { _ in }))
+    let composition = RoomComposition(effects: RoutineEffects())
     let host = CALayer()
     composition.build(in: host, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)),
                       room: Room(spot: .desk, activity: .coding, mood: .content, fps: 12))
@@ -71,12 +71,12 @@ private final class RoomExecution {
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     lazy var composition: RoomComposition = {
         let composition = RoomComposition(
-            routine: Routine(timeZone: zone, random: { 0 }, garden: garden, thirstRandom: { 0 }),
+            routine: Routine(timeZone: zone, random: { 0 }, saved: .init(garden: garden), thirstRandom: { 0 }),
             effects: RoutineEffects(now: { self.reads += 1; return self.time }, wake: { deadline, work in
                 self.wakes.append(work)
                 self.deadlines.append(deadline)
                 return { self.cancellations += 1 }
-            }, saveGarden: { self.saves.append($0) }),
+            }, save: { self.saves.append($0.garden) }),
             timing: PlaybackTiming(transaction: { animations, completion in
                 animations()
                 self.transactions.append(completion)
@@ -265,7 +265,7 @@ func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
 @Test func composedSynchronousWalkCompletionSettlesBeforeBuildReturns() {
     let zone = TimeZone(secondsFromGMT: 0)!
     let composition = RoomComposition(routine: Routine(timeZone: zone),
-        effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) }, saveGarden: { _ in }),
+        effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) }),
         timing: PlaybackTiming(transaction: { animations, completion in animations(); completion() }, after: { _, _ in {} }), timeZone: zone)
     let host = CALayer()
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
