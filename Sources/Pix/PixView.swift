@@ -103,8 +103,8 @@ final class PixView: NSView {
     /// Plays a Moment once, then goes back to idling: now, after the walk Pix is on, or once the scene is ready.
     /// A Room shown but not yet drawn is drawn first, so a Moment never meets the old Room's Spot.
     func play(_ moment: Moment) {
-        guard let room else { return }
-        if window != nil, world != nil, builtSize == bounds.size, room != shown { update(to: room) }
+        guard room != nil else { return }
+        drawWantedRoomInPlace()
         composition.play(moment)
     }
 
@@ -190,9 +190,15 @@ final class PixView: NSView {
         if world == nil || builtSize != bounds.size {
             teardown()
             build(wanted)
-        } else if wanted != shown {
-            update(to: wanted)
+        } else {
+            drawWantedRoomInPlace()
         }
+    }
+
+    /// On an attached view already built at its current size, draws the Room it was shown but hasn't drawn yet, without a rebuild.
+    private func drawWantedRoomInPlace() {
+        guard window != nil, world != nil, builtSize == bounds.size, let room, room != shown else { return }
+        update(to: room)
     }
 
     private var geometry: RoomGeometry { RoomGeometry(barWidth: bounds.width) }

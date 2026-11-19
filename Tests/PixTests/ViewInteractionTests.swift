@@ -30,15 +30,17 @@ private final class ViewWaits {
 }
 
 @MainActor
-private func interactiveView(_ waits: ViewWaits) -> (PixView, NSWindow) {
+private func interactiveView(
+    _ waits: ViewWaits, room: Room = Room(spot: .desk, activity: .coding, mood: .focused, fps: 12)
+) -> (PixView, NSWindow) {
     let zone = TimeZone(secondsFromGMT: 0)!
     let view = PixView(frame: CGRect(x: 0, y: 0, width: 1004, height: 30), routine: Routine(timeZone: zone),
                        effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) },
                                                wake: { _, _ in {} }, saveGarden: { _ in }),
-                       timeZone: zone, timing: waits.timing)
+                       timeZone: zone, timing: waits.timing, playbackTiming: waits.playbackTiming)
     let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.contentView = view
-    view.show(Room(spot: .desk, activity: .coding, mood: .focused, fps: 12))
+    view.show(room)
     waits.flush()
     return (view, window)
 }
@@ -203,16 +205,8 @@ private func characterPoint(_ view: PixView) throws -> CGPoint {
 @MainActor
 @Test func aMomentWaitsForTheWalkItsRoomChangeStarted() throws {
     let waits = ViewWaits()
-    let zone = TimeZone(secondsFromGMT: 0)!
-    let view = PixView(frame: CGRect(x: 0, y: 0, width: 1004, height: 30), routine: Routine(timeZone: zone),
-                       effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) },
-                                               wake: { _, _ in {} }, saveGarden: { _ in }),
-                       timeZone: zone, timing: waits.timing, playbackTiming: waits.playbackTiming)
-    let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
-    window.contentView = view
+    let (view, window) = interactiveView(waits, room: Room(spot: .window, activity: .browsing, mood: .content, fps: 12))
     defer { view.hide(); waits.flush(); window.contentView = nil }
-    view.show(Room(spot: .window, activity: .browsing, mood: .content, fps: 12))
-    waits.flush()
     let caption = try #require(layer("caption", of: view))
     view.show(Room(spot: .desk, activity: .browsing, mood: .focused, fps: 12))
     view.play(.focusStarted)
