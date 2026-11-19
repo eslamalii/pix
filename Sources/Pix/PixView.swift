@@ -64,11 +64,11 @@ final class PixView: NSView {
         self.init(frame: frame, routine: Routine(timeZone: .current, garden: garden), effects: RoutineEffects())
     }
 
-    init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles(), timing: PixViewTiming = .live) {
+    init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles(), timing: PixViewTiming = .live, playbackTiming: PlaybackTiming = .live) {
         self.timing = timing
         self.art = art
         self.skin = art.skin
-        self.composition = RoomComposition(routine: routine, effects: effects, timeZone: timeZone, art: art)
+        self.composition = RoomComposition(routine: routine, effects: effects, timing: playbackTiming, timeZone: timeZone, art: art)
         self.effects = effects
         super.init(frame: frame)
         clockFormat.timeZone = timeZone
@@ -101,8 +101,10 @@ final class PixView: NSView {
     }
 
     /// Plays a Moment once, then goes back to idling: now, after the walk Pix is on, or once the scene is ready.
+    /// A Room shown but not yet drawn is drawn first, so a Moment never meets the old Room's Spot.
     func play(_ moment: Moment) {
-        guard room != nil else { return }
+        guard let room else { return }
+        if window != nil, world != nil, builtSize == bounds.size, room != shown { update(to: room) }
         composition.play(moment)
     }
 

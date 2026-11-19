@@ -15,6 +15,13 @@ private final class ViewWaits {
             return { self.cancellations += 1 }
         })
     }
+    var transactions: [@MainActor () -> Void] = []
+    var playbackTiming: PlaybackTiming {
+        PlaybackTiming(transaction: { animations, completion in
+            animations()
+            self.transactions.append(completion)
+        }, after: { _, _ in {} })
+    }
     func flush() {
         let work = refreshes
         refreshes = []
@@ -191,4 +198,33 @@ private func characterPoint(_ view: PixView) throws -> CGPoint {
     #expect((lower.dataProvider?.data as Data?) == (upper.dataProvider?.data as Data?))
     let scaled = try #require(pixelText("A1", color: color(0xffffff), scale: 2))
     #expect(scaled.width == 14 && scaled.height == 10)
+}
+
+@MainActor
+@Test func aMomentWaitsForTheWalkItsRoomChangeStarted() throws {
+    let waits = ViewWaits()
+    let zone = TimeZone(secondsFromGMT: 0)!
+    let view = PixView(frame: CGRect(x: 0, y: 0, width: 1004, height: 30), routine: Routine(timeZone: zone),
+                       effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) },
+                                               wake: { _, _ in {} }, saveGarden: { _ in }),
+                       timeZone: zone, timing: waits.timing, playbackTiming: waits.playbackTiming)
+    let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
+    window.contentView = view
+    defer { view.hide(); waits.flush(); window.contentView = nil }
+    view.show(Room(spot: .window, activity: .browsing, mood: .content, fps: 12))
+    waits.flush()
+    let caption = try #require(layer("caption", of: view))
+    view.show(Room(spot: .desk, activity: .browsing, mood: .focused, fps: 12))
+    view.play(.focusStarted)
+    waits.flush()
+    #expect(caption.animation(forKey: "caption") == nil) // FOCUS is not played at the window
+    let pix = try #require(layer("pix", of: view))
+    #expect(pix.animation(forKey: "slide-position.x") != nil) // Pix walks to the desk
+    let walkEnds = try #require(waits.transactions.last)
+    walkEnds()
+    #expect(caption.animation(forKey: "caption") != nil)
+    caption.removeAllAnimations() // so a second FOCUS would show
+    let focusEnds = try #require(waits.transactions.last)
+    focusEnds() // FOCUS ends: it does not play again
+    #expect(caption.animation(forKey: "caption") == nil)
 }
