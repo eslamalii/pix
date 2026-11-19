@@ -28,8 +28,9 @@ private final class PlaybackWaits {
 @MainActor
 private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playback, CALayer) {
     let playback = Playback(timing: waits.timing)
-    let world = CALayer()
-    playback.build(in: world, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)), at: spot, mood: .content)
+    let world = CALayer(), geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    world.position.x = geometry.scroll(for: spot)  // as the Room composition starts it: showing the start Spot's strip
+    playback.build(in: world, geometry: geometry, at: spot, mood: .content)
     waits.host = playback.pix
     return (playback, world)
 }
@@ -183,4 +184,37 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
     #expect(finished == 1)
     #expect(playback.pix.sublayers?.contains { $0.animation(forKey: "frames")?.preferredFrameRateRange.maximum == 10 } == true)
     withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func aWalkBackFromAnotherStripScrollsTheRoomToIt() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .window)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    playback.run(.walkBack(to: .desk))
+    let slide = world.animation(forKey: "slide-position.x") as? CABasicAnimation
+    #expect(slide?.toValue as? CGFloat == geometry.scroll(for: .desk))
+    #expect(slide?.duration == playback.pix.animation(forKey: "slide-position.x")?.duration)
+    #expect(world.position.x == geometry.scroll(for: .desk))
+}
+
+@MainActor
+@Test func anErrandWalkOnOneStripDoesNotScrollTheRoom() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    playback.run(.errand(.switchLamp))
+    #expect(playback.pix.animation(forKey: "slide-position.x") != nil)
+    #expect(world.animation(forKey: "slide-position.x") == nil)
+    #expect(world.position.x == RoomGeometry(barWidth: CGFloat(Art.stripWidth)).scroll(for: .desk))
+}
+
+@MainActor
+@Test func aWalkOnTheDeskStripRecoversTheRoomAfterACrossStripWalkWasCutShort() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    playback.run(.walk(to: .window))  // the Room is now headed for the window strip
+    playback.pix.position.x = geometry.rest(at: .desk).x  // cut short while Pix is still on the desk strip
+    playback.run(.walk(to: .couch))
+    #expect(world.position.x == geometry.scroll(for: .couch))
 }

@@ -289,7 +289,7 @@ final class Playback {
         withoutAnimation { faceGlow.isHidden = true }
     }
 
-    /// Pix walks: to a Spot (scrolling the Room), on an Errand (to or from a Prop), or along the Stroll.
+    /// Pix walks: to a Spot, on an Errand (to or from a Prop), or along the Stroll; any walk to another strip scrolls the Room.
     private func walk(_ kind: WalkKind) {
         guard let world else { return }
         let mine = takeOver()
@@ -299,7 +299,6 @@ final class Playback {
         let fromX = pix.position.x
         let toX: CGFloat
         let duration: Double
-        let scrollTarget: CGFloat?
 
         switch kind {
         case .spot(let spot):
@@ -307,21 +306,21 @@ final class Playback {
             if spot == .window { showSkyLife(true) }  // the window comes into view during the walk
             toX = geometry.rest(at: spot).x
             duration = geometry.walkDuration(from: fromX, to: toX)
-            scrollTarget = geometry.scroll(for: spot)
 
         case .errand(let to):
             resetRestingEffects()
             toX = to
             duration = RoomGeometry.errandWalkDuration(from: fromX, to: toX)
-            scrollTarget = nil
 
         case .stroll(let to):
             toX = to
             duration = RoomGeometry.strollDuration(from: fromX, to: toX)
-            scrollTarget = nil
         }
 
         guard abs(toX - fromX) >= 1 else { return finish() }
+        // The Room scrolls to the end's strip unless it already shows (or is headed to) it, even if a cut-short walk left it elsewhere.
+        let strip = geometry.scroll(toStripAt: toX)
+        let scrollTarget = abs(world.position.x - strip) >= 0.5 ? strip : nil
 
         withoutAnimation {
             pix.transform = toX < fromX ? facingLeft : CATransform3DIdentity

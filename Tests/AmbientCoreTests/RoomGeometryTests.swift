@@ -132,3 +132,19 @@ private let desk = m1.rest(at: .desk).x
     #expect(m1.place(of: .gaze) == m1.rest(at: .window))
     #expect(m1.place(of: .coffee) == CGPoint(x: 613, y: 3))  // beside the coffee machine: 618 - 5, on the floor
 }
+
+@Test func twoPlacesAreOnTheSameStripWhenNeitherCrossesToTheOther() {
+    for geometry in [m1, wide, narrow] {
+        #expect(geometry.onSameStrip(192, 804))  // within the desk strip
+        #expect(geometry.onSameStrip(geometry.rest(at: .window).x, geometry.strollEnd(.left)))  // within the window strip
+        #expect(!geometry.onSameStrip(492, geometry.rest(at: .window).x))
+        #expect(!geometry.onSameStrip(geometry.rest(at: .window).x, 492))
+    }
+}
+
+@Test func theRoomScrollsToTheStripAPlaceIsOnWhicheverSpotItIs() {
+    for geometry in [m1, wide, narrow] {
+        for spot in Spot.allCases { #expect(geometry.scroll(toStripAt: geometry.rest(at: spot).x) == geometry.scroll(for: spot)) }
+    }
+    #expect(wide.scroll(toStripAt: wide.strollEnd(.right)) == wide.scroll(for: .window))
+}
