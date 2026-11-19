@@ -96,33 +96,33 @@ private func drawnPixels(of image: CGImage, in rect: CGRect) -> Int {
     return drawn
 }
 
-private func cell(_ stop: (strip: String, x: Int, y: Int)) -> CGRect {
-    CGRect(x: stop.x, y: stop.y, width: Art.occasionProp, height: Art.occasionProp)
+private func cell(_ perch: (strip: String, x: Int, y: Int)) -> CGRect {
+    CGRect(x: perch.x, y: perch.y, width: Art.occasionProp, height: Art.occasionProp)
 }
 
-@Test func everyStopsCellLiesInsideItsStrip() {
+@Test func everyPerchCellLiesInsideItsStrip() {
     let strip = CGRect(x: 0, y: 0, width: Art.stripWidth, height: Art.height)
-    for stop in Art.occasionStops {
-        #expect(Art.strips.contains(stop.strip), "stop on \(stop.strip)")
-        #expect(strip.contains(cell(stop)), "stop at \(stop.x), \(stop.y)")
+    for perch in Art.perches {
+        #expect(Art.strips.contains(perch.strip), "perch on \(perch.strip)")
+        #expect(strip.contains(cell(perch)), "perch at \(perch.x), \(perch.y)")
     }
 }
 
-@Test func halloweensSeasonPropsLeaveEveryStopClear() throws {
+@Test func halloweensSeasonPropsLeaveEveryPerchClear() throws {
     // On October 31 both stand in the Room: a day's Occasion Prop must never be drawn over the season's.
-    for stop in Art.occasionStops {
-        let season = try artImage("\(Halloween.folder)/room-\(stop.strip)")
-        #expect(drawnPixels(of: season, in: cell(stop)) == 0, "stop at \(stop.x), \(stop.y)")
+    for perch in Art.perches {
+        let season = try artImage("\(Halloween.folder)/room-\(perch.strip)")
+        #expect(drawnPixels(of: season, in: cell(perch)) == 0, "perch at \(perch.x), \(perch.y)")
     }
 }
 
 @Test(arguments: Occasion.allCases)
-func everyOccasionHasOneDrawnCellPerStop(occasion: Occasion) throws {
+func everyOccasionHasOneDrawnCellPerPerch(occasion: Occasion) throws {
     let sheet = try artImage(Art.occasionPropSheet(occasion.rawValue))
-    #expect(sheet.width == Art.occasionStops.count * Art.occasionProp)
+    #expect(sheet.width == Art.perches.count * Art.occasionProp)
     #expect(sheet.height == Art.occasionProp)
-    for stop in Art.occasionStops.indices {
-        let cell = CGRect(x: stop * Art.occasionProp, y: 0, width: Art.occasionProp, height: Art.occasionProp)
-        #expect(drawnPixels(of: sheet, in: cell) > 0, "nothing drawn at stop \(stop)")
+    for perch in Art.perches.indices {
+        let cell = CGRect(x: perch * Art.occasionProp, y: 0, width: Art.occasionProp, height: Art.occasionProp)
+        #expect(drawnPixels(of: sheet, in: cell) > 0, "nothing drawn at perch \(perch)")
     }
 }

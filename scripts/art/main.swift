@@ -531,10 +531,10 @@ for (i, plant) in Art.plantProps.enumerated() {
     thirsty.stamp(droop.image, x: i * Int(Art.plant.width), y: 0)
 }
 thirsty.save("plant-thirsty")
-// The day's Occasion Props, one cell per stop in Art.occasionStops' order: bookcase, shelf, cabinet, windowsill.
+// The day's Occasion Props, one cell per Perch in Art.perches' order: bookcase, shelf, cabinet, windowsill.
 // Each is a few dots layers, drawn in order. The cabinet's drawings start a row down: its cell starts a row above them, to stay in the strip.
 let jack = [emoteArt["pumpkin"]!, ([(2, 3), (5, 3), (3, 5), (4, 5)], hex(0xffe08a))]  // the pumpkin Emote with glowing eyes and mouth
-let occasionArt: [(occasion: String, stops: [[([(Int, Int)], CGColor)]])] = [
+let occasionArt: [(occasion: String, perches: [[([(Int, Int)], CGColor)]])] = [
     ("halloween", [
         [([(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0), (6, 0), (7, 0), (0, 1), (0, 2), (0, 3), (0, 4), (0, 5), (0, 6), (0, 7), (1, 1), (2, 2),
            (3, 3), (4, 4), (5, 5), (6, 6), (3, 1), (5, 2), (7, 3), (1, 3), (2, 5), (3, 7), (4, 2), (2, 4)], shade)],  // a cobweb in the corner
@@ -563,9 +563,9 @@ let occasionArt: [(occasion: String, stops: [[([(Int, Int)], CGColor)]])] = [
          ([(3, 2)], light)],  // a star to toast with
     ]),
 ]
-for (occasion, stops) in occasionArt {
-    let sheet = Canvas(Art.occasionProp * Art.occasionStops.count, Art.occasionProp)
-    for (i, layers) in stops.enumerated() { for (dots, color) in layers { sheet.dots(dots, color, dx: i * Art.occasionProp) } }
+for (occasion, perches) in occasionArt {
+    let sheet = Canvas(Art.occasionProp * Art.perches.count, Art.occasionProp)
+    for (i, layers) in perches.enumerated() { for (dots, color) in layers { sheet.dots(dots, color, dx: i * Art.occasionProp) } }
     sheet.save(Art.occasionPropSheet(occasion))
 }
 drawHalloween()

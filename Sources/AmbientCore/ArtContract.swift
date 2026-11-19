@@ -94,12 +94,12 @@ public enum Art {
     ]
     public static let desk = CGRect(x: 476, y: 19, width: 116, height: 8)  // Pix sits at it; the keyboard and mug stand on it
 
-    // MARK: The day's Occasion Props — occasion-<occasion>.png: one occasionProp × occasionProp cell per stop, in stop order.
-    // On an Occasion's day Pix places one at each stop, left to right; Halloween's season Props never cover a stop.
+    // MARK: The day's Occasion Props — occasion-<occasion>.png: one occasionProp × occasionProp cell per Perch, in Perch order.
+    // On an Occasion's day Pix places one on each Perch, left to right; Halloween's season Props never cover a Perch.
 
     public static let occasionProp = 12
-    /// Each stop's cell, its top-left within the strip; a cell stays inside its strip.
-    public static let occasionStops: [(strip: String, x: Int, y: Int)] = [
+    /// Each Perch's cell, its top-left within the strip; a cell stays inside its strip.
+    public static let perches: [(strip: String, x: Int, y: Int)] = [
         ("desk", 121, 7),     // on the bookcase
         ("desk", 280, 3),     // on the shelf
         ("desk", 822, 18),    // on the record cabinet

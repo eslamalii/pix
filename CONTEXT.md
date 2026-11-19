@@ -26,8 +26,12 @@ One thing that stands in the Room, such as a plant, the lamp, the bookcase or a 
 _Avoid_: object, item, decoration, furniture
 
 **Occasion Prop**:
-A Prop that stands in the Room only around an Occasion: through its Occasion season, such as Halloween's jack-o'-lanterns, bunting and the ghost hanging from the lamp, or for the Occasion's day once the Character has placed it. Some glow from dusk; one can hang over a Prop and cover it for the season, as the haunted print covers the print.
+A Prop that stands in the Room only around an Occasion: through its Occasion season, such as Halloween's jack-o'-lanterns, bunting and the ghost hanging from the lamp, or for the Occasion's day once the Character has placed it on its Perch. Some glow from dusk; one can hang over a Prop and cover it for the season, as the haunted print covers the print.
 _Avoid_: decoration, seasonal item
+
+**Perch**:
+A place on top of a Prop where one of the day's Occasion Props sits: the bookcase, the shelf, the record cabinet and the windowsill. The Room has four, and the Character places one Occasion Prop on each, left to right.
+_Avoid_: stop (that's the Stroll's), slot, stand
 
 ### What the user is doing
 
@@ -92,8 +96,12 @@ What the Character was doing on its own while the user was Away, caught for a mo
 _Avoid_: hobby, idle, activity (that's the user's)
 
 **Errand**:
-A trip to a Prop: the Character walks to the Prop, uses it (waters a plant, switches the lamp, refills the mug at the coffee machine) and walks back to its Spot. It happens as a Fidget, as Care, or at a time of day (the lamp at dusk). A Moment or an app switch can cut it short.
+A trip to a Prop: the Character walks to the Prop, uses or admires it (waters a plant, switches the lamp, refills the mug at the coffee machine, waves at an Occasion Prop on an Occasion's day) and walks back to its Spot. It happens as a Fidget, as Care, or at a time of day (the lamp at dusk). A Moment or an app switch can cut it short.
 _Avoid_: task, trip, chore
+
+**Occasion tour**:
+The trip on which the Character places the day's Occasion Props: the first time it is free on an Occasion (not in a Focus session or a meeting), after the Greeting, it walks the Room from left to right, places one on each Perch, and then goes to the Spot of the user's Activity. It happens once a day, sleepy or not, and nothing cuts it short: a Moment waits for it, and after an app switch the Character finishes it before going to the new Spot. Unlike an Errand, it visits several Props and doesn't come back between them.
+_Avoid_: errand, decorating, rounds
 
 **Need**:
 Something a Prop lacks that comes on with time until the Character sees to it, such as a plant going thirsty. A Need shows in the Room (a thirsty plant droops), keeps while the Character is away, and never grows worse or does harm: it only waits for the Character. Only the Character answers it; the user never owes the Room anything.
@@ -108,7 +116,7 @@ How the Character idles at the window: it walks from one end of the window to th
 _Avoid_: wander, pace, patrol
 
 **Routine**:
-What the Character does next with its body in the Room: going to a Spot, idling there (the Stroll, at the window), Fidgets, Errands and Moments. It follows from the Activity, the Mood, the Moments and the time of day.
+What the Character does next with its body in the Room: going to a Spot, idling there (the Stroll, at the window), Fidgets, Errands, the Occasion tour and Moments. It follows from the Activity, the Mood, the Moments and the time of day.
 _Avoid_: behavior, AI, state, schedule
 
 **Pet**:
