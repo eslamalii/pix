@@ -136,7 +136,12 @@ final class Playback {
             playMoment(moment.look)
         case .fidget(let fidget):
             log.info("fidget: \(fidget.rawValue, privacy: .public)")
-            perform(fidget.rawValue, loops: 1)
+            if let look = fidget.look {
+                perform(look.body, loops: look.loops, emote: look.emote) { view, duration in view.playExtra(look.extra, loops: look.loops, for: duration) }
+            } else {
+                _ = takeOver()
+                finish()  // refill is an Errand, so the Routine never hands it to Playback as a Fidget step
+            }
         case .errand(let errand):
             log.info("errand: \(errand.body, privacy: .public)")
             walk(.errand(to: geometry.standingPoint(for: errand, from: pix.position.x).x))
@@ -214,15 +219,18 @@ final class Playback {
     /// A Moment's body, Emote, Caption and extra.
     private func playMoment(_ look: MomentLook) {
         showCaption(look.caption)
-        perform(look.body, loops: look.loops, emote: look.emote) { view, duration in
-            switch look.extra {
-            case .hop: view.hop(every: duration / Double(look.loops), times: look.loops)
-            case .hearts: view.burst("heart")
-            case .zzz: view.burst("zzz")
-            case .steam: view.steam(for: duration)
-            case .turnAway: view.turnAway()
-            case nil: break
-            }
+        perform(look.body, loops: look.loops, emote: look.emote) { view, duration in view.playExtra(look.extra, loops: look.loops, for: duration) }
+    }
+
+    /// Runs a Look's extra over a body that plays `loops` times in `duration` seconds.
+    private func playExtra(_ extra: Extra?, loops: Float, for duration: Double) {
+        switch extra {
+        case .hop: hop(every: duration / Double(loops), times: loops)
+        case .hearts: burst("heart")
+        case .zzz: burst("zzz")
+        case .steam: steam(for: duration)
+        case .turnAway: turnAway()
+        case nil: break
         }
     }
 

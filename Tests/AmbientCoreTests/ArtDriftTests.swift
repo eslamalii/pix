@@ -39,7 +39,12 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 }
 
 @Test func everyFidgetErrandAndStrollStopIsABody() {
-    for fidget in Fidget.allCases where fidget != .refill { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // refill is an Errand
+    for fidget in Fidget.allCases {
+        guard let look = fidget.look else { continue }
+        #expect(bodies.contains(look.body), "fidget \(fidget)")
+        if let emote = look.emote { #expect(Art.emotes.contains(emote), "fidget emote \(emote)") }
+    }
+    #expect(Fidget.allCases.filter { $0.look == nil } == [.refill])  // refill is an Errand
     #expect(Set(everyRoom.flatMap { room in [Fidget.sip, .refill].flatMap { Routine.fidgets(for: room, coffee: $0) } }) == Set(Fidget.allCases))
     for errand in [Errand.switchLamp, .waterPlant(deskPlant), .refillMug] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
     for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }

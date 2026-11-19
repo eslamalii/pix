@@ -13,7 +13,19 @@ public struct MomentLook: Equatable, Sendable {
     }
 }
 
-/// What plays alongside a Moment's body.
+/// How a Fidget looks: the body Pix plays, an Emote over its head and an extra. A Fidget answers nothing, so no Caption.
+public struct FidgetLook: Equatable, Sendable {
+    public var body: String
+    public var loops: Float
+    public var emote: String?
+    public var extra: Extra?
+
+    public init(body: String, loops: Float = 1, emote: String? = nil, extra: Extra? = nil) {
+        (self.body, self.loops, self.emote, self.extra) = (body, loops, emote, extra)
+    }
+}
+
+/// What plays alongside a Moment's or Fidget's body.
 public enum Extra: Sendable {
     case hop, hearts, zzz, steam, turnAway
 }
@@ -78,6 +90,24 @@ extension Moment {
         case .newHat: MomentLook(body: "jump", loops: 3, emote: "star", extra: .hop, caption: Caption(emote: "star", word: "NEW HAT"))
         case .overheated: MomentLook(body: "huff", loops: 3, emote: "steam", extra: .steam, caption: Caption(emote: "steam", word: "HOT"))
         case .charging: MomentLook(body: "jump", loops: 2, emote: "bolt", extra: .hop, caption: Caption(emote: "bolt", word: "CHARGE"))
+        }
+    }
+}
+
+extension Fidget {
+    /// How the Fidget looks; nil for refill, which runs the mug Errand rather than playing a body.
+    public var look: FidgetLook? {
+        switch self {
+        case .sip: FidgetLook(body: "sip")
+        case .stretch: FidgetLook(body: "stretch")
+        case .lookaround: FidgetLook(body: "lookaround")
+        case .nod: FidgetLook(body: "nod")
+        case .popcorn: FidgetLook(body: "popcorn")
+        case .spin: FidgetLook(body: "spin")
+        case .gaze: FidgetLook(body: "gaze")
+        case .wave: FidgetLook(body: "wave")
+        case .scratch: FidgetLook(body: "scratch")
+        case .refill: nil
         }
     }
 }

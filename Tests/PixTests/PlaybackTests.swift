@@ -218,3 +218,20 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
     playback.run(.walk(to: .couch))
     #expect(world.position.x == geometry.scroll(for: .couch))
 }
+
+@MainActor
+@Test func aFidgetPlaysItsLookOnceAndThenFinishes() throws {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .window)
+    var finished = 0
+    playback.onFinished = { finished += 1 }
+    let before = waits.transactions.count
+    playback.run(.fidget(.wave))
+    #expect(waits.transactions.count == before + 1)  // the Look's body plays as one finite transaction
+    #expect(finished == 0)
+    let bodyEnds = try #require(waits.transactions.last)
+    bodyEnds()
+    bodyEnds()
+    #expect(finished == 1)
+    withExtendedLifetime(world) {}
+}
