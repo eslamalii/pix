@@ -13,11 +13,11 @@ private var skyCalendar: Calendar {
 @MainActor
 private func windowSky() -> (sky: RoomSky, world: CALayer, life: CALayer) {
     let world = CALayer()
-    let halloween = HalloweenLayers()
-    let sky = RoomSky(halloween: halloween)
+    let occasions = OccasionDrawings()
+    let sky = RoomSky(occasions: occasions)
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     sky.build(in: world, geometry: geometry)
-    halloween.build(in: world, geometry: geometry, frameRange: capped(12))
+    occasions.build(in: world, geometry: geometry, frameRange: capped(12))
     let box = world.sublayers!.first { $0.name == "skyBox" }!
     return (sky, world, box.sublayers!.first { $0.name == "skyLife" }!)
 }

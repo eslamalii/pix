@@ -1,14 +1,22 @@
 import AppKit
 import AmbientCore
 
-/// Halloween in the Room, in the Occasion season only (see AmbientCore's Halloween): its Occasion Props laid over each
-/// strip, the jack-o'-lantern faces and candle flames flickering from dusk, and the moon and bats in the window at night.
-/// RoomSky supplies time and owns the window sky lifetime; this module keeps Halloween drawing rules.
+/// The Room's Occasion drawings: it decides the Occasion season once, from the time and calendar it is given, dresses
+/// and undresses the Room, and supplies the window's sky treats. Today the only Occasion is Halloween (see AmbientCore's
+/// Halloween): its Occasion Props laid over each strip, the jack-o'-lantern faces and candle flames flickering from
+/// dusk, and the moon and bats in the window at night.
+/// RoomSky owns the window sky lifetime and never names an Occasion.
 @MainActor
-final class HalloweenLayers {
+final class OccasionDrawings {
+    /// What the window's sky treats are now, held by RoomSky only to compare and hand back to `fillSky`.
+    struct SkyTreats: Equatable {
+        fileprivate enum Season { case halloween }
+        fileprivate let season: Season
+    }
+
     private let art: ArtFiles
     private var inSeason = false
-    /// Halloween's place among the world's layers, over the Room and under Pix: it dresses and undresses in here.
+    /// The Occasion drawings' place among the world's layers, over the Room and under Pix: it dresses and undresses in here.
     private weak var stage: CALayer?
     private var geometry: RoomGeometry?
     private var frameRange = CAFrameRateRange.default
@@ -28,8 +36,9 @@ final class HalloweenLayers {
     }
 
     /// Every minute: the faces and flames glow from dusk until dawn, and the Room dresses or undresses the moment the
-    /// season starts or ends, even with Pix on the bar at midnight.
-    func paint(_ daylight: Daylight, at time: Date, calendar: Calendar, frameRange: CAFrameRateRange) {
+    /// season starts or ends, even with Pix on the bar at midnight. Returns the sky's treats now (nil out of season), to
+    /// hand to `fillSky` once the sky draws.
+    func paint(_ daylight: Daylight, at time: Date, calendar: Calendar, frameRange: CAFrameRateRange) -> SkyTreats? {
         self.frameRange = frameRange
         let now = Halloween.inSeason(on: time, calendar: calendar)
         if now != inSeason {
@@ -37,6 +46,7 @@ final class HalloweenLayers {
             if now { dress() } else { undress() }
         }
         withoutAnimation { for glow in glows { glow.isHidden = daylight != .dusk && daylight != .night } }
+        return inSeason ? SkyTreats(season: .halloween) : nil
     }
 
     private func dress() {
@@ -72,8 +82,8 @@ final class HalloweenLayers {
     }
 
     /// The orange moon, and three bats flapping across the window, at night.
-    func fillSky(_ daylight: Daylight, in sky: CALayer, frameRange: CAFrameRateRange) {
-        guard inSeason, daylight == .night else { return }
+    func fillSky(_ treats: SkyTreats?, at daylight: Daylight, in sky: CALayer, frameRange: CAFrameRateRange) {
+        guard treats?.season == .halloween, daylight == .night else { return }
         let pane = sky.bounds
         let moon = pixelCrisp(art.halloweenImage("moon"))
         moon.frame = CGRect(origin: CGPoint(x: pane.width * 0.72, y: pane.height - Halloween.moon.height - 3), size: Halloween.moon)

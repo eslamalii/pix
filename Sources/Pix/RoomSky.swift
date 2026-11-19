@@ -20,12 +20,12 @@ final class RoomSky {
     private struct Conditions: Equatable {
         var daylight: Daylight
         var snows: Bool
-        var halloween: Bool
+        var treats: OccasionDrawings.SkyTreats?
         var fps: Int
     }
 
     private let sky = CAGradientLayer(), skyBox = CALayer(), skyLife = CALayer()
-    private let halloween: HalloweenLayers
+    private let occasions: OccasionDrawings
     private let art: ArtFiles
     private var conditions: Conditions?
     private var drawn: Conditions?
@@ -33,8 +33,8 @@ final class RoomSky {
     private var fps = 12
     private var frameRange: CAFrameRateRange { capped(fps) }
 
-    init(halloween: HalloweenLayers, art: ArtFiles = ArtFiles()) {
-        self.halloween = halloween
+    init(occasions: OccasionDrawings, art: ArtFiles = ArtFiles()) {
+        self.occasions = occasions
         self.art = art
     }
 
@@ -53,10 +53,10 @@ final class RoomSky {
     func refresh(at time: Date, calendar: Calendar, fps: Int) {
         self.fps = fps
         let daylight = Daylight(hour: calendar.component(.hour, from: time))
-        conditions = Conditions(daylight: daylight, snows: Occasion.snows(inMonth: calendar.component(.month, from: time)),
-                                halloween: Halloween.inSeason(on: time, calendar: calendar), fps: fps)
         withoutAnimation { sky.colors = [color(daylight.sky.bottom), color(daylight.sky.top)] }
-        halloween.paint(daylight, at: time, calendar: calendar, frameRange: frameRange)
+        let treats = occasions.paint(daylight, at: time, calendar: calendar, frameRange: frameRange)
+        conditions = Conditions(daylight: daylight, snows: Occasion.snows(inMonth: calendar.component(.month, from: time)),
+                                treats: treats, fps: fps)
         drawIfNeeded()
     }
 
@@ -78,12 +78,12 @@ final class RoomSky {
 
     private func drawIfNeeded() {
         guard visible, let conditions, conditions != drawn else { return }
-        fillSky(for: conditions.daylight)
+        fillSky(for: conditions.daylight, treats: conditions.treats)
         drawn = conditions
     }
 
     /// Stars and a rare shooting star at night, drifting clouds by day, and snow in winter, clipped to the window pane.
-    private func fillSky(for daylight: Daylight) {
+    private func fillSky(for daylight: Daylight, treats: OccasionDrawings.SkyTreats?) {
         skyLife.sublayers = nil
         let pane = skyBox.bounds
         switch daylight {
@@ -140,7 +140,7 @@ final class RoomSky {
             break
         }
         if conditions?.snows == true { letItSnow(in: pane) }
-        halloween.fillSky(daylight, in: skyLife, frameRange: frameRange)  // Halloween
+        occasions.fillSky(treats, at: daylight, in: skyLife, frameRange: frameRange)
     }
 
     /// Flakes drifting down past the window: one per 24 points of it, or per 48 below full frame rate (on battery).

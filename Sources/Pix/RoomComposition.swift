@@ -16,8 +16,8 @@ final class RoomComposition {
     private var wakeGeneration = 0
     private var calendar: Calendar
     private var room: Room?
-    private lazy var halloween = HalloweenLayers(art: art)
-    private lazy var sky = RoomSky(halloween: halloween, art: art)
+    private lazy var occasions = OccasionDrawings(art: art)
+    private lazy var sky = RoomSky(occasions: occasions, art: art)
     private(set) var world: CALayer?
     private var monitors: [CALayer] = []
 
@@ -72,7 +72,7 @@ final class RoomComposition {
         }
         monitors = Art.monitors.map { scrollingCode(in: geometry.rect($0, on: "desk"), fps: room.fps) }
         monitors.forEach(world.addSublayer)
-        halloween.build(in: world, geometry: geometry, frameRange: capped(room.fps))
+        occasions.build(in: world, geometry: geometry, frameRange: capped(room.fps))
         playback.fps = room.fps
         playback.build(in: world, geometry: geometry, at: start, mood: room.mood)
         propDrawing.build(in: world, geometry: geometry)
