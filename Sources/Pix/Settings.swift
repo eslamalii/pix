@@ -36,8 +36,8 @@ struct Settings {
 
     /// What the Routine keeps between launches.
     static var routine: Routine.Saved {
-        get { Routine.Saved(garden: Settings().garden) }
-        set { Settings().garden = newValue.garden }
+        get { Routine.Saved(garden: Settings().garden, occasionPropsPlacedOn: Settings().occasionPropsPlacedOn) }
+        set { Settings().garden = newValue.garden; Settings().occasionPropsPlacedOn = newValue.occasionPropsPlacedOn }
     }
 
     /// What the Controller owns that Pix keeps between launches (Hide Pix, "Treat … as", the Memory, the hat and when the
@@ -63,6 +63,12 @@ struct Settings {
     var garden: Garden {
         get { defaults.data(forKey: "garden").flatMap { try? JSONDecoder().decode(Garden.self, from: $0) } ?? Garden() }
         nonmutating set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "garden") }
+    }
+
+    /// The day Pix started its Occasion tour, kept so a relaunch that day doesn't tour again.
+    var occasionPropsPlacedOn: String? {
+        get { defaults.string(forKey: "occasionPropsPlacedOn") }
+        nonmutating set { defaults.set(newValue, forKey: "occasionPropsPlacedOn") }
     }
 
     /// Where the copy of Pix that owns the login item lives (nil before the first launch). A Homebrew upgrade puts the

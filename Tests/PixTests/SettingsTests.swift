@@ -149,3 +149,18 @@ private struct SettingsFixture {
     try fixture.defaults().set(JSONEncoder().encode(garden), forKey: "garden")
     #expect(try fixture.reader().garden == garden)
 }
+
+@Test func theOccasionDayHasItsOwnKeyAndOldDefaultsWithoutItStillRead() throws {
+    let fixture = SettingsFixture()
+    defer { fixture.remove() }
+    let defaults = try fixture.defaults()
+    var garden = Garden()
+    garden.adopt([Plant(strip: "desk", x: 404)], at: Date(timeIntervalSince1970: 1_800_000_000), random: { 0 })
+    defaults.set(try JSONEncoder().encode(garden), forKey: "garden")
+    let settings = Settings(defaults: defaults)
+    #expect(settings.occasionPropsPlacedOn == nil)
+    #expect(settings.garden == garden)
+    settings.occasionPropsPlacedOn = "2026-10-31"
+    #expect(try fixture.reader().occasionPropsPlacedOn == "2026-10-31")
+    #expect(try fixture.reader().garden == garden)
+}

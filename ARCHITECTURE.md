@@ -37,7 +37,7 @@ An owner controls the state, rules and invariants in its row. Other modules requ
 | Controller | Activity, Session, Mood, Focus session, Away, Agent working state, which Bar to show; coordination of Memory and Wardrobe | User/system Events and time → Room, Bar, optional Moment and Saved values |
 | Memory | Remembering days, arrivals, Pets, completed Focus sessions and Occasions; selecting the special first Greeting | Domain facts and calendar → remembered values and Greeting choice |
 | Wardrobe | Earned and worn Hats; choosing a Hat; delaying NEW HAT | Memory changes and Moment visibility → worn Hat and Moment choice |
-| Routine | Where the Character goes and what it does next; priorities, interruption, return from Errands, queued Moments and Stroll progression | Routine Events and time → Step, Props, what it keeps between launches (Saved) and next wake deadline |
+| Routine | Where the Character goes and what it does next; priorities, interruption, return from Errands, queued Moments and Stroll progression | Routine Events and time → Step, Props, what it keeps between launches (Saved: the Garden and the day it toured) and next wake deadline |
 | Garden, Mug, Lamp, FidgetClock, WaitingMoments | Their own small sets of related state and rules | Routine supplies relevant facts; these modules hide their bookkeeping |
 | RoomComposition | Sending Routine Events, sampling Room time, scheduling wakes, saving the Routine's changed Saved value, coordinating drawings and executing Steps | Room changes, Moments and lifecycle → coordinated Room execution |
 | Playback | Executing a Step; movement, body and face, effects, cancellation, stale callbacks and exactly-once completion | Step, geometry, art and timing → drawings and completion |

@@ -234,3 +234,25 @@ private func midnight(_ base: Date, _ seconds: Int) -> Date { base.addingTimeInt
     #expect(first == idling(.call))
     #expect(routine.handle(.roomChanged(room(.desk)), at: halloween(12, 30)) == .tourWalk(perch: 0))  // the call and the desk are one place: Pix stays put
 }
+
+@Test func relaunchingMidTourOpensWithAllFourPropsAndNoSecondTour() {
+    var (routine, _) = opened()
+    routine.handle(.finished, at: halloween(12, 1))  // placing the first Prop
+    routine.handle(.sceneStopped, at: halloween(12, 2))
+    var fresh = Routine(timeZone: utc, random: Dice([]).roll, saved: routine.saved)
+    let first = fresh.handle(.sceneStarted(room(.desk)), at: halloween(13))
+    #expect(first == idling(.desk))
+    #expect(fresh.props(at: halloween(13)).occasionPropsShown == Art.perches.count)
+    #expect(fresh.handle(.minutePassed, at: halloween(13, 1)) == nil)
+}
+
+@Test func aSavedDayThatIsNotTodayToursAgainOnLaunch() {
+    var yesterday = Routine(timeZone: utc, random: Dice([]).roll)
+    yesterday.handle(.sceneStarted(room(.desk)), at: christmasEve(12))
+    #expect(yesterday.saved.occasionPropsPlacedOn != nil)
+    var next = Routine(timeZone: utc, random: Dice([]).roll, saved: yesterday.saved)
+    let christmas = christmasEve(12).addingTimeInterval(86400)
+    let first = next.handle(.sceneStarted(room(.desk)), at: christmas)
+    #expect(first == .tourWalk(perch: 0))
+    #expect(next.props(at: christmas).occasionPropsShown == 0)
+}

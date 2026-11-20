@@ -142,14 +142,17 @@ public struct Routine {
     private var mug = Mug()
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
-    /// The day (in the Routine's calendar) Pix started its Occasion tour, and how many Props it has placed. In memory only.
-    private var occasionPropsPlacedOn: String?
+    /// How many Occasion Props Pix has placed. A day restored from `saved` counts as all placed, which `props` shows only if that day is today.
     private var occasionPropsPlaced = 0
     /// What the Routine keeps between launches.
     public struct Saved: Equatable, Sendable {
         /// Which plants are thirsty: Pix's Care answers it.
         public var garden: Garden
-        public init(garden: Garden = Garden()) { self.garden = garden }
+        /// The day (in the Routine's calendar, "yyyy-MM-dd") Pix started its Occasion tour.
+        public var occasionPropsPlacedOn: String?
+        public init(garden: Garden = Garden(), occasionPropsPlacedOn: String? = nil) {
+            (self.garden, self.occasionPropsPlacedOn) = (garden, occasionPropsPlacedOn)
+        }
     }
     public private(set) var saved: Saved
     /// Dice for how long a watered plant stays watered, apart from `random` so Fidgets don't depend on them.
@@ -164,7 +167,7 @@ public struct Routine {
         if case .idle(.desk, _)? = current { resting = true } else { resting = false }
         let occasion = Occasion(on: time, calendar: calendar)
         // A tour running past midnight keeps showing what it has placed while the new day is still an Occasion.
-        let shown = occasion != nil && (isTouring || occasionPropsPlacedOn == day(of: time)) ? occasionPropsPlaced : 0
+        let shown = occasion != nil && (isTouring || saved.occasionPropsPlacedOn == day(of: time)) ? occasionPropsPlaced : 0
         return Props(lampLit: lamp.lit, mugAway: mug.inHand, mugSteams: resting && mug.hot(atHour: hour(of: time)),
                      thirstyPlants: Set(saved.garden.thirsty(at: time)), occasion: occasion, occasionPropsShown: shown)
     }
@@ -180,6 +183,7 @@ public struct Routine {
         self.random = random
         fidgetClock = FidgetClock(random: random)
         self.saved = saved
+        occasionPropsPlaced = saved.occasionPropsPlacedOn == nil ? 0 : Art.perches.count
         self.thirstRandom = thirstRandom
     }
 
@@ -306,12 +310,12 @@ public struct Routine {
 
     /// Today is an Occasion Pix hasn't toured yet, and it's free for it: not in a Focus session or a meeting, whatever the Mood.
     private func tourDue(at time: Date) -> Bool {
-        guard let room, Occasion(on: time, calendar: calendar) != nil, occasionPropsPlacedOn != day(of: time) else { return false }
+        guard let room, Occasion(on: time, calendar: calendar) != nil, saved.occasionPropsPlacedOn != day(of: time) else { return false }
         return !room.focusing && room.activity != .meeting
     }
 
     private mutating func startTour(at time: Date) -> Step {
-        (occasionPropsPlacedOn, occasionPropsPlaced) = (day(of: time), 0)
+        (saved.occasionPropsPlacedOn, occasionPropsPlaced) = (day(of: time), 0)
         return start(.tourWalk(perch: 0))
     }
 

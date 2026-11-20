@@ -66,7 +66,7 @@ private final class RoomExecution {
     var garden = Garden()
     var captions: [Caption] = []
     var observations: [(Date, TimeZone)] = []
-    var saves: [Garden] = []
+    var saves: [Routine.Saved] = []
     let host = CALayer()
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     lazy var composition: RoomComposition = {
@@ -76,7 +76,7 @@ private final class RoomExecution {
                 self.wakes.append(work)
                 self.deadlines.append(deadline)
                 return { self.cancellations += 1 }
-            }, save: { self.saves.append($0.garden) }),
+            }, save: { self.saves.append($0) }),
             timing: PlaybackTiming(transaction: { animations, completion in
                 animations()
                 self.transactions.append(completion)
@@ -342,8 +342,31 @@ func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
     try execution.finish() // Return home.
     #expect(execution.saves.count == 1)
     let restored = RoomExecution()
-    restored.garden = execution.saves[0]
+    restored.garden = execution.saves[0].garden
     #expect(!restored.composition.props.thirstyPlants.contains(plant))
+}
+
+@MainActor
+@Test func anOrdinaryMinuteTickSavesNothing() {
+    let execution = RoomExecution()
+    execution.build()
+    defer { execution.composition.stop() }
+    let saves = execution.saves.count
+    execution.time += 60
+    execution.composition.refreshTime()
+    #expect(execution.saves.count == saves)
+}
+
+@MainActor
+@Test func startingTheOccasionTourSavesTheDayOnce() {
+    let execution = RoomExecution()
+    execution.time = Date(timeIntervalSince1970: 1_793_448_000)  // 2026-10-31 12:00 UTC, Halloween
+    execution.garden.adopt(Art.plantProps.map(Plant.init), at: execution.time, random: { 0 })  // nothing else to save
+    execution.build()
+    defer { execution.composition.stop() }
+    #expect(execution.composition.step == .tourWalk(perch: 0))
+    #expect(execution.saves.count == 1)
+    #expect(execution.saves[0].occasionPropsPlacedOn == "2026-10-31")
 }
 
 @MainActor
