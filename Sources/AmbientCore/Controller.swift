@@ -71,8 +71,10 @@ public struct Room: Equatable, Sendable {
     public var agentWorking: Bool
     /// The Mac is running hot: Pix steams.
     public var hot: Bool
-    public init(spot: Spot, activity: Activity, mood: Mood, fps: Int, agentWorking: Bool = false, hot: Bool = false) {
-        (self.spot, self.activity, self.mood, self.fps, self.agentWorking, self.hot) = (spot, activity, mood, fps, agentWorking, hot)
+    /// A Focus session is running. The Mood can't say so: a hot Mac makes Pix grumpy even while focusing.
+    public var focusing: Bool
+    public init(spot: Spot, activity: Activity, mood: Mood, fps: Int, agentWorking: Bool = false, hot: Bool = false, focusing: Bool = false) {
+        (self.spot, self.activity, self.mood, self.fps, self.agentWorking, self.hot, self.focusing) = (spot, activity, mood, fps, agentWorking, hot, focusing)
     }
 }
 
@@ -321,7 +323,7 @@ public struct Controller {
         let atDesk = (focusUntil != nil || !workingAgents.isEmpty) && activity != .meeting
         // Hot, Pix slows to the fewest frames, to help the Mac cool down.
         return Room(spot: atDesk ? .desk : Spot(for: activity), activity: activity, mood: mood, fps: hot ? min(6, power.fps) : power.fps,
-                    agentWorking: !workingAgents.isEmpty, hot: hot)
+                    agentWorking: !workingAgents.isEmpty, hot: hot, focusing: focusUntil != nil)
     }
 
     /// Whole minutes left in the Focus session (rounded up), or nil when there's none.

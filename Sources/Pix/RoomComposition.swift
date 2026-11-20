@@ -117,6 +117,7 @@ final class RoomComposition {
             }
         }
         propDrawing.update(props, fps: fps)
+        occasions.update(props)
         if let step { playback.run(step, walkBody: props.walkBody) }
         return step
     }

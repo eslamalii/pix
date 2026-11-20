@@ -38,6 +38,11 @@ final class ArtFiles {
         classic("\(Halloween.folder)/\(name)")
     }
 
+    /// The day's Occasion Props sheet, one cell per Perch: Classic, including when the Room uses a Skin.
+    func occasionPropSheet(_ occasion: Occasion) -> CGImage? {
+        classic(Art.occasionPropSheet(occasion.rawValue))
+    }
+
     /// Pix's own drawing, whatever the skin: what a skin's hats.png that stops early leaves out comes from here.
     private func classic(_ name: String) -> CGImage? {
         if let hit = cache["classic/" + name] { return hit }

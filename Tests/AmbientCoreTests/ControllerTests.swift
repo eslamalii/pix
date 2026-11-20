@@ -16,8 +16,8 @@ func launched(in frontApp: String?, at time: Date = at(12), power: Power = charg
     Controller(selfBundleID: selfID, frontApp: frontApp, power: power, at: time, timeZone: utc)
 }
 
-func room(_ spot: Spot, _ activity: Activity, _ mood: Mood = .content, fps: Int = 12) -> Bar {
-    .room(Room(spot: spot, activity: activity, mood: mood, fps: fps))
+func room(_ spot: Spot, _ activity: Activity, _ mood: Mood = .content, fps: Int = 12, focusing: Bool = false) -> Bar {
+    .room(Room(spot: spot, activity: activity, mood: mood, fps: fps, focusing: focusing))
 }
 
 // MARK: - Activity, power and the clock
@@ -717,13 +717,31 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
 @Test func focusSendsPixToTheDeskFocusedForTwentyFiveMinutesThenItsDone() {
     var c = launched(in: "com.apple.Safari")
     #expect(c.handle(.startFocus, at: at(12, 0, 30)) == .focusStarted)
-    #expect(c.bar == room(.desk, .browsing, .focused))
+    #expect(c.bar == room(.desk, .browsing, .focused, focusing: true))
     #expect(c.focusMinutesLeft(at: at(12, 1)) == 25)
     #expect(c.handle(.clockTick, at: at(12, 25)) == nil)
     #expect(c.focusMinutesLeft(at: at(12, 25)) == 1)
     #expect(c.handle(.clockTick, at: at(12, 26)) == .focusDone)
     #expect(c.bar == room(.window, .browsing))
     #expect(c.focusMinutesLeft(at: at(12, 26)) == nil)
+}
+
+@Test func theRoomCarriesWhetherAFocusSessionRunsEvenWhenAHotMacMakesPixGrumpy() {
+    var c = launched(in: "com.apple.Safari")
+    #expect(c.room.focusing == false)
+    c.handle(.startFocus, at: at(12))
+    #expect(c.room.focusing)
+    c.handle(.thermalChanged(hot: true), at: at(12, 1))
+    #expect(c.room.mood == .grumpy && c.room.focusing)
+    c.handle(.stopFocus, at: at(12, 2))
+    #expect(c.room.focusing == false)
+}
+
+@Test func theFocusSessionEndingClearsFocusingToo() {
+    var c = launched(in: "com.apple.Safari")
+    c.handle(.startFocus, at: at(12))
+    c.handle(.clockTick, at: at(12, 26))
+    #expect(c.room.focusing == false)
 }
 
 @Test func stoppingFocusEarlyIsNoMoment() {
@@ -738,7 +756,7 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
     var c = launched(in: "com.apple.Safari")
     c.handle(.startFocus, at: at(12))
     c.handle(.frontAppChanged("us.zoom.xos"), at: at(12, 5))
-    #expect(c.bar == room(.call, .meeting, .focused))
+    #expect(c.bar == room(.call, .meeting, .focused, focusing: true))
 }
 
 @Test func noCodingBreakInterruptsFocusItWaitsUntilFocusIsDone() {
@@ -754,7 +772,7 @@ func onBattery(at level: Int?) -> Power { Power(onBattery: true, lowPowerMode: f
     c.handle(.tappedElsewhere, at: at(12))
     #expect(c.handle(.startFocus, at: at(12, 1)) == nil)
     c.handle(.frontAppChanged("com.apple.finder"), at: at(12, 2))
-    #expect(c.bar == room(.desk, .other, .focused))
+    #expect(c.bar == room(.desk, .other, .focused, focusing: true))
 }
 
 // MARK: - Memory

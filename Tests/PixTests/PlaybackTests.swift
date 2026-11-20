@@ -209,6 +209,39 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
 }
 
 @MainActor
+@Test func theTourWalkToTheWindowPerchScrollsTheRoomToTheWindowStrip() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    playback.run(.tourWalk(perch: 3))
+    let stand = geometry.occasionStand(perch: 3, from: geometry.rest(at: .desk).x)
+    let slide = playback.pix.animation(forKey: "slide-position.x") as? CABasicAnimation
+    #expect(slide?.toValue as? CGFloat == stand.x)
+    #expect(world.position.x == geometry.scroll(toStripAt: stand.x))
+    #expect(playback.step == .tourWalk(perch: 3))
+}
+
+@MainActor
+@Test func placingAnOccasionPropFacesThePerchPlaysSwitchOnceAndFinishes() throws {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    var finished = 0
+    playback.onFinished = { finished += 1 }
+    playback.pix.position.x = geometry.occasionStand(perch: 0, from: geometry.rest(at: .desk).x).x
+    playback.run(.placeOccasionProp(perch: 0))
+    #expect(playback.step == .placeOccasionProp(perch: 0))
+    let frames = playback.pix.sublayers?.compactMap { $0.animation(forKey: "frames") as? CAKeyframeAnimation }.first
+    #expect(frames?.repeatCount == 1)
+    #expect(CATransform3DEqualToTransform(playback.pix.transform, facingLeft))  // it came from the right of the Perch's middle
+    let done = try #require(waits.transactions.last)
+    done()
+    done()
+    #expect(finished == 1)
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
 @Test func aWalkOnTheDeskStripRecoversTheRoomAfterACrossStripWalkWasCutShort() {
     let waits = PlaybackWaits()
     let (playback, world) = playing(waits, at: .desk)
@@ -233,5 +266,18 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
     bodyEnds()
     bodyEnds()
     #expect(finished == 1)
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func theTourWalkToTheWindowPerchBringsTheWindowsSkyLifeIntoView() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    var shown: [Bool] = []
+    playback.showSkyLife = { shown.append($0) }
+    playback.run(.tourWalk(perch: 0))  // the bookcase, on the desk strip
+    #expect(shown.isEmpty)
+    playback.run(.tourWalk(perch: 3))  // the windowsill
+    #expect(shown == [true])
     withExtendedLifetime(world) {}
 }

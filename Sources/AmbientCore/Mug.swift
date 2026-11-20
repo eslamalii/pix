@@ -19,7 +19,7 @@ struct Mug {
     mutating func started(_ step: Routine.Step) {
         switch step {
         case .errand(.refillMug), .pastime(.coffee): inHand = true
-        case .walk, .idle: inHand = false
+        case .walk, .idle, .tourWalk, .placeOccasionProp: inHand = false
         case .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .stroll, .stop, .relook: break
         }
     }

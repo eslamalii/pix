@@ -2,9 +2,10 @@ import AppKit
 import AmbientCore
 
 /// The Room's Occasion drawings: it decides the Occasion season once, from the time and calendar it is given, dresses
-/// and undresses the Room, and supplies the window's sky treats. Today the only Occasion is Halloween (see AmbientCore's
-/// Halloween): its Occasion Props laid over each strip, the jack-o'-lantern faces and candle flames flickering from
-/// dusk, and the moon and bats in the window at night.
+/// and undresses the Room, and supplies the window's sky treats. The season is Halloween's (see AmbientCore's Halloween):
+/// its Occasion Props laid over each strip, the jack-o'-lantern faces and candle flames flickering from dusk, and the
+/// moon and bats in the window at night. It also draws the day's Occasion Props on their Perches, as Pix places them on
+/// its Occasion tour.
 /// RoomSky owns the window sky lifetime and never names an Occasion.
 @MainActor
 final class OccasionDrawings {
@@ -21,6 +22,9 @@ final class OccasionDrawings {
     private var geometry: RoomGeometry?
     private var frameRange = CAFrameRateRange.default
     private var props: [CALayer] = [], glows: [CALayer] = []
+    /// The day's Occasion Props, one layer per Perch, and whose they are.
+    private var perchProps: [CALayer] = []
+    private var perchOccasion: Occasion?
 
     init(art: ArtFiles = ArtFiles()) { self.art = art }
 
@@ -31,8 +35,34 @@ final class OccasionDrawings {
         stage.frame = world.bounds
         world.addSublayer(stage)
         (self.stage, self.geometry, self.frameRange) = (stage, geometry, frameRange)
-        (props, glows) = ([], [])  // the last Room's drawings went with it
+        (props, glows, perchProps, perchOccasion) = ([], [], [], nil)  // the last Room's drawings went with it
         inSeason = false
+    }
+
+    /// The day's Occasion Props: all four Perches' layers while today is an Occasion, the first `occasionPropsShown` visible;
+    /// none otherwise.
+    func update(_ props: Props) {
+        guard let stage, let geometry else { return }
+        if perchOccasion != props.occasion {
+            perchProps.forEach { $0.removeFromSuperlayer() }
+            perchOccasion = props.occasion
+            perchProps = []
+            if let occasion = props.occasion {
+                let sheet = art.occasionPropSheet(occasion)
+                withoutAnimation {
+                    perchProps = Art.perches.indices.map { perch in
+                        let layer = pixelCrisp(sheet)
+                        layer.name = "occasionProp"
+                        layer.frame = geometry.occasionPropRect(perch: perch)
+                        layer.contentsRect = slot(perch, of: Art.perches.count)
+                        layer.isHidden = true
+                        stage.addSublayer(layer)
+                        return layer
+                    }
+                }
+            }
+        }
+        withoutAnimation { for (perch, layer) in perchProps.enumerated() { layer.isHidden = perch >= props.occasionPropsShown } }
     }
 
     /// Every minute: the faces and flames glow from dusk until dawn, and the Room dresses or undresses the moment the

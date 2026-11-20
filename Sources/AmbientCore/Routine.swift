@@ -45,6 +45,11 @@ public struct Props: Equatable, Sendable {
     public var mugSteams: Bool
     /// The plants that droop: thirsty, and not yet seen to.
     public var thirstyPlants: Set<Plant> = []
+    /// Today's Occasion, if it is one.
+    public var occasion: Occasion?
+    /// How many of the Occasion's four Props stand in the Room: none until the tour starts, one more as Pix places each,
+    /// and all four once it has.
+    public var occasionPropsShown = 0
 
     /// The body Pix walks in: with the mug held out in front while it carries it.
     public var walkBody: String { mugAway ? "walkmug" : "walk" }
@@ -94,6 +99,10 @@ public struct Routine {
         case stop(at: WindowEnd, body: String?, RestLook)
         /// The Look at the Spot changes (face, particles, body) without interrupting the idle or the Stroll.
         case relook(Spot, RestLook)
+        /// The Occasion tour: walk to a Perch (0..<4) from wherever Pix is.
+        case tourWalk(perch: Int)
+        /// The Occasion tour: at the Perch, switch the Occasion Prop on; it shows.
+        case placeOccasionProp(perch: Int)
 
         public static func idle(_ spot: Spot, _ mood: Mood) -> Step {
             .idle(spot, RestLook(spot: spot, mood: mood))
@@ -133,6 +142,9 @@ public struct Routine {
     private var mug = Mug()
     /// The Fidget Pix played last, so it doesn't play it twice in a row.
     private var lastFidget: Fidget?
+    /// The day (in the Routine's calendar) Pix started its Occasion tour, and how many Props it has placed. In memory only.
+    private var occasionPropsPlacedOn: String?
+    private var occasionPropsPlaced = 0
     /// What the Routine keeps between launches.
     public struct Saved: Equatable, Sendable {
         /// Which plants are thirsty: Pix's Care answers it.
@@ -150,8 +162,11 @@ public struct Routine {
     public func props(at time: Date) -> Props {
         let resting: Bool
         if case .idle(.desk, _)? = current { resting = true } else { resting = false }
+        let occasion = Occasion(on: time, calendar: calendar)
+        // A tour running past midnight keeps showing what it has placed while the new day is still an Occasion.
+        let shown = occasion != nil && (isTouring || occasionPropsPlacedOn == day(of: time)) ? occasionPropsPlaced : 0
         return Props(lampLit: lamp.lit, mugAway: mug.inHand, mugSteams: resting && mug.hot(atHour: hour(of: time)),
-                     thirstyPlants: Set(saved.garden.thirsty(at: time)))
+                     thirstyPlants: Set(saved.garden.thirsty(at: time)), occasion: occasion, occasionPropsShown: shown)
     }
 
     /// When the view should send `wake` (nil: no need).
@@ -183,6 +198,7 @@ public struct Routine {
             return from == room.spot ? settle(at: time) : walk(to: room.spot)
 
         case .sceneStopped:
+            if isTouring { occasionPropsPlaced = Art.perches.count }  // a rebuild draws the day's Props whole
             (running, current) = (false, nil)
             waiting.drop()
             heading = .left
@@ -195,6 +211,7 @@ public struct Routine {
             guard running else { return nil }
             if new.spot != old?.spot {
                 lastSpot = new.spot
+                if isTouring { return nil }  // Pix finishes the tour, then settling takes it to the new Spot
                 // Two Spots in one place (the desk and the call): Pix stays put and settles into the new one.
                 if let old, Art.spot(old.spot) == Art.spot(new.spot), place == .spot(old.spot) {
                     place = .spot(new.spot)
@@ -205,6 +222,7 @@ public struct Routine {
             }
             // Anything else Pix is doing ends in settling, which takes the new Room.
             guard isResting, let old else { return nil }
+            if tourDue(at: time) { return startTour(at: time) }
             // A new Mood changes which Fidgets fit; running hot or an Agent only changes how Pix looks.
             if new.mood != old.mood { fidgetClock.rest(at: time, fits: fidgetFits(new, at: time)) }
             let look = restLook()
@@ -241,6 +259,11 @@ public struct Routine {
                 let carried = room?.spot == .desk  // the filled mug goes along only to the desk; elsewhere it is set down there
                 place = pastime == .coffee && carried ? .prop : .spot(pastime.spot)
                 if pastime == .coffee { mug.filled(inHand: carried) }
+            case .tourWalk(let perch):
+                return start(.placeOccasionProp(perch: perch))
+            case .placeOccasionProp(let perch):
+                occasionPropsPlaced = perch + 1
+                if perch + 1 < Art.perches.count { return start(.tourWalk(perch: perch + 1)) }
             case .idle, .moment, .fidget, .dropNeedle, .relook:
                 break
             }
@@ -255,7 +278,9 @@ public struct Routine {
             return nil
 
         case .minutePassed:
-            guard running, case .idle = current, lampNeedsSwitching(at: time) else { return nil }
+            guard running, isResting else { return nil }
+            if tourDue(at: time) { return startTour(at: time) }
+            guard case .idle = current, lampNeedsSwitching(at: time) else { return nil }
             return start(.errand(.switchLamp))
         }
     }
@@ -266,16 +291,36 @@ public struct Routine {
     /// comes first): a Moment waits for it.
     private var mustFinish: Bool {
         switch current {
-        case .walk?, .pastime?, .moment(.greeting)?: true
+        case .walk?, .pastime?, .moment(.greeting)?, .tourWalk?, .placeOccasionProp?: true
         case .idle?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .stroll?, .stop?, .relook?, nil: false
         }
+    }
+
+    /// Pix is on its Occasion tour: nothing cuts it short.
+    private var isTouring: Bool {
+        switch current {
+        case .tourWalk?, .placeOccasionProp?: true
+        case .walk?, .idle?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .stroll?, .stop?, .relook?, nil: false
+        }
+    }
+
+    /// Today is an Occasion Pix hasn't toured yet, and it's free for it: not in a Focus session or a meeting, whatever the Mood.
+    private func tourDue(at time: Date) -> Bool {
+        guard let room, Occasion(on: time, calendar: calendar) != nil, occasionPropsPlacedOn != day(of: time) else { return false }
+        return !room.focusing && room.activity != .meeting
+    }
+
+    private mutating func startTour(at time: Date) -> Step {
+        (occasionPropsPlacedOn, occasionPropsPlaced) = (day(of: time), 0)
+        return start(.tourWalk(perch: 0))
     }
 
     /// Idling at a Spot, or on the Stroll.
     private var isResting: Bool {
         switch current {
         case .idle?, .stroll?, .stop?: true
-        case .walk?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, nil: false
+        case .walk?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, .tourWalk?,
+             .placeOccasionProp?, nil: false
         }
     }
 
@@ -293,6 +338,7 @@ public struct Routine {
     private mutating func settle(at time: Date) -> Step? {
         guard let room else { return nil }
         if let moment = waiting.next() { return start(.moment(moment)) }
+        if tourDue(at: time) { return startTour(at: time) }
         if lampNeedsSwitching(at: time) { return start(.errand(.switchLamp)) }
         // Back from a Pastime at another Spot: the walk between Spots, which scrolls the Room to another strip.
         if case .spot(let from)? = place, Art.spot(from) != Art.spot(room.spot) { return walk(to: room.spot) }
@@ -345,7 +391,8 @@ public struct Routine {
         current = step
         fidgetClock.started(step)
         switch step {
-        case .walk, .errand, .walkBack, .pastime: place = .onTheWay  // until it finishes
+        case .walk, .errand, .walkBack, .pastime, .tourWalk: place = .onTheWay  // until it finishes
+        case .placeOccasionProp: place = .prop
         case .idle, .moment, .fidget, .use, .dropNeedle, .stroll, .stop, .relook: break
         }
         if case .moment = step { lastFidget = nil }  // a cut-short Errand may be tried again at once
@@ -372,7 +419,8 @@ public struct Routine {
     private var restX: Int {
         switch current {
         case .stroll(let end, _)?, .stop(let end, _, _)?: end == .left ? Art.wanderFrom : Art.wanderTo
-        case .walk?, .idle?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, nil:
+        case .walk?, .idle?, .moment?, .fidget?, .errand?, .use?, .walkBack?, .dropNeedle?, .pastime?, .relook?, .tourWalk?,
+             .placeOccasionProp?, nil:
             room.map { Art.spot($0.spot).x } ?? 0
         }
     }
@@ -385,6 +433,12 @@ public struct Routine {
     }
 
     private func hour(of time: Date) -> Int { calendar.component(.hour, from: time) }
+
+    /// The calendar day in the Routine's own calendar, as "yyyy-MM-dd".
+    private func day(of time: Date) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: time)
+        return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
+    }
 
     /// The lamp isn't as the hour wants it, and Pix is on the desk side to do something about it.
     private func lampNeedsSwitching(at time: Date) -> Bool {

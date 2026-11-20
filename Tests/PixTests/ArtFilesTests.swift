@@ -4,7 +4,7 @@ import Testing
 import AmbientCore
 @testable import Pix
 
-private struct ArtFixture {
+struct ArtFixture {
     let root: URL
     var classic: URL { root.appendingPathComponent("Classic") }
     var skin: URL { root.appendingPathComponent("Skin") }

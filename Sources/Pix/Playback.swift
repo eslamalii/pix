@@ -123,7 +123,8 @@ final class Playback {
         // Relook changes the active step's appearance; it does not replace its lifetime.
         switch step {
         case .relook: break
-        case .walk, .idle, .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .stroll, .stop:
+        case .walk, .idle, .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .stroll, .stop, .tourWalk,
+             .placeOccasionProp:
             self.step = step
         }
         switch step {
@@ -150,6 +151,14 @@ final class Playback {
             perform(errand.body, loops: 1)
         case .walkBack(let spot):
             walk(.errand(to: geometry.rest(at: spot).x))
+        case .tourWalk(let perch):
+            log.info("tour walk: \(perch)")
+            if Art.perches[perch].strip == Art.spot(.window).strip { showSkyLife(true) }  // the window comes into view, as on a walk to it
+            walk(.errand(to: geometry.occasionStand(perch: perch, from: pix.position.x).x))
+        case .placeOccasionProp(let perch):  // already at the Perch, on the side it came from
+            log.info("place occasion prop: \(perch)")
+            withoutAnimation { pix.transform = geometry.occasionStand(perch: perch, from: pix.position.x).facingLeft ? facingLeft : CATransform3DIdentity }
+            perform("switch", loops: 1)
         case .dropNeedle:
             withoutAnimation { faceGlow.isHidden = true }
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
