@@ -79,11 +79,12 @@ jobs:
           cd "$RUNNER_TEMP/site"
           sed -i '' -E \
             -e "s|(\"softwareVersion\": )\"[^\"]*\"|\1\"$VERSION\"|" \
-            -e "s|(<span class=\"logo-badge mono\">)v[^<]*<|\1v$VERSION<|" \
+            -e "s|(<span class=\"logo-badge mono\">.*>)v[0-9.]+<|\1v$VERSION<|" \
             -e "s|download/v[0-9.]+/Pix-[0-9.]+\.dmg|download/v$VERSION/Pix-$VERSION.dmg|g" \
+            -e "s|>Pix-[0-9.]+\.dmg<|>Pix-$VERSION.dmg<|g" \
             public/index.html
           grep -q "\"softwareVersion\": \"$VERSION\"" public/index.html
-          grep -q "mono\">v$VERSION<" public/index.html
+          grep -q "logo-badge mono.*>v$VERSION<" public/index.html
           grep -q "download/v$VERSION/Pix-$VERSION.dmg" public/index.html
           git diff --quiet && exit 0
           git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
