@@ -3,6 +3,20 @@
 All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.1] - 2026-11-21
+
+### Added
+
+- **Pix decorates the Room on an Occasion:** on Halloween, from December 24 to 26, and on New Year's Day, the first time Pix is free (not in a Focus session or a meeting) it walks the Room from left to right and puts up the day's decorations: a cobweb, jack-o'-lanterns and a spooky garland at Halloween, a pine garland, a candle, a wreath and a little tree for the holidays, streamers, a party garland, a lantern and a star at New Year. Nothing cuts the tour short: a Moment waits for it, and after an app switch Pix finishes it before going to the new Spot. It happens once a day, sleepy or not, and quitting and relaunching Pix the same day opens with the decorations already up.
+
+- **Pix celebrates for the rest of the day:** once the decorations are up, Pix now and then hops with a pumpkin (at Halloween) or a star, spins, and walks over to a decoration on its part of the Room to wave at it before going back. It keeps you company at your Spot as usual, and leaves you alone while focused, sleepy or on a call.
+
+- **The decorations light up at night:** from dusk, the jack-o'-lanterns flicker, the holiday decorations twinkle and the New Year's sparkle. At night the window shows a string of coloured lights on the holidays and gold fireworks on New Year's Day, beside Halloween's moon and bats. At midnight the day's decorations come down; Halloween's season decorations stay until November 2.
+
+### Fixed
+
+- **FOCUS is no longer lost when Pix has to walk to the desk:** starting a Focus session while Pix strolled at the window played FOCUS at the window, then the walk to the desk cut it short. Pix now walks to the desk first and plays FOCUS when it gets there. The same goes for any Moment that arrives with a move to another Spot.
+
 ## [1.3.0] - 2026-10-27
 
 ### Added
