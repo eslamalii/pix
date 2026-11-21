@@ -101,3 +101,28 @@ private func windowSky() -> (sky: RoomSky, world: CALayer, life: CALayer) {
     #expect(life.sublayers?.contains { $0.animation(forKey: "drift") != nil } == false)
     withExtendedLifetime(world) {}
 }
+
+@MainActor
+@Test(arguments: [("2026-12-25T22:00:00Z", "bulb", true), ("2026-12-27T22:00:00Z", "bulb", false), ("2026-12-25T12:00:00Z", "bulb", false),
+                  ("2027-01-01T22:00:00Z", "burst", true), ("2027-01-02T22:00:00Z", "burst", false), ("2027-01-01T12:00:00Z", "burst", false)])
+func anOccasionsOwnTreatShowsInTheWindowAtNightOnItsDay(time: String, key: String, shown: Bool) {
+    let (sky, world, life) = windowSky()
+    sky.show(true)
+    sky.refresh(at: skyTime(time), calendar: skyCalendar, fps: 12)
+    #expect((life.sublayers?.contains { $0.animation(forKey: key) != nil } == true) == shown)
+    let other = key == "bulb" ? "burst" : "bulb"  // each Occasion draws only its own
+    #expect(life.sublayers?.contains { $0.animation(forKey: other) != nil } == false)
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func halloweenKeepsTheSeasonsMoonAndBatsAndAddsNothingElse() {
+    let (sky, world, life) = windowSky()
+    sky.show(true)
+    sky.refresh(at: skyTime("2026-10-31T22:00:00Z"), calendar: skyCalendar, fps: 12)
+    #expect(life.sublayers?.filter { $0.animation(forKey: "fly") != nil }.count == 3)
+    #expect(life.sublayers?.contains { $0.animation(forKey: "bulb") != nil || $0.animation(forKey: "burst") != nil } == false)
+    sky.refresh(at: skyTime("2026-10-31T12:00:00Z"), calendar: skyCalendar, fps: 12)
+    #expect(life.sublayers?.contains { $0.animation(forKey: "fly") != nil } == false)
+    withExtendedLifetime(world) {}
+}

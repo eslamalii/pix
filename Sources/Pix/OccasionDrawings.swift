@@ -5,14 +5,16 @@ import AmbientCore
 /// and undresses the Room, and supplies the window's sky treats. The season is Halloween's (see AmbientCore's Halloween):
 /// its Occasion Props laid over each strip, the jack-o'-lantern faces and candle flames flickering from dusk, and the
 /// moon and bats in the window at night. It also draws the day's Occasion Props on their Perches, as Pix places them on
-/// its Occasion tour.
+/// its Occasion tour, each with a glow from dusk, and gives the window the day's own night-sky treat; at the day's end
+/// they go and its art is dropped.
 /// RoomSky owns the window sky lifetime and never names an Occasion.
 @MainActor
 final class OccasionDrawings {
     /// What the window's sky treats are now, held by RoomSky only to compare and hand back to `fillSky`.
     struct SkyTreats: Equatable {
         fileprivate enum Season { case halloween }
-        fileprivate let season: Season
+        fileprivate let season: Season?
+        fileprivate let occasion: Occasion?
     }
 
     private let art: ArtFiles
@@ -25,6 +27,11 @@ final class OccasionDrawings {
     /// The day's Occasion Props, one layer per Perch, and whose they are.
     private var perchProps: [CALayer] = []
     private var perchOccasion: Occasion?
+    private var perchGlows: [CALayer] = []
+    /// How many Perches' Props show.
+    private var perchesShown = 0
+    /// Dusk or night: dark enough for the glows.
+    private var dark = false
 
     init(art: ArtFiles = ArtFiles()) { self.art = art }
 
@@ -35,7 +42,8 @@ final class OccasionDrawings {
         stage.frame = world.bounds
         world.addSublayer(stage)
         (self.stage, self.geometry, self.frameRange) = (stage, geometry, frameRange)
-        (props, glows, perchProps, perchOccasion) = ([], [], [], nil)  // the last Room's drawings went with it
+        if let over = perchOccasion { art.dropOccasionPropSheet(over) }  // a Room rebuilt after the day ended
+        (props, glows, perchProps, perchGlows, perchOccasion) = ([], [], [], [], nil)  // the last Room's drawings went with it
         inSeason = false
     }
 
@@ -44,9 +52,10 @@ final class OccasionDrawings {
     func update(_ props: Props) {
         guard let stage, let geometry else { return }
         if perchOccasion != props.occasion {
-            perchProps.forEach { $0.removeFromSuperlayer() }
+            (perchProps + perchGlows).forEach { $0.removeFromSuperlayer() }
+            if let over = perchOccasion { art.dropOccasionPropSheet(over) }  // the day's art leaves with the day
             perchOccasion = props.occasion
-            perchProps = []
+            (perchProps, perchGlows) = ([], [])
             if let occasion = props.occasion {
                 let sheet = art.occasionPropSheet(occasion)
                 withoutAnimation {
@@ -59,10 +68,52 @@ final class OccasionDrawings {
                         stage.addSublayer(layer)
                         return layer
                     }
+                    perchGlows = Art.perches.indices.map { perch in
+                        let light = perchGlow(for: occasion, around: geometry.occasionPropRect(perch: perch))
+                        stage.addSublayer(light)
+                        return light
+                    }
                 }
             }
         }
-        withoutAnimation { for (perch, layer) in perchProps.enumerated() { layer.isHidden = perch >= props.occasionPropsShown } }
+        perchesShown = props.occasionPropsShown
+        withoutAnimation {
+            for (perch, layer) in perchProps.enumerated() { layer.isHidden = perch >= perchesShown }
+            showPerchGlows()
+        }
+    }
+
+    /// A placed Prop glows from dusk until dawn.
+    private func showPerchGlows() {
+        for (perch, light) in perchGlows.enumerated() { light.isHidden = perch >= perchesShown || !dark }
+    }
+
+    /// A glow for one of the Occasion's Props: a flickering amber for Halloween's, twinkling warm lights for the holidays',
+    /// quick gold sparkles for the New Year's.
+    private func perchGlow(for occasion: Occasion, around rect: CGRect) -> CALayer {
+        let light = switch occasion {
+        case .halloween: pointOfLight(in: rect, color(0xffa140, 0.3), [1, 0.5, 0.9, 0.6, 1], 1.2...2, key: "flicker")
+        case .holidays: pointOfLight(in: rect, color(0xff7360, 0.3), [1, 0.3, 0.8, 0.3, 1], 1.5...2.5, key: "twinkle")
+        case .newYear: pointOfLight(in: rect, color(0xffd24d, 0.35), [0.4, 1, 0.5, 1, 0.4], 0.6...1, key: "sparkle")
+        }
+        light.name = "occasionGlow"
+        return light
+    }
+
+    /// A point of light around `rect`, hidden until shown, its opacity cycling through `values` forever.
+    private func pointOfLight(in rect: CGRect, _ tint: CGColor, _ values: [Double], _ length: ClosedRange<Double>, key: String) -> CALayer {
+        let light = CALayer()
+        light.frame = rect.insetBy(dx: -1, dy: -1)
+        light.backgroundColor = tint
+        light.isHidden = true
+        let animation = CAKeyframeAnimation(keyPath: "opacity")
+        animation.values = values
+        animation.duration = .random(in: length)
+        animation.repeatCount = .infinity
+        animation.timeOffset = .random(in: 0...2)
+        animation.preferredFrameRateRange = frameRange
+        light.add(animation, forKey: key)
+        return light
     }
 
     /// Every minute: the faces and flames glow from dusk until dawn, and the Room dresses or undresses the moment the
@@ -75,8 +126,13 @@ final class OccasionDrawings {
             inSeason = now
             if now { dress() } else { undress() }
         }
-        withoutAnimation { for glow in glows { glow.isHidden = daylight != .dusk && daylight != .night } }
-        return inSeason ? SkyTreats(season: .halloween) : nil
+        dark = daylight == .dusk || daylight == .night
+        withoutAnimation {
+            for glow in glows { glow.isHidden = !dark }
+            showPerchGlows()
+        }
+        let occasion = Occasion(on: time, calendar: calendar)
+        return inSeason || occasion != nil ? SkyTreats(season: inSeason ? .halloween : nil, occasion: occasion) : nil
     }
 
     private func dress() {
@@ -89,17 +145,7 @@ final class OccasionDrawings {
                 props.append(layer)
             }
             for glow in Halloween.glows {
-                let light = CALayer()
-                light.frame = geometry.rect(glow.rect, on: glow.strip).insetBy(dx: -1, dy: -1)  // a point of light around it
-                light.backgroundColor = CGColor(srgbRed: 1, green: 0.63, blue: 0.25, alpha: 0.3)  // amber, as the lamp's
-                light.isHidden = true
-                let flicker = CAKeyframeAnimation(keyPath: "opacity")
-                flicker.values = [1, 0.5, 0.9, 0.6, 1]
-                flicker.duration = .random(in: 1.2...2)
-                flicker.repeatCount = .infinity
-                flicker.timeOffset = .random(in: 0...2)
-                flicker.preferredFrameRateRange = frameRange
-                light.add(flicker, forKey: "flicker")
+                let light = pointOfLight(in: geometry.rect(glow.rect, on: glow.strip), color(0xffa140, 0.3), [1, 0.5, 0.9, 0.6, 1], 1.2...2, key: "flicker")
                 stage.addSublayer(light)
                 glows.append(light)
             }
@@ -111,9 +157,60 @@ final class OccasionDrawings {
         (props, glows) = ([], [])
     }
 
-    /// The orange moon, and three bats flapping across the window, at night.
+    /// The window's treats at night: the season's moon and bats, and the Occasion's own.
     func fillSky(_ treats: SkyTreats?, at daylight: Daylight, in sky: CALayer, frameRange: CAFrameRateRange) {
-        guard treats?.season == .halloween, daylight == .night else { return }
+        guard let treats, daylight == .night else { return }
+        if treats.season == .halloween { moonAndBats(in: sky, frameRange: frameRange) }
+        switch treats.occasion {
+        case .holidays?: coloredLights(in: sky, frameRange: frameRange)
+        case .newYear?: fireworks(in: sky, frameRange: frameRange)
+        case .halloween?, nil: break  // Halloween's is the season's
+        }
+    }
+
+    /// A string of twinkling coloured lights across the top of the pane.
+    private func coloredLights(in sky: CALayer, frameRange: CAFrameRateRange) {
+        let palette: [UInt32] = [0xff5a4d, 0xffd24d, 0x5ad17a, 0x5aa8ff]
+        for n in 0..<Int(sky.bounds.width / 8) {
+            let bulb = CALayer()
+            bulb.frame = CGRect(x: CGFloat(n * 8 + 3), y: sky.bounds.height - 4, width: 2, height: 2)
+            bulb.backgroundColor = color(palette[n % palette.count])
+            let twinkle = CAKeyframeAnimation(keyPath: "opacity")
+            twinkle.values = [1, 0.3, 1]
+            twinkle.duration = .random(in: 1...2)
+            twinkle.repeatCount = .infinity
+            twinkle.timeOffset = .random(in: 0...2)
+            twinkle.preferredFrameRateRange = frameRange
+            bulb.add(twinkle, forKey: "bulb")
+            sky.addSublayer(bulb)
+        }
+    }
+
+    /// A few gold bursts, each swelling and fading, over and over.
+    private func fireworks(in sky: CALayer, frameRange: CAFrameRateRange) {
+        let pane = sky.bounds
+        for (across, up) in [(0.2, 0.4), (0.5, 0.65), (0.8, 0.5)] as [(CGFloat, CGFloat)] {
+            let burst = CALayer()
+            burst.bounds = CGRect(x: 0, y: 0, width: 4, height: 4)
+            burst.position = CGPoint(x: pane.width * across, y: pane.height * up)
+            burst.backgroundColor = color(0xffd24d)
+            let swell = CAKeyframeAnimation(keyPath: "transform.scale")
+            swell.values = [0.2, 1.5, 1.5]
+            let fade = CAKeyframeAnimation(keyPath: "opacity")
+            fade.values = [1, 0.8, 0]
+            let group = CAAnimationGroup()
+            group.animations = [swell, fade]
+            group.duration = .random(in: 2...3)
+            group.repeatCount = .infinity
+            group.timeOffset = .random(in: 0...3)
+            group.preferredFrameRateRange = frameRange
+            burst.add(group, forKey: "burst")
+            sky.addSublayer(burst)
+        }
+    }
+
+    /// The orange moon, and three bats flapping across the window.
+    private func moonAndBats(in sky: CALayer, frameRange: CAFrameRateRange) {
         let pane = sky.bounds
         let moon = pixelCrisp(art.halloweenImage("moon"))
         moon.frame = CGRect(origin: CGPoint(x: pane.width * 0.72, y: pane.height - Halloween.moon.height - 3), size: Halloween.moon)

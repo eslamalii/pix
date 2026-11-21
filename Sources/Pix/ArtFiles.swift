@@ -43,14 +43,21 @@ final class ArtFiles {
         classic(Art.occasionPropSheet(occasion.rawValue))
     }
 
+    /// The day is over: forget its Occasion Props sheet, so the next Occasion day reads it afresh. The season's art stays.
+    func dropOccasionPropSheet(_ occasion: Occasion) {
+        cache[classicKey(Art.occasionPropSheet(occasion.rawValue))] = nil
+    }
+
+    private func classicKey(_ name: String) -> String { "classic/" + name }
+
     /// Pix's own drawing, whatever the skin: what a skin's hats.png that stops early leaves out comes from here.
     private func classic(_ name: String) -> CGImage? {
-        if let hit = cache["classic/" + name] { return hit }
+        if let hit = cache[classicKey(name)] { return hit }
         guard let url = classicFolder?.appendingPathComponent(Art.file(name)), let bundled = load(url) else {
             log.error("missing art: \(name, privacy: .public)")
             return nil
         }
-        cache["classic/" + name] = bundled
+        cache[classicKey(name)] = bundled
         return bundled
     }
 
