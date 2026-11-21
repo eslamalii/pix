@@ -117,7 +117,7 @@ final class Playback {
         return token
     }
 
-    func run(_ step: Routine.Step, walkBody: String = "walk") {
+    func run(_ step: Routine.Step, walkBody: String = "walk", occasion: Occasion? = nil) {
         guard world != nil else { return }
         self.walkBody = walkBody
         // Relook changes the active step's appearance; it does not replace its lifetime.
@@ -137,11 +137,11 @@ final class Playback {
             playMoment(moment.look)
         case .fidget(let fidget):
             log.info("fidget: \(fidget.rawValue, privacy: .public)")
-            if let look = fidget.look {
+            if let look = fidget.look(on: occasion) {
                 perform(look.body, loops: look.loops, emote: look.emote) { view, duration in view.playExtra(look.extra, loops: look.loops, for: duration) }
             } else {
                 _ = takeOver()
-                finish()  // refill is an Errand, so the Routine never hands it to Playback as a Fidget step
+                finish()  // refill and admire are Errands, so the Routine never hands them to Playback as a Fidget step
             }
         case .errand(let errand):
             log.info("errand: \(errand.body, privacy: .public)")

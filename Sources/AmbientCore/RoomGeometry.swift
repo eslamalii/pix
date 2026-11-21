@@ -55,6 +55,8 @@ public struct RoomGeometry: Sendable {
             return ErrandStand(x: fromRight ? middle + reach : middle - reach, facingLeft: fromRight)
         case .refillMug:  // left of the coffee machine, the mug held out under its spout
             return ErrandStand(x: desk + Art.coffeeMachine.minX - CGFloat(Art.pourReach), facingLeft: false)
+        case .admireOccasionProp(let perch):  // where the tour stood to place it
+            return occasionStand(perch: perch, from: x)
         }
     }
 

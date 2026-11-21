@@ -8,6 +8,8 @@ public enum Errand: Equatable, Sendable {
     case waterPlant(Plant)
     /// The coffee machine by the desk: Pix takes its mug there and fills it.
     case refillMug
+    /// A day's Occasion Prop on a Perch: Pix walks over to it, waves at it, and walks back.
+    case admireOccasionProp(perch: Int)
 
     /// The body Pix plays at the Prop.
     public var body: String {
@@ -15,14 +17,15 @@ public enum Errand: Equatable, Sendable {
         case .switchLamp: "switch"
         case .waterPlant: "water"
         case .refillMug: "pour"
+        case .admireOccasionProp: "wave"
         }
     }
 }
 
-/// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for refill, runs the
-/// mug Errand.
+/// Something Pix does now and then while idling: plays the body sheet named by its raw value, or, for refill and admire,
+/// runs an Errand. Celebrate is for an Occasion's day, with the Occasion's Emote.
 public enum Fidget: String, CaseIterable, Sendable {
-    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, refill
+    case sip, stretch, lookaround, nod, popcorn, spin, gaze, wave, scratch, refill, celebrate, admire
 }
 
 /// The two ends of the window that Pix strolls between.
@@ -369,27 +372,33 @@ public struct Routine {
 
     /// Some Fidget fits where Pix is and how it feels: none while focused.
     private func fidgetFits(_ room: Room, at time: Date) -> Bool {
-        room.mood != .focused && !Self.fidgets(for: room, coffee: mug.fidget(atHour: hour(of: time))).isEmpty
+        room.mood != .focused && !Self.fidgets(for: room, coffee: mug.fidget(atHour: hour(of: time)), festive: festive(at: time)).isEmpty
     }
 
     /// A Fidget that fits where Pix is and how it feels, if any.
     private mutating func fidget(at time: Date) -> Step? {
         guard let room, room.mood != .focused else { return nil }
         if let care = plantToWater(at: time) { return start(.errand(care)) }
-        let all = Self.fidgets(for: room, coffee: mug.fidget(atHour: hour(of: time)))
+        let all = Self.fidgets(for: room, coffee: mug.fidget(atHour: hour(of: time)), festive: festive(at: time))
         guard !all.isEmpty else { return nil }
         let fresh = all.filter { $0 != lastFidget }
         let choices = fresh.isEmpty ? all : fresh  // a Spot with one Fidget plays it every time
-        let choice = choices[min(Int(random() * Double(choices.count)), choices.count - 1)]
+        let choice = pick(choices)
         lastFidget = choice
         switch choice {
         case .refill: return start(.errand(.refillMug))
+        case .admire:
+            let here = Self.perches(on: Art.spot(room.spot).strip)
+            return start(.errand(.admireOccasionProp(perch: pick(here))))
         case .sip:
             mug.sipped()
             return start(.fidget(choice))
         default: return start(.fidget(choice))
         }
     }
+
+    /// One of `xs`, by the Routine's dice.
+    private func pick<T>(_ xs: [T]) -> T { xs[min(Int(random() * Double(xs.count)), xs.count - 1)] }
 
     private mutating func start(_ step: Step) -> Step {
         current = step
@@ -405,17 +414,28 @@ public struct Routine {
         return step
     }
 
-    /// The Fidgets that fit where Pix is and how it feels; `coffee` is the mug's own, offered at the desk.
-    static func fidgets(for room: Room, coffee: Fidget?) -> [Fidget] {
+    /// The Fidgets that fit where Pix is and how it feels; `coffee` is the mug's own, offered at the desk. On a `festive`
+    /// day (an Occasion whose Props Pix has placed) it also celebrates, spins and, where it is free to leave and a Perch
+    /// shares its strip, admires an Occasion Prop; a meeting stays calm, and a focused Pix is left alone.
+    static func fidgets(for room: Room, coffee: Fidget?, festive: Bool = false) -> [Fidget] {
         if room.mood == .sleepy { return room.spot == .couch || room.spot == .call ? [] : [.nod] }  // asleep on the couch, awake on a call: none
-        return switch room.spot {
+        let usual: [Fidget] = switch room.spot {
         case .desk: (coffee.map { [$0] } ?? []) + [.stretch, .lookaround]
         case .call: [.nod]
         case .couch: [.popcorn]
         case .musicCorner: [.spin]
         case .window: [.gaze, .wave, .scratch]
         }
+        guard festive, room.mood != .focused, room.spot != .call else { return usual }
+        let admires: [Fidget] = Self.freeToLeave(room.spot) && !perches(on: Art.spot(room.spot).strip).isEmpty ? [.admire] : []
+        return usual + [.celebrate] + (usual.contains(.spin) ? [] : [.spin]) + admires
     }
+
+    /// Pix is free to leave this Spot for an Errand: the desk and the window.
+    private static func freeToLeave(_ spot: Spot) -> Bool { spot == .desk || spot == .window }
+
+    /// The Perches (indices into `Art.perches`) on a strip.
+    private static func perches(on strip: String) -> [Int] { Art.perches.indices.filter { Art.perches[$0].strip == strip } }
 
     private static let plants = Art.plantProps.map(Plant.init)
 
@@ -432,8 +452,13 @@ public struct Routine {
     /// Care: the thirsty plant Pix sees to next, if it is free to leave. Only plants on its own strip, nearest first,
     /// and only from the desk or the window, not while sleepy.
     private func plantToWater(at time: Date) -> Errand? {
-        guard let room, room.mood != .sleepy, room.spot == .desk || room.spot == .window else { return nil }
+        guard let room, room.mood != .sleepy, Self.freeToLeave(room.spot) else { return nil }
         return saved.garden.nearestThirsty(on: Art.spot(room.spot).strip, to: restX, at: time).map(Errand.waterPlant)
+    }
+
+    /// Today is an Occasion and Pix has placed its Props: it celebrates the day among its usual Fidgets.
+    private func festive(at time: Date) -> Bool {
+        Occasion(on: time, calendar: calendar) != nil && saved.occasionPropsPlacedOn == day(of: time)
     }
 
     private func hour(of time: Date) -> Int { calendar.component(.hour, from: time) }

@@ -67,6 +67,15 @@ private let desk = m1.rest(at: .desk).x
     #expect(wide.occasionPropRect(perch: 3) == CGRect(x: 1085 + 392, y: 2, width: 12, height: 12))  // on the windowsill
 }
 
+@Test func admiringAnOccasionPropStandsWhereTheTourDidFromBothSides() {
+    for perch in 0..<4 {
+        let rect = m1.occasionPropRect(perch: perch)
+        for x in [rect.midX - 100, rect.midX + 100] {
+            #expect(m1.standingPoint(for: .admireOccasionProp(perch: perch), from: x) == m1.occasionStand(perch: perch, from: x))
+        }
+    }
+}
+
 @Test func pixReachesEachPerchWithItsRaisedHandFromTheSideItComesFrom() {
     // The tour, left to right from the desk: the bookcase from the right, then each next Perch from the left.
     #expect(m1.occasionStand(perch: 0, from: desk) == ErrandStand(x: 135, facingLeft: true))    // 121 + 6 + 8

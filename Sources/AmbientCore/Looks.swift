@@ -95,8 +95,9 @@ extension Moment {
 }
 
 extension Fidget {
-    /// How the Fidget looks; nil for refill, which runs the mug Errand rather than playing a body.
-    public var look: FidgetLook? {
+    /// How the Fidget looks on `occasion` (today's, if any); nil for refill and admire, which run Errands rather than
+    /// playing a body. Celebrating wears the Occasion's Emote.
+    public func look(on occasion: Occasion?) -> FidgetLook? {
         switch self {
         case .sip: FidgetLook(body: "sip")
         case .stretch: FidgetLook(body: "stretch")
@@ -107,7 +108,8 @@ extension Fidget {
         case .gaze: FidgetLook(body: "gaze")
         case .wave: FidgetLook(body: "wave")
         case .scratch: FidgetLook(body: "scratch")
-        case .refill: nil
+        case .refill, .admire: nil
+        case .celebrate: FidgetLook(body: "jump", emote: occasion == .halloween ? "pumpkin" : "star", extra: .hop)
         }
     }
 }
