@@ -13,5 +13,6 @@ struct RoutineEffects {
         }
         return { task.cancel() }
     }
-    var saveGarden: (Garden) -> Void = { Settings.garden = $0 }
+    /// What the Routine keeps between launches; the app wires the real write, so by default nothing is saved.
+    var save: (Routine.Saved) -> Void = { _ in }
 }

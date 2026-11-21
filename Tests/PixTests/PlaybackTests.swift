@@ -28,8 +28,9 @@ private final class PlaybackWaits {
 @MainActor
 private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playback, CALayer) {
     let playback = Playback(timing: waits.timing)
-    let world = CALayer()
-    playback.build(in: world, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)), at: spot, mood: .content)
+    let world = CALayer(), geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    world.position.x = geometry.scroll(for: spot)  // as the Room composition starts it: showing the start Spot's strip
+    playback.build(in: world, geometry: geometry, at: spot, mood: .content)
     waits.host = playback.pix
     return (playback, world)
 }
@@ -182,5 +183,101 @@ private func playing(_ waits: PlaybackWaits, at spot: Spot = .window) -> (Playba
     momentDone()
     #expect(finished == 1)
     #expect(playback.pix.sublayers?.contains { $0.animation(forKey: "frames")?.preferredFrameRateRange.maximum == 10 } == true)
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func aWalkBackFromAnotherStripScrollsTheRoomToIt() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .window)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    playback.run(.walkBack(to: .desk))
+    let slide = world.animation(forKey: "slide-position.x") as? CABasicAnimation
+    #expect(slide?.toValue as? CGFloat == geometry.scroll(for: .desk))
+    #expect(slide?.duration == playback.pix.animation(forKey: "slide-position.x")?.duration)
+    #expect(world.position.x == geometry.scroll(for: .desk))
+}
+
+@MainActor
+@Test func anErrandWalkOnOneStripDoesNotScrollTheRoom() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    playback.run(.errand(.switchLamp))
+    #expect(playback.pix.animation(forKey: "slide-position.x") != nil)
+    #expect(world.animation(forKey: "slide-position.x") == nil)
+    #expect(world.position.x == RoomGeometry(barWidth: CGFloat(Art.stripWidth)).scroll(for: .desk))
+}
+
+@MainActor
+@Test func theTourWalkToTheWindowPerchScrollsTheRoomToTheWindowStrip() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    playback.run(.tourWalk(perch: 3))
+    let stand = geometry.occasionStand(perch: 3, from: geometry.rest(at: .desk).x)
+    let slide = playback.pix.animation(forKey: "slide-position.x") as? CABasicAnimation
+    #expect(slide?.toValue as? CGFloat == stand.x)
+    #expect(world.position.x == geometry.scroll(toStripAt: stand.x))
+    #expect(playback.step == .tourWalk(perch: 3))
+}
+
+@MainActor
+@Test func placingAnOccasionPropFacesThePerchPlaysSwitchOnceAndFinishes() throws {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    var finished = 0
+    playback.onFinished = { finished += 1 }
+    playback.pix.position.x = geometry.occasionStand(perch: 0, from: geometry.rest(at: .desk).x).x
+    playback.run(.placeOccasionProp(perch: 0))
+    #expect(playback.step == .placeOccasionProp(perch: 0))
+    let frames = playback.pix.sublayers?.compactMap { $0.animation(forKey: "frames") as? CAKeyframeAnimation }.first
+    #expect(frames?.repeatCount == 1)
+    #expect(CATransform3DEqualToTransform(playback.pix.transform, facingLeft))  // it came from the right of the Perch's middle
+    let done = try #require(waits.transactions.last)
+    done()
+    done()
+    #expect(finished == 1)
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func aWalkOnTheDeskStripRecoversTheRoomAfterACrossStripWalkWasCutShort() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    playback.run(.walk(to: .window))  // the Room is now headed for the window strip
+    playback.pix.position.x = geometry.rest(at: .desk).x  // cut short while Pix is still on the desk strip
+    playback.run(.walk(to: .couch))
+    #expect(world.position.x == geometry.scroll(for: .couch))
+}
+
+@MainActor
+@Test func aFidgetPlaysItsLookOnceAndThenFinishes() throws {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .window)
+    var finished = 0
+    playback.onFinished = { finished += 1 }
+    let before = waits.transactions.count
+    playback.run(.fidget(.wave))
+    #expect(waits.transactions.count == before + 1)  // the Look's body plays as one finite transaction
+    #expect(finished == 0)
+    let bodyEnds = try #require(waits.transactions.last)
+    bodyEnds()
+    bodyEnds()
+    #expect(finished == 1)
+    withExtendedLifetime(world) {}
+}
+
+@MainActor
+@Test func theTourWalkToTheWindowPerchBringsTheWindowsSkyLifeIntoView() {
+    let waits = PlaybackWaits()
+    let (playback, world) = playing(waits, at: .desk)
+    var shown: [Bool] = []
+    playback.showSkyLife = { shown.append($0) }
+    playback.run(.tourWalk(perch: 0))  // the bookcase, on the desk strip
+    #expect(shown.isEmpty)
+    playback.run(.tourWalk(perch: 3))  // the windowsill
+    #expect(shown == [true])
     withExtendedLifetime(world) {}
 }

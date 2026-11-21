@@ -5,7 +5,7 @@ import AmbientCore
 
 @MainActor
 @Test func composedRoomPreservesDrawingOrderHostPolicyAndRebuildCleanup() throws {
-    let composition = RoomComposition(effects: RoutineEffects(saveGarden: { _ in }))
+    let composition = RoomComposition(effects: RoutineEffects())
     let host = CALayer()
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     let room = Room(spot: .window, activity: .other, mood: .content, fps: 12)
@@ -34,7 +34,7 @@ import AmbientCore
 
 @MainActor
 @Test func theMonitorsStayFullOfCodeThroughoutTheirScroll() throws {
-    let composition = RoomComposition(effects: RoutineEffects(saveGarden: { _ in }))
+    let composition = RoomComposition(effects: RoutineEffects())
     let host = CALayer()
     composition.build(in: host, geometry: RoomGeometry(barWidth: CGFloat(Art.stripWidth)),
                       room: Room(spot: .desk, activity: .coding, mood: .content, fps: 12))
@@ -56,7 +56,7 @@ import AmbientCore
 @MainActor
 private final class RoomExecution {
     let zone = TimeZone(secondsFromGMT: 0)!
-    var time = Date(timeIntervalSince1970: 12 * 3600)
+    var time = Date(timeIntervalSince1970: 86400 + 12 * 3600)  // 2 January 1970: New Year's Day would start the Occasion tour
     var reads = 0
     var transactions: [@MainActor () -> Void] = []
     var beats: [@MainActor () -> Void] = []
@@ -66,17 +66,17 @@ private final class RoomExecution {
     var garden = Garden()
     var captions: [Caption] = []
     var observations: [(Date, TimeZone)] = []
-    var saves: [Garden] = []
+    var saves: [Routine.Saved] = []
     let host = CALayer()
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
     lazy var composition: RoomComposition = {
         let composition = RoomComposition(
-            routine: Routine(timeZone: zone, random: { 0 }, garden: garden, thirstRandom: { 0 }),
+            routine: Routine(timeZone: zone, random: { 0 }, saved: .init(garden: garden), thirstRandom: { 0 }),
             effects: RoutineEffects(now: { self.reads += 1; return self.time }, wake: { deadline, work in
                 self.wakes.append(work)
                 self.deadlines.append(deadline)
                 return { self.cancellations += 1 }
-            }, saveGarden: { self.saves.append($0) }),
+            }, save: { self.saves.append($0) }),
             timing: PlaybackTiming(transaction: { animations, completion in
                 animations()
                 self.transactions.append(completion)
@@ -134,7 +134,7 @@ private func loops(in layer: CALayer) -> [(layer: String, key: String, animation
 @Test(arguments: [Spot.window, .desk])
 func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
     let execution = RoomExecution()
-    execution.time = ISO8601DateFormatter().date(from: "2026-10-31T22:00:00Z")!  // Halloween night: glows, bats and stars
+    execution.time = ISO8601DateFormatter().date(from: "2026-10-30T22:00:00Z")!  // a night in the Halloween season, not an Occasion (no tour): glows, bats and stars
     execution.build(at: spot)
     defer { execution.composition.stop() }
     let world = try #require(execution.composition.world)
@@ -160,7 +160,7 @@ func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
     execution.composition.update(to: Room(spot: .desk, activity: .other, mood: .content, fps: 6))
     #expect(execution.drawing("deskSteam") === oldSteam)  // a new cap re-caps the steam rather than redrawing it
     let step = execution.composition.step
-    execution.time = Date(timeIntervalSince1970: 17 * 3600)
+    execution.time = Date(timeIntervalSince1970: 86400 + 17 * 3600)
     execution.composition.refreshTime()
     #expect(execution.composition.step == step)
     #expect(!execution.composition.props.mugSteams)
@@ -265,7 +265,7 @@ func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
 @Test func composedSynchronousWalkCompletionSettlesBeforeBuildReturns() {
     let zone = TimeZone(secondsFromGMT: 0)!
     let composition = RoomComposition(routine: Routine(timeZone: zone),
-        effects: RoutineEffects(now: { Date(timeIntervalSince1970: 12 * 3600) }, saveGarden: { _ in }),
+        effects: RoutineEffects(now: { Date(timeIntervalSince1970: 86400 + 12 * 3600) }),
         timing: PlaybackTiming(transaction: { animations, completion in animations(); completion() }, after: { _, _ in {} }), timeZone: zone)
     let host = CALayer()
     let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
@@ -342,6 +342,97 @@ func aNewFrameCapReachesEverythingThatLoopsInTheRoom(at spot: Spot) throws {
     try execution.finish() // Return home.
     #expect(execution.saves.count == 1)
     let restored = RoomExecution()
-    restored.garden = execution.saves[0]
+    restored.garden = execution.saves[0].garden
     #expect(!restored.composition.props.thirstyPlants.contains(plant))
+}
+
+@MainActor
+@Test func anOrdinaryMinuteTickSavesNothing() {
+    let execution = RoomExecution()
+    execution.build()
+    defer { execution.composition.stop() }
+    let saves = execution.saves.count
+    execution.time += 60
+    execution.composition.refreshTime()
+    #expect(execution.saves.count == saves)
+}
+
+@MainActor
+@Test func startingTheOccasionTourSavesTheDayOnce() {
+    let execution = RoomExecution()
+    execution.time = Date(timeIntervalSince1970: 1_793_448_000)  // 2026-10-31 12:00 UTC, Halloween
+    execution.garden.adopt(Art.plantProps.map(Plant.init), at: execution.time, random: { 0 })  // nothing else to save
+    execution.build()
+    defer { execution.composition.stop() }
+    #expect(execution.composition.step == .tourWalk(perch: 0))
+    #expect(execution.saves.count == 1)
+    #expect(execution.saves[0].occasionPropsPlacedOn == "2026-10-31")
+}
+
+@MainActor
+@Test func theDaysOccasionPropsAreFourClassicCellsShownAsPixPlacesThemAndRedrawnByARebuild() throws {
+    let fixture = try ArtFixture()
+    defer { fixture.remove() }
+    let cells = Art.perches.count * Art.occasionProp
+    try fixture.draw(Art.occasionPropSheet("halloween"), in: fixture.classic, width: cells, height: Art.occasionProp, shade: 0.2)
+    try fixture.draw(Art.occasionPropSheet("halloween"), in: fixture.skin, width: cells, height: Art.occasionProp, shade: 0.9)  // a Skin's own sheet: never shown
+    let art = ArtFiles(classicFolder: fixture.classic, skin: fixture.skin)
+    // What the sheet looks like loaded from the Classic folder alone, and from the Skin's folder alone.
+    let classicBytes = try #require(ArtFiles(classicFolder: fixture.classic).occasionPropSheet(.halloween)?.dataProvider?.data as Data?)
+    let skinBytes = try #require(ArtFiles(classicFolder: fixture.skin).occasionPropSheet(.halloween)?.dataProvider?.data as Data?)
+    #expect(classicBytes != skinBytes)
+    let zone = TimeZone(secondsFromGMT: 0)!
+    var time = ISO8601DateFormatter().date(from: "2026-11-05T12:00:00Z")!
+    var pending: [@MainActor () -> Void] = []
+    let composition = RoomComposition(
+        routine: Routine(timeZone: zone, random: { 0 }),
+        effects: RoutineEffects(now: { time }, wake: { _, _ in {} }),
+        timing: PlaybackTiming(transaction: { animations, completion in animations(); pending.append(completion) }, after: { _, _ in {} }),
+        timeZone: zone, art: art)
+    let host = CALayer()
+    let geometry = RoomGeometry(barWidth: CGFloat(Art.stripWidth))
+    let room = Room(spot: .desk, activity: .coding, mood: .content, fps: 12)
+    func perches() throws -> [CALayer] {
+        let stage = try #require(composition.world?.sublayers?.first { $0.name == "occasionProps" })
+        return stage.sublayers?.filter { $0.name == "occasionProp" } ?? []
+    }
+    func finishStep() { pending.removeLast()() }
+
+    composition.build(in: host, geometry: geometry, room: room)  // an ordinary day
+    #expect(try perches().isEmpty)
+    composition.stop()
+
+    time = ISO8601DateFormatter().date(from: "2026-10-31T12:00:00Z")!
+    composition.build(in: host, geometry: geometry, room: room)  // the tour starts at once
+    #expect(composition.step == .tourWalk(perch: 0))
+    var layers = try perches()
+    #expect(layers.count == 4)
+    for (index, layer) in layers.enumerated() {
+        #expect(layer.frame == geometry.occasionPropRect(perch: index))
+        #expect(layer.contentsRect == slot(index, of: 4))
+        #expect(layer.magnificationFilter == .nearest)
+        let image = try #require(layer.contents) as! CGImage
+        #expect(image.width == cells)
+        #expect((image.dataProvider?.data as Data?) == classicBytes)
+        #expect((image.dataProvider?.data as Data?) != skinBytes)
+        #expect(layer.isHidden)
+    }
+    finishStep()  // at Perch 0
+    #expect(composition.step == .placeOccasionProp(perch: 0))
+    #expect(layers.map(\.isHidden) == [true, true, true, true])
+    finishStep()  // placed
+    #expect(composition.props.occasionPropsShown == 1)
+    #expect(layers.map(\.isHidden) == [false, true, true, true])
+    finishStep()
+    finishStep()
+    #expect(layers.map(\.isHidden) == [false, false, true, true])
+
+    composition.build(in: host, geometry: geometry, room: room)  // a rebuild mid-tour draws what was placed
+    layers = try perches()
+    #expect(layers.count == 4 && layers.allSatisfy { !$0.isHidden })
+
+    time = ISO8601DateFormatter().date(from: "2026-11-05T12:00:00Z")!
+    composition.refreshTime()
+    #expect(try perches().isEmpty)  // an ordinary day again: the Props are gone
+    composition.stop()
 }

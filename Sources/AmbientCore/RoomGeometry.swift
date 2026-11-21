@@ -31,7 +31,13 @@ public struct RoomGeometry: Sendable {
 
     /// Where the Room scrolls to so the Spot's strip is centered on the bar: on a wider bar its faded ends meet
     /// black, and on a narrower one both ends are cropped evenly.
-    public func scroll(for spot: Spot) -> CGFloat { -stripX(Art.spot(spot).strip) + (barWidth - CGFloat(Art.stripWidth)) / 2 }
+    public func scroll(for spot: Spot) -> CGFloat { scroll(toStripAt: rest(at: spot).x) }
+
+    /// Whether two places, in world points, are on the same strip.
+    public func onSameStrip(_ a: CGFloat, _ b: CGFloat) -> Bool { Int(a / stripPitch) == Int(b / stripPitch) }
+
+    /// Where the Room scrolls to so the strip a place (in world points) is on is centered on the bar.
+    public func scroll(toStripAt x: CGFloat) -> CGFloat { -stripPitch * CGFloat(Int(x / stripPitch)) + (barWidth - CGFloat(Art.stripWidth)) / 2 }
 
     /// Where Pix stands at an end of the window, on the Stroll.
     public func strollEnd(_ end: WindowEnd) -> CGFloat {
@@ -49,6 +55,8 @@ public struct RoomGeometry: Sendable {
             return ErrandStand(x: fromRight ? middle + reach : middle - reach, facingLeft: fromRight)
         case .refillMug:  // left of the coffee machine, the mug held out under its spout
             return ErrandStand(x: desk + Art.coffeeMachine.minX - CGFloat(Art.pourReach), facingLeft: false)
+        case .admireOccasionProp(let perch):  // where the tour stood to place it
+            return occasionStand(perch: perch, from: x)
         }
     }
 
@@ -75,7 +83,7 @@ public struct RoomGeometry: Sendable {
 
     /// A walk to a Spot: crossing to another strip scrolls the Room in 1.6 s; within a strip, longer walks take longer.
     public func walkDuration(from: CGFloat, to: CGFloat) -> Double {
-        Int(from / stripPitch) == Int(to / stripPitch) ? max(1.6, Double(abs(to - from) / 150)) : 1.6
+        onSameStrip(from, to) ? max(1.6, Double(abs(to - from) / 150)) : 1.6
     }
 
     /// Walking to and from a Prop: 40 points a second.

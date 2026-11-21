@@ -6,9 +6,9 @@ import AmbientCore
 /// A PixView with its scene built, on a window of its own. The view holds its window weakly: keep the window.
 @MainActor
 func builtView() async throws -> (view: PixView, window: NSWindow) {
-    // A fresh Garden and no saving: the machine's own defaults neither choose the plants' thirst nor get written.
+    // A fresh Garden and the default no-op save: the machine's own defaults neither choose the plants' thirst nor get written.
     let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30),
-                       routine: Routine(timeZone: .current), effects: RoutineEffects(saveGarden: { _ in }))
+                       routine: Routine(timeZone: .current), effects: RoutineEffects())
     let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.contentView = view
     view.show(Room(spot: .window, activity: .other, mood: .sleepy, fps: 12))
@@ -73,7 +73,7 @@ func particlesComingAndGoingDontFade(_ name: String) async throws {
     let zone = TimeZone(secondsFromGMT: 0)!
     let time = ISO8601DateFormatter().date(from: "2026-10-21T12:00:00Z")!
     let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30),
-                       routine: Routine(timeZone: zone), effects: RoutineEffects(now: { time }, saveGarden: { _ in }), timeZone: zone)
+                       routine: Routine(timeZone: zone), effects: RoutineEffects(now: { time }), timeZone: zone)
     let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.contentView = view
     view.show(Room(spot: .desk, activity: .coding, mood: .content, fps: 12))
@@ -92,7 +92,7 @@ func particlesComingAndGoingDontFade(_ name: String) async throws {
     var time = ISO8601DateFormatter().date(from: "2026-10-21T12:00:00Z")!
     var reads = 0
     let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30),
-                       routine: Routine(timeZone: zone), effects: RoutineEffects(now: { reads += 1; return time }, saveGarden: { _ in }), timeZone: zone)
+                       routine: Routine(timeZone: zone), effects: RoutineEffects(now: { reads += 1; return time }), timeZone: zone)
     let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
     window.contentView = view
     view.clockStyle = .twentyFourHour

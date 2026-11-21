@@ -60,8 +60,8 @@ final class PixView: NSView {
     private var clockFormat = PixView.format(for: .system)
 
     convenience override init(frame: NSRect) {
-        let garden = Settings.garden
-        self.init(frame: frame, routine: Routine(timeZone: .current, garden: garden), effects: RoutineEffects())
+        self.init(frame: frame, routine: Routine(timeZone: .current, saved: Settings.routine),
+                  effects: RoutineEffects(save: { Settings.routine = $0 }))
     }
 
     init(frame: NSRect, routine: Routine, effects: RoutineEffects, timeZone: TimeZone = .current, art: ArtFiles = ArtFiles(), timing: PixViewTiming = .live, playbackTiming: PlaybackTiming = .live) {

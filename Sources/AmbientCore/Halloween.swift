@@ -2,7 +2,7 @@ import CoreGraphics
 import Foundation
 
 /// Halloween's Occasion Props, and the Occasion season they stand in the Room for. Everything Halloween adds lives in
-/// this file, Sources/Pix/Halloween.swift, scripts/art/halloween.swift and Art/Halloween, so the season comes and goes
+/// this file, Sources/Pix/OccasionDrawings.swift, scripts/art/halloween.swift and Art/Halloween, so the season comes and goes
 /// with one commit.
 public enum Halloween {
     /// The Occasion season: October 24 through November 1, so a user who skips October 31 still finds the Room dressed.

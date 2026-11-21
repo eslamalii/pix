@@ -25,7 +25,7 @@ func pixIsFoundDoingWhatTheTimeOfDayAndTheAbsenceSuggest(hour: Int, minute: Int,
 
 /// A Routine whose Greeting, after the Pastime, arrives before the scene does, and then the scene starts at `spot`.
 func returning(to spot: Spot, after pastime: Pastime, greeting: Greeting = .hello, time: Date = at(12)) -> (routine: Routine, first: Routine.Step?) {
-    var routine = Routine(timeZone: utc, random: Dice([]).roll, garden: Garden(), thirstRandom: { 0 })
+    var routine = Routine(timeZone: utc, random: Dice([]).roll, saved: .init(), thirstRandom: { 0 })
     routine.handle(.momentArrived(.greeting(greeting, after: pastime)), at: time)
     let first = routine.handle(.sceneStarted(scene(spot)), at: time)
     return (routine, first)
@@ -111,7 +111,7 @@ func fromAnotherStripPixWalksToTheWindowBeforeItStrolls(pastime: Pastime) {
 }
 
 @Test func aGreetingAfterAPastimeIsNotReplacedByAMomentThatArrivesBeforeTheScene() {
-    var routine = Routine(timeZone: utc, random: Dice([]).roll, garden: Garden(), thirstRandom: { 0 })
+    var routine = Routine(timeZone: utc, random: Dice([]).roll, saved: .init(), thirstRandom: { 0 })
     routine.handle(.momentArrived(.greeting(.sleepy, after: .doze)), at: at(12))
     routine.handle(.momentArrived(.agentAsks), at: at(12))  // say, an Agent's hook launched Pix
     #expect(routine.handle(.sceneStarted(scene(.couch)), at: at(12)) == .pastime(.doze))

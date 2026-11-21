@@ -117,13 +117,15 @@ final class Playback {
         return token
     }
 
-    func run(_ step: Routine.Step, walkBody: String = "walk") {
+    func run(_ step: Routine.Step, walkBody: String = "walk", occasion: Occasion? = nil) {
         guard world != nil else { return }
         self.walkBody = walkBody
         // Relook changes the active step's appearance; it does not replace its lifetime.
         switch step {
         case .relook: break
-        default: self.step = step
+        case .walk, .idle, .moment, .fidget, .errand, .use, .walkBack, .dropNeedle, .pastime, .stroll, .stop, .tourWalk,
+             .placeOccasionProp:
+            self.step = step
         }
         switch step {
         case .walk(let spot):
@@ -135,7 +137,12 @@ final class Playback {
             playMoment(moment.look)
         case .fidget(let fidget):
             log.info("fidget: \(fidget.rawValue, privacy: .public)")
-            perform(fidget.rawValue, loops: 1)
+            if let look = fidget.look(on: occasion) {
+                perform(look.body, loops: look.loops, emote: look.emote) { view, duration in view.playExtra(look.extra, loops: look.loops, for: duration) }
+            } else {
+                _ = takeOver()
+                finish()  // refill and admire are Errands, so the Routine never hands them to Playback as a Fidget step
+            }
         case .errand(let errand):
             log.info("errand: \(errand.body, privacy: .public)")
             walk(.errand(to: geometry.standingPoint(for: errand, from: pix.position.x).x))
@@ -144,6 +151,14 @@ final class Playback {
             perform(errand.body, loops: 1)
         case .walkBack(let spot):
             walk(.errand(to: geometry.rest(at: spot).x))
+        case .tourWalk(let perch):
+            log.info("tour walk: \(perch)")
+            if Art.perches[perch].strip == Art.spot(.window).strip { showSkyLife(true) }  // the window comes into view, as on a walk to it
+            walk(.errand(to: geometry.occasionStand(perch: perch, from: pix.position.x).x))
+        case .placeOccasionProp(let perch):  // already at the Perch, on the side it came from
+            log.info("place occasion prop: \(perch)")
+            withoutAnimation { pix.transform = geometry.occasionStand(perch: perch, from: pix.position.x).facingLeft ? facingLeft : CATransform3DIdentity }
+            perform("switch", loops: 1)
         case .dropNeedle:
             withoutAnimation { faceGlow.isHidden = true }
             place(at: geometry.rest(at: .musicCorner), facing: CATransform3DIdentity)
@@ -213,15 +228,18 @@ final class Playback {
     /// A Moment's body, Emote, Caption and extra.
     private func playMoment(_ look: MomentLook) {
         showCaption(look.caption)
-        perform(look.body, loops: look.loops, emote: look.emote) { view, duration in
-            switch look.extra {
-            case .hop: view.hop(every: duration / Double(look.loops), times: look.loops)
-            case .hearts: view.burst("heart")
-            case .zzz: view.burst("zzz")
-            case .steam: view.steam(for: duration)
-            case .turnAway: view.turnAway()
-            case nil: break
-            }
+        perform(look.body, loops: look.loops, emote: look.emote) { view, duration in view.playExtra(look.extra, loops: look.loops, for: duration) }
+    }
+
+    /// Runs a Look's extra over a body that plays `loops` times in `duration` seconds.
+    private func playExtra(_ extra: Extra?, loops: Float, for duration: Double) {
+        switch extra {
+        case .hop: hop(every: duration / Double(loops), times: loops)
+        case .hearts: burst("heart")
+        case .zzz: burst("zzz")
+        case .steam: steam(for: duration)
+        case .turnAway: turnAway()
+        case nil: break
         }
     }
 
@@ -288,7 +306,7 @@ final class Playback {
         withoutAnimation { faceGlow.isHidden = true }
     }
 
-    /// Pix walks: to a Spot (scrolling the Room), on an Errand (to or from a Prop), or along the Stroll.
+    /// Pix walks: to a Spot, on an Errand (to or from a Prop), or along the Stroll; any walk to another strip scrolls the Room.
     private func walk(_ kind: WalkKind) {
         guard let world else { return }
         let mine = takeOver()
@@ -298,7 +316,6 @@ final class Playback {
         let fromX = pix.position.x
         let toX: CGFloat
         let duration: Double
-        let scrollTarget: CGFloat?
 
         switch kind {
         case .spot(let spot):
@@ -306,21 +323,21 @@ final class Playback {
             if spot == .window { showSkyLife(true) }  // the window comes into view during the walk
             toX = geometry.rest(at: spot).x
             duration = geometry.walkDuration(from: fromX, to: toX)
-            scrollTarget = geometry.scroll(for: spot)
 
         case .errand(let to):
             resetRestingEffects()
             toX = to
             duration = RoomGeometry.errandWalkDuration(from: fromX, to: toX)
-            scrollTarget = nil
 
         case .stroll(let to):
             toX = to
             duration = RoomGeometry.strollDuration(from: fromX, to: toX)
-            scrollTarget = nil
         }
 
         guard abs(toX - fromX) >= 1 else { return finish() }
+        // The Room scrolls to the end's strip unless it already shows (or is headed to) it, even if a cut-short walk left it elsewhere.
+        let strip = geometry.scroll(toStripAt: toX)
+        let scrollTarget = abs(world.position.x - strip) >= 0.5 ? strip : nil
 
         withoutAnimation {
             pix.transform = toX < fromX ? facingLeft : CATransform3DIdentity

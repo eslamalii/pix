@@ -4,7 +4,7 @@ import Testing
 import AmbientCore
 @testable import Pix
 
-private struct ArtFixture {
+struct ArtFixture {
     let root: URL
     var classic: URL { root.appendingPathComponent("Classic") }
     var skin: URL { root.appendingPathComponent("Skin") }
@@ -148,7 +148,7 @@ func invalidSkinHatSheetsUseClassic(size: (Int, Int)) throws {
     let otherArt = ArtFiles(classicFolder: fixture.classic)
     func makeView(_ art: ArtFiles) -> (PixView, NSWindow) {
         let view = PixView(frame: NSRect(x: 0, y: 0, width: CGFloat(Art.stripWidth), height: 30),
-                           routine: Routine(timeZone: zone), effects: RoutineEffects(now: { time }, saveGarden: { _ in }),
+                           routine: Routine(timeZone: zone), effects: RoutineEffects(now: { time }),
                            timeZone: zone, art: art)
         let window = NSWindow(contentRect: view.frame, styleMask: .borderless, backing: .buffered, defer: false)
         window.contentView = view
@@ -229,7 +229,7 @@ func invalidSkinHatSheetsUseClassic(size: (Int, Int)) throws {
     var time = date("2026-10-23T23:59:00Z")
     let composition = RoomComposition(
         routine: Routine(timeZone: zone, random: { 0 }),
-        effects: RoutineEffects(now: { time }, wake: { _, _ in {} }, saveGarden: { _ in }),
+        effects: RoutineEffects(now: { time }, wake: { _, _ in {} }),
         timing: PlaybackTiming(transaction: { animations, _ in animations() }, after: { _, _ in {} }),
         timeZone: zone, art: art)
     let host = CALayer()

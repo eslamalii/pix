@@ -88,7 +88,7 @@ The Moment when the Character notices the user arriving: when it starts up, or w
 _Avoid_: welcome, hello, wake-up
 
 **Fidget**:
-A small thing the Character does on its own while idling, now and then (looking around, refilling the mug) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
+A small thing the Character does on its own while idling, now and then (looking around, refilling the mug, celebrating on an Occasion's day) or at a time of day (switching the lamp on at dusk). Unlike a Moment, it answers nothing the user did.
 _Avoid_: idle animation, tic, flourish
 
 **Pastime**:

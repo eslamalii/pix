@@ -14,7 +14,7 @@ private func listed(_ moment: Moment, _ errand: Errand) -> Bool {
     switch moment {
     case .reaction, .pause, .greeting, .charging, .focusStarted, .focusDone, .agentAsks, .agentDone, .agentFailed, .newHat, .overheated: break
     }
-    switch errand { case .switchLamp, .waterPlant, .refillMug: return true }
+    switch errand { case .switchLamp, .waterPlant, .refillMug, .admireOccasionProp: return true }
 }
 
 let everyRoom: [Room] = Spot.allCases.flatMap { spot in
@@ -39,9 +39,16 @@ func everyMomentIsDrawnFromTheArtContract(moment: Moment) {
 }
 
 @Test func everyFidgetErrandAndStrollStopIsABody() {
-    for fidget in Fidget.allCases where fidget != .refill { #expect(bodies.contains(fidget.rawValue), "fidget \(fidget)") }  // refill is an Errand
-    #expect(Set(everyRoom.flatMap { room in [Fidget.sip, .refill].flatMap { Routine.fidgets(for: room, coffee: $0) } }) == Set(Fidget.allCases))
-    for errand in [Errand.switchLamp, .waterPlant(deskPlant), .refillMug] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
+    for occasion in Occasion.allCases.map(Optional.some) + [nil] {
+        for fidget in Fidget.allCases {
+            guard let look = fidget.look(on: occasion) else { continue }
+            #expect(bodies.contains(look.body), "fidget \(fidget)")
+            if let emote = look.emote { #expect(Art.emotes.contains(emote), "fidget emote \(emote)") }
+        }
+        #expect(Fidget.allCases.filter { $0.look(on: occasion) == nil } == [.refill, .admire])  // Errands
+    }
+    #expect(Set(everyRoom.flatMap { room in [Fidget.sip, .refill].flatMap { coffee in [false, true].flatMap { Routine.fidgets(for: room, coffee: coffee, festive: $0) } } }) == Set(Fidget.allCases))
+    for errand in [Errand.switchLamp, .waterPlant(deskPlant), .refillMug, .admireOccasionProp(perch: 0)] { #expect(bodies.contains(errand.body), "errand \(errand.body)") }
     for end in [WindowEnd.left, .right] { if let body = end.stopBody { #expect(bodies.contains(body), "stroll stop \(body)") } }
 }
 

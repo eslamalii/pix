@@ -67,6 +67,15 @@ private let desk = m1.rest(at: .desk).x
     #expect(wide.occasionPropRect(perch: 3) == CGRect(x: 1085 + 392, y: 2, width: 12, height: 12))  // on the windowsill
 }
 
+@Test func admiringAnOccasionPropStandsWhereTheTourDidFromBothSides() {
+    for perch in 0..<4 {
+        let rect = m1.occasionPropRect(perch: perch)
+        for x in [rect.midX - 100, rect.midX + 100] {
+            #expect(m1.standingPoint(for: .admireOccasionProp(perch: perch), from: x) == m1.occasionStand(perch: perch, from: x))
+        }
+    }
+}
+
 @Test func pixReachesEachPerchWithItsRaisedHandFromTheSideItComesFrom() {
     // The tour, left to right from the desk: the bookcase from the right, then each next Perch from the left.
     #expect(m1.occasionStand(perch: 0, from: desk) == ErrandStand(x: 135, facingLeft: true))    // 121 + 6 + 8
@@ -131,4 +140,20 @@ private let desk = m1.rest(at: .desk).x
     #expect(m1.place(of: .doze) == m1.rest(at: .couch))  // sitting on the couch
     #expect(m1.place(of: .gaze) == m1.rest(at: .window))
     #expect(m1.place(of: .coffee) == CGPoint(x: 613, y: 3))  // beside the coffee machine: 618 - 5, on the floor
+}
+
+@Test func twoPlacesAreOnTheSameStripWhenNeitherCrossesToTheOther() {
+    for geometry in [m1, wide, narrow] {
+        #expect(geometry.onSameStrip(192, 804))  // within the desk strip
+        #expect(geometry.onSameStrip(geometry.rest(at: .window).x, geometry.strollEnd(.left)))  // within the window strip
+        #expect(!geometry.onSameStrip(492, geometry.rest(at: .window).x))
+        #expect(!geometry.onSameStrip(geometry.rest(at: .window).x, 492))
+    }
+}
+
+@Test func theRoomScrollsToTheStripAPlaceIsOnWhicheverSpotItIs() {
+    for geometry in [m1, wide, narrow] {
+        for spot in Spot.allCases { #expect(geometry.scroll(toStripAt: geometry.rest(at: spot).x) == geometry.scroll(for: spot)) }
+    }
+    #expect(wide.scroll(toStripAt: wide.strollEnd(.right)) == wide.scroll(for: .window))
 }

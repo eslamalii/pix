@@ -10,14 +10,14 @@ final class RoomComposition {
     private let art: ArtFiles
     private var routine: Routine
     private let effects: RoutineEffects
-    private var savedGarden: Garden
+    private var lastSaved: Routine.Saved
     private var cancelWake: (() -> Void)?
     /// Bumped with each wake asked for, so a superseded one that fires anyway can't reach the Routine.
     private var wakeGeneration = 0
     private var calendar: Calendar
     private var room: Room?
-    private lazy var halloween = HalloweenLayers(art: art)
-    private lazy var sky = RoomSky(halloween: halloween, art: art)
+    private lazy var occasions = OccasionDrawings(art: art)
+    private lazy var sky = RoomSky(occasions: occasions, art: art)
     private(set) var world: CALayer?
     private var monitors: [CALayer] = []
 
@@ -38,7 +38,7 @@ final class RoomComposition {
         self.routine = routine
         self.effects = effects
         self.art = art
-        savedGarden = routine.garden
+        lastSaved = routine.saved
         props = routine.props(at: effects.now())
         playback = Playback(timing: timing, art: art)
         propDrawing = RoomProps(art: art)
@@ -72,7 +72,7 @@ final class RoomComposition {
         }
         monitors = Art.monitors.map { scrollingCode(in: geometry.rect($0, on: "desk"), fps: room.fps) }
         monitors.forEach(world.addSublayer)
-        halloween.build(in: world, geometry: geometry, frameRange: capped(room.fps))
+        occasions.build(in: world, geometry: geometry, frameRange: capped(room.fps))
         playback.fps = room.fps
         playback.build(in: world, geometry: geometry, at: start, mood: room.mood)
         propDrawing.build(in: world, geometry: geometry)
@@ -104,9 +104,9 @@ final class RoomComposition {
         let step = routine.handle(event, at: time)
         props = routine.props(at: time)
         askForWake()
-        if routine.garden != savedGarden {
-            effects.saveGarden(routine.garden)
-            savedGarden = routine.garden
+        if routine.saved != lastSaved {
+            effects.save(routine.saved)
+            lastSaved = routine.saved
         }
         if world != nil {
             switch event {
@@ -117,7 +117,8 @@ final class RoomComposition {
             }
         }
         propDrawing.update(props, fps: fps)
-        if let step { playback.run(step, walkBody: props.walkBody) }
+        occasions.update(props)
+        if let step { playback.run(step, walkBody: props.walkBody, occasion: props.occasion) }
         return step
     }
 
